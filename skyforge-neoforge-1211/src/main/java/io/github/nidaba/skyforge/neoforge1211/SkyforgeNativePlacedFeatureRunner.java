@@ -173,7 +173,7 @@ final class SkyforgeNativePlacedFeatureRunner {
             // First LAKES capability admits the native bounded LakeFeature type generically by
             // configured-feature class, never by registry ID. Unknown custom LAKES feature types
             // remain fail-closed until they expose an equivalent whole-footprint contract.
-            return new Result(false, 0, null);
+            return new Result(false, 0, 0, 0, null);
         }
 
         try (var domain = SkyforgeGenerationDomainStage.openIsland(operation.volumeId());
@@ -201,6 +201,8 @@ final class SkyforgeNativePlacedFeatureRunner {
             return new Result(
                     placed,
                     execution.execution().attachmentCount(),
+                    execution.execution().writePreflightRejections(),
+                    execution.execution().writeDecisionRejections(),
                     operation.generationStep()
                                     == net.minecraft.world.level.levelgen.GenerationStep.Decoration.LAKES.ordinal()
                             ? lakeAdmission.snapshot()
@@ -247,10 +249,12 @@ final class SkyforgeNativePlacedFeatureRunner {
     record Result(
             boolean placed,
             int attachmentWrites,
+            int writePreflightRejections,
+            int writeDecisionRejections,
             SkyforgeNativeLakeAdmissionStage.Snapshot lakeAdmission) {
         Result {
-            if (attachmentWrites < 0) {
-                throw new IllegalArgumentException("attachmentWrites must be non-negative");
+            if (attachmentWrites < 0 || writePreflightRejections < 0 || writeDecisionRejections < 0) {
+                throw new IllegalArgumentException("feature write evidence counts must be non-negative");
             }
         }
     }

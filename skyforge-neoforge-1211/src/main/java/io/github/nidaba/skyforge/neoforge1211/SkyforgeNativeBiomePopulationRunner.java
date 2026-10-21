@@ -275,7 +275,12 @@ final class SkyforgeNativeBiomePopulationRunner {
                     rejectedLakeOrigins.addAll(lake.rejectedOrigins());
                 }
             }
-            featureResults.add(new FeatureResult(featureKey, result.placed(), result.attachmentWrites()));
+            featureResults.add(new FeatureResult(
+                    featureKey,
+                    result.placed(),
+                    result.attachmentWrites(),
+                    result.writePreflightRejections(),
+                    result.writeDecisionRejections()));
             if (Boolean.getBoolean(BIOME_PROOF_PROPERTY) && treeFeature) {
                 LOGGER.log(
                         System.Logger.Level.INFO,
@@ -385,11 +390,13 @@ final class SkyforgeNativeBiomePopulationRunner {
     record FeatureResult(
             ResourceLocation featureKey,
             boolean placed,
-            int attachmentWrites) {
+            int attachmentWrites,
+            int writePreflightRejections,
+            int writeDecisionRejections) {
         FeatureResult {
             Objects.requireNonNull(featureKey, "featureKey");
-            if (attachmentWrites < 0) {
-                throw new IllegalArgumentException("feature attachmentWrites must be non-negative");
+            if (attachmentWrites < 0 || writePreflightRejections < 0 || writeDecisionRejections < 0) {
+                throw new IllegalArgumentException("feature write evidence counts must be non-negative");
             }
         }
     }

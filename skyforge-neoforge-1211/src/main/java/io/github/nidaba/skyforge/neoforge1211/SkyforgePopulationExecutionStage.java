@@ -166,6 +166,8 @@ final class SkyforgePopulationExecutionStage {
         private final CachedBlockPredicate ownerSolid;
         private final CachedBlockPredicate foreignSolid;
         private final SkyforgePopulationAttachmentEnvelope attachmentEnvelope;
+        private int writePreflightRejections;
+        private int writeDecisionRejections;
 
         private Execution(
                 Optional<WorldGenLevel> level,
@@ -246,6 +248,22 @@ final class SkyforgePopulationExecutionStage {
                 return false;
             }
             return attachmentEnvelope.acceptWrite(position);
+        }
+
+        void recordWritePreflightRejection() {
+            writePreflightRejections = Math.addExact(writePreflightRejections, 1);
+        }
+
+        void recordWriteDecisionRejection() {
+            writeDecisionRejections = Math.addExact(writeDecisionRejections, 1);
+        }
+
+        int writePreflightRejections() {
+            return writePreflightRejections;
+        }
+
+        int writeDecisionRejections() {
+            return writeDecisionRejections;
         }
 
         int attachmentCount() {

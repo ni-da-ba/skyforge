@@ -65,15 +65,19 @@ public final class SkyforgeWorldGenRegionDomainBridge {
      */
     public static boolean canWrite(BlockPos position) {
         Objects.requireNonNull(position, "position");
+        var execution = SkyforgePopulationExecutionStage.activeExecution();
         if (!SkyforgeStructurePlacementExecutionStage.canWrite(position)) {
+            execution.ifPresent(SkyforgePopulationExecutionStage.Execution::recordWritePreflightRejection);
             return false;
         }
-        var execution = SkyforgePopulationExecutionStage.activeExecution();
         if (execution.isEmpty()) {
             return true;
         }
         var active = execution.orElseThrow();
         boolean accepted = active.canWrite(position);
+        if (!accepted) {
+            active.recordWritePreflightRejection();
+        }
         SkyforgeUndergroundPlacementProbe.observeWritePreflight(
                 active.operation(),
                 position,
@@ -83,15 +87,19 @@ public final class SkyforgeWorldGenRegionDomainBridge {
 
     public static boolean acceptWrite(BlockPos position) {
         Objects.requireNonNull(position, "position");
+        var execution = SkyforgePopulationExecutionStage.activeExecution();
         if (!SkyforgeStructurePlacementExecutionStage.canWrite(position)) {
+            execution.ifPresent(SkyforgePopulationExecutionStage.Execution::recordWriteDecisionRejection);
             return false;
         }
-        var execution = SkyforgePopulationExecutionStage.activeExecution();
         if (execution.isEmpty()) {
             return true;
         }
         var active = execution.orElseThrow();
         boolean accepted = active.acceptWrite(position);
+        if (!accepted) {
+            active.recordWriteDecisionRejection();
+        }
         SkyforgeUndergroundPlacementProbe.observeWriteDecision(
                 active.operation(),
                 position,
@@ -103,15 +111,19 @@ public final class SkyforgeWorldGenRegionDomainBridge {
     public static boolean acceptWrite(BlockPos position, BlockState state) {
         Objects.requireNonNull(position, "position");
         Objects.requireNonNull(state, "state");
+        var execution = SkyforgePopulationExecutionStage.activeExecution();
         if (!SkyforgeStructurePlacementExecutionStage.canWrite(position)) {
+            execution.ifPresent(SkyforgePopulationExecutionStage.Execution::recordWriteDecisionRejection);
             return false;
         }
-        var execution = SkyforgePopulationExecutionStage.activeExecution();
         if (execution.isEmpty()) {
             return true;
         }
         var active = execution.orElseThrow();
         boolean accepted = active.acceptWrite(position, state);
+        if (!accepted) {
+            active.recordWriteDecisionRejection();
+        }
         SkyforgeUndergroundPlacementProbe.observeWriteDecision(
                 active.operation(),
                 position,

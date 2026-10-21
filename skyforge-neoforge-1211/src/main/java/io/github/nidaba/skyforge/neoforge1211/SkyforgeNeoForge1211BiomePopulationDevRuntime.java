@@ -217,8 +217,12 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                         Map.entry("eligibleChunks", eligibleProofChunks.size()),
                         Map.entry("lowerBiome", lowerAggregate.biomeKey().location()),
                         Map.entry("lowerSuccessfulFeatures", lowerAggregate.successfulFeatures),
+                        Map.entry("lowerWritePreflightRejections", lowerAggregate.writePreflightRejections),
+                        Map.entry("lowerWriteDecisionRejections", lowerAggregate.writeDecisionRejections),
                         Map.entry("lowerPersistentTreeEvidence", lowerAggregate.hasTreeEvidence()),
                         Map.entry("upperSuccessfulFeatures", upperAggregate.successfulFeatures),
+                        Map.entry("upperWritePreflightRejections", upperAggregate.writePreflightRejections),
+                        Map.entry("upperWriteDecisionRejections", upperAggregate.writeDecisionRejections),
                         Map.entry("upperPersistentTreeEvidence", upperAggregate.hasTreeEvidence()),
                         Map.entry("exteriorWitnessChunk", EXTERIOR_WITNESS_CHUNK),
                         Map.entry("exteriorNonAirBlocks", exteriorNonAirBlocks)));
@@ -805,6 +809,8 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                         + ", attempted=" + lowerAggregate.attemptedFeatures
                         + ", successful=" + lowerAggregate.successfulFeatures
                         + ", attachments=" + lowerAggregate.attachmentWrites
+                        + ", writePreflightRejections=" + lowerAggregate.writePreflightRejections
+                        + ", writeDecisionRejections=" + lowerAggregate.writeDecisionRejections
                         + ", logs=" + lowerAggregate.logBlocks
                         + ", leaves=" + lowerAggregate.leafBlocks
                         + ", sharedColumns=" + lowerAggregate.sharedColumns
@@ -813,6 +819,8 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                         + ", attempted=" + upperAggregate.attemptedFeatures
                         + ", successful=" + upperAggregate.successfulFeatures
                         + ", attachments=" + upperAggregate.attachmentWrites
+                        + ", writePreflightRejections=" + upperAggregate.writePreflightRejections
+                        + ", writeDecisionRejections=" + upperAggregate.writeDecisionRejections
                         + ", logs=" + upperAggregate.logBlocks
                         + ", leaves=" + upperAggregate.leafBlocks
                         + ", sharedColumns=" + upperAggregate.sharedColumns
@@ -996,7 +1004,10 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         if (aggregate.successfulFeatures == 0) {
             throw new IllegalStateException(label + " proof biome produced no successful native vegetation placements "
                     + "across " + aggregate.chunks + " eligible deterministic chunks; attempted="
-                    + aggregate.attemptedFeatures + ", features=" + aggregate.featureKeys);
+                    + aggregate.attemptedFeatures
+                    + ", writePreflightRejections=" + aggregate.writePreflightRejections
+                    + ", writeDecisionRejections=" + aggregate.writeDecisionRejections
+                    + ", features=" + aggregate.featureKeys);
         }
         if (!aggregate.hasTreeEvidence()) {
             throw new IllegalStateException(label + " proof biome reported native feature success but produced no "
@@ -1093,6 +1104,8 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         private int attachmentWrites;
         private int logBlocks;
         private int leafBlocks;
+        private int writePreflightRejections;
+        private int writeDecisionRejections;
         private int sharedColumns;
         private final Set<ResourceLocation> featureKeys = new LinkedHashSet<>();
 
@@ -1113,6 +1126,12 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             leafBlocks = Math.addExact(leafBlocks, vegetation.leafBlocks());
             sharedColumns = Math.addExact(sharedColumns, chunkSharedColumns);
             featureKeys.addAll(result.featureKeys());
+            for (SkyforgeNativeBiomePopulationRunner.FeatureResult feature : result.featureResults()) {
+                writePreflightRejections =
+                        Math.addExact(writePreflightRejections, feature.writePreflightRejections());
+                writeDecisionRejections =
+                        Math.addExact(writeDecisionRejections, feature.writeDecisionRejections());
+            }
         }
 
         boolean hasTreeEvidence() {
