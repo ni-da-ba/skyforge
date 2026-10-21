@@ -103,10 +103,9 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 }
 
                 // Provider terrain is a local shape signal on a floating island, not
-                // an absolute elevation datum. A bounded quadratic curve preserves source variation below
-                // the saturation range and concentrates high relief into the extension envelope.
-                // Provider-owned rises remain bounded above the authored top; Skyforge footprint,
-                // body, and underside remain untouched.
+                // an absolute elevation datum. A bounded linear curve transfers signed source relief
+                // into the extension envelope. Provider-owned rises remain bounded above the authored
+                // top; Skyforge footprint, body, and underside remain untouched.
                 long providerRelief = (long) nativeSurface.orElseThrow().worldY() - snapshot.baselineY();
                 long projectedProviderRelief = projectProviderRelief(providerRelief);
                 long desiredY = (long) originalTopY + projectedProviderRelief;
@@ -208,15 +207,16 @@ public final class MinecraftNativeSurfaceTopAdapter {
     }
 
     /**
-     * Falling provider surfaces keep the authored Skyforge cap's stable surface material.
+     * Provider profile materials may replace the authored cap only when they preserve a stable,
+     * coherent island surface.
      *
-     * <p>Even directly supported gravel can form a visually isolated island-sized patch when a
-     * provider's surface rule selects it across a distinct feature region. The provider still
-     * controls the projected height profile; Skyforge's authored cap supplies a coherent stable
-     * surface at those columns.
+     * <p>Falling blocks can settle through hollow seams, and provider-selected stone can form an
+     * isolated gray patch on a non-stone Skyforge cap. In either case the authored cap material
+     * remains the surface while provider relief still controls the projected height profile.
      */
     private static boolean stableTerrainProfileMaterial(ResourceLocation materialKey) {
         return !SkyforgeMinecraftBlockPalette.AIR.equals(materialKey)
+                && !SkyforgeMinecraftBlockPalette.STONE.equals(materialKey)
                 && !(BuiltInRegistries.BLOCK.get(materialKey) instanceof FallingBlock);
     }
 

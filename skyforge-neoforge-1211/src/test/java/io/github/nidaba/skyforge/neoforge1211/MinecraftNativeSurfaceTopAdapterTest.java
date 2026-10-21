@@ -147,6 +147,45 @@ final class MinecraftNativeSurfaceTopAdapterTest {
     }
 
     @Test
+    void providerStoneKeepsTheAuthoredCapMaterialAcrossProjectedRelief() {
+        var catalog = SkyforgeNeoForge1211PopulationDevRuntime.catalog();
+        var volume = catalog.volumes().getFirst();
+        ChunkPos chunkPos = new ChunkPos(0, 0);
+        ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(chunkPos);
+        var adapter = new SkyforgeNeoForge1211ChunkAdapter(
+                catalog,
+                io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette());
+        MinecraftChunkMaterialization original = adapter.materialize(
+                volume.id(),
+                chunkPos,
+                chunk.getMinBuildHeight(),
+                chunk.getHeight());
+        var support = adapter.integerSolidRange(volume.id(), 8, 8).orElseThrow();
+        ResourceLocation authoredCapSurface = original.blockKeyAt(8, support.maximumY(), 8);
+
+        chunk.setBlockState(
+                new BlockPos(8, 223, 8),
+                Blocks.STONE.defaultBlockState(),
+                false);
+        var profile = new MinecraftNativeSurfaceTopAdapter().adaptTerrainProfile(
+                MinecraftNativeSurfaceSnapshot.capture(chunk, 63),
+                original,
+                adapter);
+
+        int projectedTopY = Math.min(
+                support.maximumY() + 64,
+                Math.min(
+                        chunk.getMaxBuildHeight() - 1,
+                        (int) Math.floor(volume.bounds().maximumY()) + 64));
+        assertTrue(projectedTopY > support.maximumY(), "provider relief should still shape the island");
+        assertEquals(
+                authoredCapSurface,
+                profile.materialization().blockKeyAt(8, projectedTopY, 8),
+                "provider stone must not create an isolated surface patch over a different authored cap");
+    }
+
+    @Test
     void fallingNativeSurfaceIsSkippedEvenWhenTheSkyforgeTopHasSupport() {
         ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(new ChunkPos(0, 0));
         chunk.setBlockState(new BlockPos(0, 64, 0), Blocks.SAND.defaultBlockState(), false);
