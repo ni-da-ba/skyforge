@@ -59,7 +59,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             System.getProperty(UPPER_BIOME_PROPERTY, "minecraft:taiga"));
     private static final int PROVIDER_MODE_MINIMUM_ELIGIBLE_CHUNKS = 1;
     private static final long ROOT_SEED = 0x5346494d50303054L;
-    private static final int PROOF_RADIUS_CHUNKS = 4;
+    private static final int PROOF_RADIUS_CHUNKS = 8;
     private static final ChunkPos EXTERIOR_WITNESS_CHUNK = new ChunkPos(10, 0);
     private static final int MAXIMUM_PROVIDER_PROOF_CHUNKS = 16;
     private static final int PROVIDER_PREFLIGHT_QUART_STEP = 4;
