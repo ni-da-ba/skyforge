@@ -159,3 +159,10 @@ The minimum-datum A/B run measured datum Y=271 against source Y=271–300, but t
 ## Provider-write diagnosis — in progress
 
 At the failed exact head, the captured provider snapshot and base-column sampler agree at Y=271–300, with 255 of 256 columns above the Y=271 datum, yet the realized island is unchanged. This rules out provider snapshot and datum mismatch. The development writer now records exact claimed-cell counts, admission rejections, occupied positions, and successful provider writes in the Tectonic acceptance log. Use that accounting to isolate the remaining write-path failure before further terrain tuning.
+
+
+## Tectonic relief amplification follow-up — in progress
+
+The owner reports that successive Tectonic specimens remain visually too similar. The current profile uses the origin chunk's minimum provider surface as its datum and maps the resulting positive relief one-to-one onto Skyforge's cap. This provider-profile experiment doubles the sampled relief and raises the provider-owned top-rise ceiling to 64 blocks. This yields a substantially taller, more legible terrain profile while keeping the same exact X/Z island footprint and exact-volume claims. The multiplier is shared by the vanilla control and Tectonic treatment so the A/B isolates the provider's native profile; actual output remains bounded by exact ownership checks and the 64-block ceiling.
+
+The exact-head fixture now requires at least 48 blocks of realized vertical range, a ridge at or above Y=300, and records the relief multiplier. Machine success still does not establish visual coherence. The Tectonic treatment must again be reviewed for visible terrain, stable surface seams, island spawn, intact underside, and surrounding void.
