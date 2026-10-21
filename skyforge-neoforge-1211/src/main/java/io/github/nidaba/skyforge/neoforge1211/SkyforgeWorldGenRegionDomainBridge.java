@@ -150,9 +150,12 @@ public final class SkyforgeWorldGenRegionDomainBridge {
                 heightmapType,
                 minimumY,
                 height);
-        return claim.isPresent()
-                ? OptionalInt.of(claim.orElseThrow().height())
-                : OptionalInt.of(minimumY);
+        if (claim.isEmpty()) {
+            return OptionalInt.of(minimumY);
+        }
+        int nativeSurfaceSpread = execution.orElseThrow().surfaceRandomPatchHeightSpread();
+        long placementOriginY = (long) claim.orElseThrow().height() - nativeSurfaceSpread;
+        return OptionalInt.of(Math.toIntExact(Math.max((long) minimumY, placementOriginY)));
     }
 
     /**
