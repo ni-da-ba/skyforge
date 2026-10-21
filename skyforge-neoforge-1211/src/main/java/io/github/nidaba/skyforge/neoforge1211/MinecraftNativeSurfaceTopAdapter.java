@@ -21,7 +21,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
     private static final int CHUNK_WIDTH = 16;
     static final int MAX_PROVIDER_SURFACE_RISE_BLOCKS = 64;
     static final int PROVIDER_RELIEF_CURVE_REFERENCE_BLOCKS = 160;
-    static final String PROVIDER_RELIEF_MAPPING = "bounded_signed_quadratic_160";
+    static final String PROVIDER_RELIEF_MAPPING = "bounded_signed_linear_160";
 
     /**
      * Compatibility overload for isolated tests and direct adapter usage.
@@ -40,7 +40,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
      * Projects native provider relief onto the exposed top cap of composite Skyforge terrain.
      *
      * <p>The provider's surface height is interpreted relative to its captured world-fixed
-     * baseline, then passed through a bounded quadratic relief curve onto the existing Skyforge
+     * baseline, then passed through a bounded linear relief curve onto the existing Skyforge
      * surface. The result is clamped to the chunk build range and a bounded 64-block extension
      * above the authored top-volume bound. Only newly added positions receive provider claims; the
      * compiled island footprint, lower body, and underside stay authoritative.
@@ -161,10 +161,10 @@ public final class MinecraftNativeSurfaceTopAdapter {
         long magnitude = Math.min(
                 providerRelief == Long.MIN_VALUE ? Long.MAX_VALUE : Math.abs(providerRelief),
                 PROVIDER_RELIEF_CURVE_REFERENCE_BLOCKS);
-        long referenceSquared = (long) PROVIDER_RELIEF_CURVE_REFERENCE_BLOCKS
-                * PROVIDER_RELIEF_CURVE_REFERENCE_BLOCKS;
-        long numerator = (long) MAX_PROVIDER_SURFACE_RISE_BLOCKS * magnitude * magnitude;
-        long projectedMagnitude = (numerator + referenceSquared / 2) / referenceSquared;
+        long numerator = (long) MAX_PROVIDER_SURFACE_RISE_BLOCKS * magnitude;
+        long projectedMagnitude =
+                (numerator + PROVIDER_RELIEF_CURVE_REFERENCE_BLOCKS / 2)
+                        / PROVIDER_RELIEF_CURVE_REFERENCE_BLOCKS;
         return providerRelief < 0 ? -projectedMagnitude : projectedMagnitude;
     }
 
