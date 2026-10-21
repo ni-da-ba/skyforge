@@ -24,6 +24,8 @@ final class SkyforgePopulationExecutionStage {
     private static final int MAX_WRITE_PREFLIGHT_EVIDENCE_SAMPLES = 32;
     private static final AtomicInteger WRITE_PREFLIGHT_EVIDENCE_COUNT = new AtomicInteger();
     private static final ConcurrentLinkedQueue<String> WRITE_PREFLIGHT_EVIDENCE = new ConcurrentLinkedQueue<>();
+    private static final boolean SURFACE_SUPPORT_DIAGNOSTICS =
+            Boolean.getBoolean("skyforge.dev.biomePopulation");
     private static final int MAX_SURFACE_SUPPORT_READ_EVIDENCE_SAMPLES = 16;
     private static final AtomicInteger SURFACE_SUPPORT_READ_COUNT = new AtomicInteger();
     private static final AtomicInteger SURFACE_SUPPORT_READ_HITS = new AtomicInteger();
@@ -132,6 +134,9 @@ final class SkyforgePopulationExecutionStage {
     }
 
     private static void recordSurfaceSupportRead(BlockPos position, Optional<BlockState> state) {
+        if (!SURFACE_SUPPORT_DIAGNOSTICS) {
+            return;
+        }
         int sampleIndex = SURFACE_SUPPORT_READ_COUNT.getAndIncrement();
         if (state.isPresent()) {
             SURFACE_SUPPORT_READ_HITS.incrementAndGet();
