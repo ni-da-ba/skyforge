@@ -1143,6 +1143,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                         + ",attachmentWrites=" + feature.attachmentWrites()
                         + ",writePreflightRejections=" + feature.writePreflightRejections()
                         + ",writeDecisionRejections=" + feature.writeDecisionRejections()
+                        + ",treeProbe=" + feature.treeProbe()
                         + "}");
             }
         }
