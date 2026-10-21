@@ -1005,8 +1005,10 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             throw new IllegalStateException(label + " proof biome produced no successful native vegetation placements "
                     + "across " + aggregate.chunks + " eligible deterministic chunks; attempted="
                     + aggregate.attemptedFeatures
+                    + ", attachmentWrites=" + aggregate.attachmentWrites
                     + ", writePreflightRejections=" + aggregate.writePreflightRejections
                     + ", writeDecisionRejections=" + aggregate.writeDecisionRejections
+                    + ", featureResults=" + aggregate.featureOutcomeEvidence
                     + ", writePreflightEvidence=" + SkyforgePopulationExecutionStage.writePreflightRejectionEvidence()
                     + ", features=" + aggregate.featureKeys);
         }
@@ -1109,6 +1111,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         private int writeDecisionRejections;
         private int sharedColumns;
         private final Set<ResourceLocation> featureKeys = new LinkedHashSet<>();
+        private final List<String> featureOutcomeEvidence = new ArrayList<>();
 
         void add(
                 SkyforgeNativeBiomePopulationRunner.Result result,
@@ -1132,6 +1135,12 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                         Math.addExact(writePreflightRejections, feature.writePreflightRejections());
                 writeDecisionRejections =
                         Math.addExact(writeDecisionRejections, feature.writeDecisionRejections());
+                featureOutcomeEvidence.add(feature.featureKey()
+                        + "{placed=" + feature.placed()
+                        + ",attachmentWrites=" + feature.attachmentWrites()
+                        + ",writePreflightRejections=" + feature.writePreflightRejections()
+                        + ",writeDecisionRejections=" + feature.writeDecisionRejections()
+                        + "}");
             }
         }
 
