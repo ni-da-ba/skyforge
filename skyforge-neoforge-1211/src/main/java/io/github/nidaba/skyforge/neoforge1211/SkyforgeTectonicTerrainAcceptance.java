@@ -47,7 +47,7 @@ final class SkyforgeTectonicTerrainAcceptance {
     private static final double EXPECTED_TECTONIC_RIDGE_SCALE = 1.0;
     private static final double EXPECTED_TECTONIC_FLAT_TERRAIN_SKEW = 0.1;
     private static final double EXPECTED_TECTONIC_OCEAN_OFFSET = -0.1;
-    static final ChunkPos REVIEW_CHUNK = new ChunkPos(0, 4);
+    static final ChunkPos REVIEW_CHUNK = new ChunkPos(4, 4);
     private static final int EXTERIOR_CHUNK_X = 12;
     private static final int PROFILE_RADIUS = 8;
     private static final int MINIMUM_TECTONIC_ISLAND_RELIEF_BLOCKS = 48;
