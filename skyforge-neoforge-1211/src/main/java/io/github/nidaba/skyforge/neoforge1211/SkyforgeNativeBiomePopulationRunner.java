@@ -183,7 +183,12 @@ final class SkyforgeNativeBiomePopulationRunner {
             }
             if (treeFeature && !treeHeadroomAdmitted) {
                 attempted++;
-                featureResults.add(new FeatureResult(featureKey, false, 0));
+                featureResults.add(new FeatureResult(
+                        featureKey,
+                        false,
+                        0,
+                        0,
+                        0));
                 SkyforgeRuntimePerformanceMetrics.recordSample(
                         "surfacePopulation.treeHeadroomRejected", 1L);
                 continue;
