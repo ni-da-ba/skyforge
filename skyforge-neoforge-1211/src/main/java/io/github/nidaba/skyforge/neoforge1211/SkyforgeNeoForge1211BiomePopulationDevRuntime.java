@@ -660,6 +660,12 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             return;
         }
         SkyforgeSharedSurfaceBiomeSampleSelector.Column selected = search.selected().orElseThrow();
+        if (providerMode && !selected.lowerTreePlantingSupport()) {
+            // Do not aggregate a provider-biome sample whose deterministic native tree location
+            // is bare stone; it cannot prove biome-driven vegetation placement.
+            evaluateCompletion(lowerId, upperId);
+            return;
+        }
         SharedSurfaceSample shared = new SharedSurfaceSample(
                 selected.x(), selected.z(), selected.lowerSurfaceY(), selected.upperSurfaceY(),
                 search.sharedColumns(), selected.upperProviderBiome());
@@ -943,8 +949,13 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                         providerBiomeUpperSourceMismatches = Math.addExact(providerBiomeUpperSourceMismatches, 1);
                     }
                 }
-                boolean lowerTreePlantingSupport = Blocks.OAK_SAPLING.defaultBlockState().canSurvive(
-                        level, new BlockPos(x, lowerSurfaceY, z));
+                // The deterministic provider fixture's native tree probe lands at the chunk center.
+                // Require its actual lower placement column to support a sapling; support elsewhere
+                // in the chunk does not make the tree witness representative.
+                boolean lowerTreePlantingSupport = x == chunkPos.getMiddleBlockX()
+                        && z == chunkPos.getMiddleBlockZ()
+                        && Blocks.OAK_SAPLING.defaultBlockState().canSurvive(
+                                level, new BlockPos(x, lowerSurfaceY, z));
                 sharedColumns.add(new SkyforgeSharedSurfaceBiomeSampleSelector.Column(
                         x,
                         z,
