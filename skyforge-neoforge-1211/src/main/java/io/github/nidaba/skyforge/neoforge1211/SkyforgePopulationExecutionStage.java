@@ -369,6 +369,7 @@ final class SkyforgePopulationExecutionStage {
                                     + ", foreignSolid=" + foreignSolid.test(position)
                                     + ", adjacentOwnerSolidBlocks=" + adjacentOwnerSolidCount(position)
                                     + ", " + ownerColumnEvidence
+                                    + ", " + attachmentEnvelope.rejectionEvidence(position)
                                     + ", " + liveHeightEvidence(position));
                 }
             }
