@@ -150,6 +150,15 @@ final class SkyforgeTectonicTerrainAcceptance {
                 fail(server, "Tectonic mod loaded but its bundled server data pack is not selected");
                 return;
             }
+
+            if (treatment) {
+                // Tectonic's pinned command evaluates its own mountain-range predicates and searches
+                // the same world seed, exposing whether this fixture is sampling an ordinary region.
+                int locateStatus = server.getCommands().performPrefixedCommand(
+                        server.createCommandSourceStack(), "tectonic locate mountain_range");
+                java.util.logging.Logger.getLogger(SkyforgeTectonicTerrainAcceptance.class.getName())
+                        .info("Tectonic mountain-range locate returned status=" + locateStatus);
+            }
             String tectonicVerticalScale = "not-applicable";
             String tectonicElevationBoost = "not-applicable";
             String tectonicContinentsScale = "not-applicable";
