@@ -3,6 +3,8 @@ package io.github.nidaba.skyforge.neoforge1211;
 import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -13,8 +15,9 @@ import net.minecraft.world.level.block.state.BlockState;
 /** Thread-confined execution state for one exact-volume native population attempt. */
 final class SkyforgePopulationExecutionStage {
     private static final ThreadLocal<Execution> ACTIVE = new ThreadLocal<>();
-    private static final System.Logger LOGGER =
-            System.getLogger(SkyforgePopulationExecutionStage.class.getName());
+    private static final int MAX_WRITE_PREFLIGHT_EVIDENCE_SAMPLES = 32;
+    private static final AtomicInteger WRITE_PREFLIGHT_EVIDENCE_COUNT = new AtomicInteger();
+    private static final ConcurrentLinkedQueue<String> WRITE_PREFLIGHT_EVIDENCE = new ConcurrentLinkedQueue<>();
 
     private SkyforgePopulationExecutionStage() {}
 
@@ -106,6 +109,10 @@ final class SkyforgePopulationExecutionStage {
 
     static Optional<Execution> activeExecution() {
         return Optional.ofNullable(ACTIVE.get());
+    }
+
+    static String writePreflightRejectionEvidence() {
+        return String.join(" | ", WRITE_PREFLIGHT_EVIDENCE);
     }
 
     private static boolean originChunkContains(
@@ -284,15 +291,17 @@ final class SkyforgePopulationExecutionStage {
             writePreflightRejections = Math.addExact(writePreflightRejections, 1);
             if (writePreflightRejections == 1
                     && Boolean.getBoolean(SkyforgeNeoForge1211BiomePopulationDevRuntime.ENABLE_PROPERTY)) {
-                LOGGER.log(
-                        System.Logger.Level.INFO,
-                        "SF-IMP-0054 WRITE PREFLIGHT REJECTION: volume=" + operation.volumeId().path()
-                                + ", feature=" + operation.nativeDefinitionKey()
-                                + ", position=" + position.toShortString()
-                                + ", reason=" + reason
-                                + ", ownerSolid=" + ownerSolid.test(position)
-                                + ", foreignSolid=" + foreignSolid.test(position)
-                                + ", adjacentOwnerSolidBlocks=" + adjacentOwnerSolidCount(position));
+                int sampleIndex = WRITE_PREFLIGHT_EVIDENCE_COUNT.getAndIncrement();
+                if (sampleIndex < MAX_WRITE_PREFLIGHT_EVIDENCE_SAMPLES) {
+                    WRITE_PREFLIGHT_EVIDENCE.add(
+                            "volume=" + operation.volumeId().path()
+                                    + ", feature=" + operation.nativeDefinitionKey()
+                                    + ", position=" + position.toShortString()
+                                    + ", reason=" + reason
+                                    + ", ownerSolid=" + ownerSolid.test(position)
+                                    + ", foreignSolid=" + foreignSolid.test(position)
+                                    + ", adjacentOwnerSolidBlocks=" + adjacentOwnerSolidCount(position));
+                }
             }
         }
 
