@@ -9354,6 +9354,7 @@ tasks.register("sfImp0054TectonicTerrainAcceptance") {
                 && treatment.getProperty("tectonicVerticalScale") == sfImp0054TectonicVerticalScale.toString()
                 && treatment.getProperty("tectonicElevationBoost") == sfImp0054TectonicElevationBoost.toString()
                 && treatment.getProperty("tectonicErosionScale") == sfImp0054TectonicErosionScale.toString()
+                && treatment.getProperty("tectonicFlatTerrainSkew") == sfImp0054TectonicFlatTerrainSkew.toString()
                 && treatment.getProperty("exteriorNonAirBlocks") == "0"
                 && treatment.getProperty("islandUndersideSolidSamples").toInt() > 0
                 && treatment.getProperty("providerSurfaceRuleMaterial").isNotBlank()
