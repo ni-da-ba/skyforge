@@ -9215,7 +9215,8 @@ tasks.register("f4kHydrologyReviewPrepareVerify") {
 
 val sfImp0054TectonicVerticalScale = 6.0
 val sfImp0054TectonicElevationBoost = 2.0
-val sfImp0054TectonicErosionScale = 0.35
+val sfImp0054TectonicErosionScale = 0.5
+val sfImp0054TectonicFlatTerrainSkew = -0.5
 val sfImp0054TectonicConfig = """
     {
       "minor_version": 1,
@@ -9225,6 +9226,7 @@ val sfImp0054TectonicConfig = """
       },
       "continents": {
         "erosion_scale": $sfImp0054TectonicErosionScale,
+        "flat_terrain_skew": $sfImp0054TectonicFlatTerrainSkew,
         "ocean_offset": -0.1
       },
       "global_terrain": {
