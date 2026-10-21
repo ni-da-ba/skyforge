@@ -40,7 +40,7 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 final class SkyforgeTectonicTerrainAcceptance {
     static final String ENABLE_PROPERTY = "skyforge.dev.tectonicTerrain";
     static final String TREATMENT_PROPERTY = ENABLE_PROPERTY + ".treatment";
-    private static final double EXPECTED_TECTONIC_VERTICAL_SCALE = 6.0;
+    private static final double EXPECTED_TECTONIC_VERTICAL_SCALE = 2.0;
     private static final double EXPECTED_TECTONIC_ELEVATION_BOOST = 2.0;
     private static final double EXPECTED_TECTONIC_CONTINENTS_SCALE = 0.5;
     private static final double EXPECTED_TECTONIC_EROSION_SCALE = 1.0;

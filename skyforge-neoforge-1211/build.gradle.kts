@@ -9213,7 +9213,7 @@ tasks.register("f4kHydrologyReviewPrepareVerify") {
 }
 
 
-val sfImp0054TectonicVerticalScale = 6.0
+val sfImp0054TectonicVerticalScale = 2.0
 val sfImp0054TectonicElevationBoost = 2.0
 // Higher horizontal noise frequency and thicker mountain ranges target island-scale relief.
 val sfImp0054TectonicContinentsScale = 0.5
