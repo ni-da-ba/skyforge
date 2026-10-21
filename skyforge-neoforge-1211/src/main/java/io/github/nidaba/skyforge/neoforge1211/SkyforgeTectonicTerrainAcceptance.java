@@ -238,7 +238,11 @@ final class SkyforgeTectonicTerrainAcceptance {
                         + (profile.maximumY() - profile.minimumY()) + " blocks), captured provider surface="
                         + capturedProviderSurfaceRange + ", datum Y="
                         + providerTerrainDatumY + ", realized island Y="
-                        + realizedSurface.minimumY() + ".." + realizedSurface.maximumY());
+                        + realizedSurface.minimumY() + ".." + realizedSurface.maximumY()
+                        + ", nearby Tectonic source probes=" + describeNearbyProviderSurfaceProbes(
+                                level,
+                                generator.terrainProviderGenerator(),
+                                randomState));
                 return;
             }
             if (treatment && realizedSurface.maximumY() < MINIMUM_TECTONIC_ISLAND_RIDGE_TOP_Y) {
@@ -522,6 +526,52 @@ final class SkyforgeTectonicTerrainAcceptance {
             throw new IllegalStateException("could not read the pinned Tectonic ocean configuration at "
                     + configPath, failure);
         }
+    }
+
+    /**
+     * Samples compact local height windows on the pinned Tectonic locator's 64-block search grid.
+     * This diagnostic runs only when the selected treatment chunk fails to expose source relief.
+     */
+    private static String describeNearbyProviderSurfaceProbes(
+            ServerLevel level,
+            net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator provider,
+            RandomState randomState) {
+        StringBuilder result = new StringBuilder();
+        for (int gridZ = -2; gridZ <= 2; gridZ++) {
+            for (int gridX = -2; gridX <= 2; gridX++) {
+                int centerX = gridX * 64;
+                int centerZ = 64 + gridZ * 64;
+                int minimumY = Integer.MAX_VALUE;
+                int maximumY = Integer.MIN_VALUE;
+                for (int offsetZ = -4; offsetZ <= 4; offsetZ += 4) {
+                    for (int offsetX = -4; offsetX <= 4; offsetX += 4) {
+                        NoiseColumn column = provider.getBaseColumn(
+                                centerX + offsetX, centerZ + offsetZ, level, randomState);
+                        for (int worldY = level.getMaxBuildHeight() - 1;
+                                worldY >= level.getMinBuildHeight();
+                                worldY--) {
+                            BlockState state = column.getBlock(worldY);
+                            if (state.isAir() || !state.getFluidState().isEmpty()) {
+                                continue;
+                            }
+                            minimumY = Math.min(minimumY, worldY);
+                            maximumY = Math.max(maximumY, worldY);
+                            break;
+                        }
+                    }
+                }
+                if (result.length() > 0) {
+                    result.append("; ");
+                }
+                result.append('[').append(centerX).append(',').append(centerZ).append("]=");
+                if (minimumY == Integer.MAX_VALUE) {
+                    result.append("no-solid-surface");
+                } else {
+                    result.append(minimumY).append("..").append(maximumY);
+                }
+            }
+        }
+        return result.toString();
     }
 
     private static ProfileEvidence sampleProfile(
