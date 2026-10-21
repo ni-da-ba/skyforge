@@ -315,6 +315,32 @@ final class SkyforgePopulationExecutionStage {
             return adjacentOwnerCells;
         }
 
+        private String adjacentOwnerChunkEvidence(BlockPos position) {
+            int originChunkOwnerCells = 0;
+            int neighboringChunkOwnerCells = 0;
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    for (int dz = -1; dz <= 1; dz++) {
+                        if (dx == 0 && dy == 0 && dz == 0) {
+                            continue;
+                        }
+                        BlockPos neighbor = position.offset(dx, dy, dz);
+                        if (!ownerSolid.test(neighbor)) {
+                            continue;
+                        }
+                        if (originChunkContains(neighbor)) {
+                            originChunkOwnerCells = Math.addExact(originChunkOwnerCells, 1);
+                        } else {
+                            neighboringChunkOwnerCells = Math.addExact(neighboringChunkOwnerCells, 1);
+                        }
+                    }
+                }
+            }
+            return "originChunk=" + operation.originChunk()
+                    + ", adjacentOwnerSolidInOriginChunk=" + originChunkOwnerCells
+                    + ", adjacentOwnerSolidOutsideOriginChunk=" + neighboringChunkOwnerCells;
+        }
+
         private String liveHeightEvidence(BlockPos position) {
             if (level.isEmpty()) {
                 return "heightmaps=unavailable";
@@ -368,6 +394,7 @@ final class SkyforgePopulationExecutionStage {
                                     + ", ownerSolid=" + ownerSolid.test(position)
                                     + ", foreignSolid=" + foreignSolid.test(position)
                                     + ", adjacentOwnerSolidBlocks=" + adjacentOwnerSolidCount(position)
+                                    + ", " + adjacentOwnerChunkEvidence(position)
                                     + ", " + ownerColumnEvidence
                                     + ", " + attachmentEnvelope.rejectionEvidence(position)
                                     + ", " + liveHeightEvidence(position));
