@@ -8,7 +8,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.levelgen.feature.configurations.RandomPatchConfiguration;
+import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -176,6 +180,7 @@ final class SkyforgePopulationExecutionStage {
         private final CachedBlockPredicate ownerSolid;
         private final CachedBlockPredicate foreignSolid;
         private final SkyforgePopulationAttachmentEnvelope attachmentEnvelope;
+        private final int surfaceRandomPatchHeightSpread;
         private int writePreflightRejections;
         private int writeDecisionRejections;
 
@@ -192,6 +197,30 @@ final class SkyforgePopulationExecutionStage {
             this.ownerSolid = Objects.requireNonNull(ownerSolid, "ownerSolid");
             this.foreignSolid = Objects.requireNonNull(foreignSolid, "foreignSolid");
             this.attachmentEnvelope = Objects.requireNonNull(attachmentEnvelope, "attachmentEnvelope");
+            this.surfaceRandomPatchHeightSpread = resolveSurfaceRandomPatchHeightSpread(this.level, this.operation);
+        }
+
+        private static int resolveSurfaceRandomPatchHeightSpread(
+                Optional<WorldGenLevel> level,
+                SkyforgePopulationOperation operation) {
+            if (level.isEmpty()
+                    || operation.generationStep()
+                            != net.minecraft.world.level.levelgen.GenerationStep.Decoration.VEGETAL_DECORATION.ordinal()) {
+                return 0;
+            }
+            var activeLevel = level.orElseThrow();
+            var registry = activeLevel.registryAccess().registryOrThrow(Registries.PLACED_FEATURE);
+            var key = ResourceKey.create(Registries.PLACED_FEATURE, operation.nativeDefinitionKey());
+            return registry.getHolder(key)
+                    .map(holder -> holder.value().feature().value().config())
+                    .filter(RandomPatchConfiguration.class::isInstance)
+                    .map(RandomPatchConfiguration.class::cast)
+                    .map(RandomPatchConfiguration::ySpread)
+                    .orElse(0);
+        }
+
+        int surfaceRandomPatchHeightSpread() {
+            return surfaceRandomPatchHeightSpread;
         }
 
         SkyforgePopulationOperation operation() {
