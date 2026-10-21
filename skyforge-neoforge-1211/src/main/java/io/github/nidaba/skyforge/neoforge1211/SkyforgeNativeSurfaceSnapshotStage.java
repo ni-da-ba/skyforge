@@ -63,6 +63,10 @@ final class SkyforgeNativeSurfaceSnapshotStage {
      * support view when a native feature attaches across an exact-volume chunk boundary.
      */
     static Optional<BlockState> surfaceBlockAt(BlockPos position) {
+        return surfaceLookupAt(position).state();
+    }
+
+    static SurfaceLookup surfaceLookupAt(BlockPos position) {
         Objects.requireNonNull(position, "position");
         long chunkKey = new net.minecraft.world.level.ChunkPos(
                 position.getX() >> 4, position.getZ() >> 4).toLong();
@@ -71,13 +75,31 @@ final class SkyforgeNativeSurfaceSnapshotStage {
             snapshot = SURFACE_HISTORY.get(chunkKey);
         }
         if (snapshot == null) {
-            return Optional.empty();
+            return new SurfaceLookup(Optional.empty(), SurfaceLookupStatus.SNAPSHOT_MISSING);
         }
         var surface = snapshot.surface(Math.floorMod(position.getX(), 16), Math.floorMod(position.getZ(), 16));
         if (surface.isEmpty()) {
-            return Optional.empty();
+            return new SurfaceLookup(Optional.empty(), SurfaceLookupStatus.EMPTY_COLUMN);
         }
-        return BuiltInRegistries.BLOCK.getOptional(surface.orElseThrow().blockKey()).map(Block::defaultBlockState);
+        var state = BuiltInRegistries.BLOCK.getOptional(surface.orElseThrow().blockKey()).map(Block::defaultBlockState);
+        if (state.isEmpty()) {
+            return new SurfaceLookup(Optional.empty(), SurfaceLookupStatus.BLOCK_UNREGISTERED);
+        }
+        return new SurfaceLookup(state, SurfaceLookupStatus.PRESENT);
+    }
+
+    enum SurfaceLookupStatus {
+        PRESENT,
+        SNAPSHOT_MISSING,
+        EMPTY_COLUMN,
+        BLOCK_UNREGISTERED
+    }
+
+    record SurfaceLookup(Optional<BlockState> state, SurfaceLookupStatus status) {
+        SurfaceLookup {
+            Objects.requireNonNull(state, "state");
+            Objects.requireNonNull(status, "status");
+        }
     }
 
     private static void retainSurfaceSnapshot(long chunkKey, MinecraftNativeSurfaceSnapshot snapshot) {
