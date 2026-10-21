@@ -41,12 +41,15 @@ final class MinecraftNativeSurfaceTopAdapterTest {
     }
 
     @Test
-    void providerReliefAppliesBoundedSignedDoubleGain() {
-        assertEquals(14, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(7));
-        assertEquals(30, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(15));
-        assertEquals(-30, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(-15));
-        assertEquals(64, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(100));
-        assertEquals(-64, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(-100));
+    void providerReliefUsesBoundedQuadraticMappingAtIslandScale() {
+        assertEquals(0, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(7));
+        assertEquals(1, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(15));
+        assertEquals(-1, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(-15));
+        assertEquals(10, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(62));
+        assertEquals(25, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(100));
+        assertEquals(63, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(159));
+        assertEquals(64, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(160));
+        assertEquals(-64, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(-160));
     }
 
     @Test
@@ -65,7 +68,7 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                 chunk.getMinBuildHeight(),
                 chunk.getHeight());
         var support = adapter.integerSolidRange(volume.id(), 8, 8).orElseThrow();
-        int providerSurfaceY = 92;
+        int providerSurfaceY = 223;
         chunk.setBlockState(
                 new BlockPos(8, providerSurfaceY, 8),
                 Blocks.GRASS_BLOCK.defaultBlockState(),

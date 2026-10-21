@@ -396,7 +396,9 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put(
                     "providerReliefMapping",
                     MinecraftNativeSurfaceTopAdapter.PROVIDER_RELIEF_MAPPING);
-            evidence.put("providerReliefGain", MinecraftNativeSurfaceTopAdapter.PROVIDER_RELIEF_GAIN);
+            evidence.put(
+                    "providerReliefCurveReferenceBlocks",
+                    MinecraftNativeSurfaceTopAdapter.PROVIDER_RELIEF_CURVE_REFERENCE_BLOCKS);
             evidence.put(
                     "providerReliefMaximumRiseBlocks",
                     MinecraftNativeSurfaceTopAdapter.MAX_PROVIDER_SURFACE_RISE_BLOCKS);
