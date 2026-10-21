@@ -1064,16 +1064,16 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         long upperSeed = ROOT_SEED ^ 0x5441494741L;
         var lowerId = new SkyIslandWorldVolumeId(ROOT_SEED, "sf-imp-0054-biomes", 0, 0, lowerSeed);
         var upperId = new SkyIslandWorldVolumeId(ROOT_SEED, "sf-imp-0054-biomes", 0, 1, upperSeed);
-        // The observed Rocky Shrubland provider patch overlapped a thin lower edge. Keep the
-        // upper specimen fixed and give the lower forest witness enough relief for a soil mantle.
+        // The provider patch overlapped thin edges on both witnesses. Keep the provider
+        // biome field and tree requirements fixed, while giving both stacked surfaces soil mantles.
         var lower = new SkyIslandWorldVolume(
                 lowerId,
                 new WorldBounds(-144.0, 144.0, 96.0, 184.0, -144.0, 144.0),
                 compileTableland(lowerSeed, 136.0, 144.0, 40.0));
         var upper = new SkyIslandWorldVolume(
                 upperId,
-                new WorldBounds(-144.0, 144.0, 196.0, 268.0, -144.0, 144.0),
-                compileTableland(upperSeed, 236.0, 112.0, 12.0));
+                new WorldBounds(-144.0, 144.0, 196.0, 284.0, -144.0, 144.0),
+                compileTableland(upperSeed, 236.0, 144.0, 40.0));
         return new SkyIslandWorldCatalog(ROOT_SEED, List.of(lower, upper));
     }
 
