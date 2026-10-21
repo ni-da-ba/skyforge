@@ -293,6 +293,17 @@ final class SkyforgePopulationExecutionStage {
                     && Boolean.getBoolean(SkyforgeNeoForge1211BiomePopulationDevRuntime.ENABLE_PROPERTY)) {
                 int sampleIndex = WRITE_PREFLIGHT_EVIDENCE_COUNT.getAndIncrement();
                 if (sampleIndex < MAX_WRITE_PREFLIGHT_EVIDENCE_SAMPLES) {
+                    var ownerColumn = SkyforgeNeoForge1211SurfaceStage.integerSolidRange(
+                            operation.volumeId(), position.getX(), position.getZ());
+                    String ownerColumnEvidence = ownerColumn
+                            .map(range -> {
+                                int firstFreeY = Math.addExact(range.maximumY(), 1);
+                                return "ownerColumnRange=" + range.minimumY() + ".." + range.maximumY()
+                                        + ", ownerFirstFreeY=" + firstFreeY
+                                        + ", positionDeltaFromFirstFreeY="
+                                        + Math.subtractExact(position.getY(), firstFreeY);
+                            })
+                            .orElse("ownerColumnRange=empty");
                     WRITE_PREFLIGHT_EVIDENCE.add(
                             "volume=" + operation.volumeId().path()
                                     + ", feature=" + operation.nativeDefinitionKey()
@@ -300,7 +311,8 @@ final class SkyforgePopulationExecutionStage {
                                     + ", reason=" + reason
                                     + ", ownerSolid=" + ownerSolid.test(position)
                                     + ", foreignSolid=" + foreignSolid.test(position)
-                                    + ", adjacentOwnerSolidBlocks=" + adjacentOwnerSolidCount(position));
+                                    + ", adjacentOwnerSolidBlocks=" + adjacentOwnerSolidCount(position)
+                                    + ", " + ownerColumnEvidence);
                 }
             }
         }
