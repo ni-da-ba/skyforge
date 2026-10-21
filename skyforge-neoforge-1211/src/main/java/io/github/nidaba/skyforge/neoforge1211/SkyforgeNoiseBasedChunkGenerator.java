@@ -32,6 +32,8 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.chunk.ChunkGeneratorStructureState;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.chunk.ProtoChunk;
+import net.minecraft.world.level.chunk.UpgradeData;
 import net.minecraft.world.level.levelgen.blending.Blender;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
@@ -604,10 +606,20 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         if (SkyforgeNeoForge1211SurfaceStage.hasNativeSurfaceAdaptation()
                 && SkyforgeNeoForge1211SurfaceStage.hasCandidateVolume(chunk)) {
             if (voidBase) {
+                RandomState providerRandom = terrainProviderRandomState(level);
+                ProtoChunk providerChunk = new ProtoChunk(
+                        chunk.getPos(),
+                        UpgradeData.EMPTY,
+                        level,
+                        level.registryAccess().registryOrThrow(Registries.BIOME),
+                        null);
+                Blender blender = Blender.of(level);
+                terrainProvider.createBiomes(providerRandom, blender, structureManager, providerChunk).join();
+                terrainProvider.fillFromNoise(blender, providerRandom, structureManager, providerChunk).join();
+                terrainProvider.buildSurface(level, structureManager, providerRandom, providerChunk);
                 SkyforgeNativeSurfaceSnapshotStage.capture(
-                        chunk,
-                        terrainProvider,
-                        terrainProviderRandomState(level));
+                        providerChunk,
+                        terrainProvider.getSeaLevel());
             } else {
                 SkyforgeNativeSurfaceSnapshotStage.capture(chunk, getSeaLevel());
             }
