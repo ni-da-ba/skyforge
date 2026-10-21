@@ -210,14 +210,14 @@ final class SkyforgeNativeBiomePopulationRunner {
                                 + ", chunk=" + originChunk
                                 + ", biome=" + biomeKey.location()
                                 + ", feature=" + featureKey
-                                + ", sample=(" + probe.x() + "," + probe.firstFreeY() + "," + probe.z() + ")"
-                                + ", oceanFloorY=" + probe.oceanFloorY()
-                                + ", blockBelow=" + probe.blockBelow()
-                                + ", blockAt=" + probe.blockAt()
-                                + ", expectedBiome=" + probe.observedExpectedBiome()
-                                + ", oakSurvives=" + probe.oakSurvives()
-                                + ", birchSurvives=" + probe.birchSurvives()
-                                + ", spruceSurvives=" + probe.spruceSurvives());
+                                + ", sample=(" + treeProbe.x() + "," + treeProbe.firstFreeY() + "," + treeProbe.z() + ")"
+                                + ", oceanFloorY=" + treeProbe.oceanFloorY()
+                                + ", blockBelow=" + treeProbe.blockBelow()
+                                + ", blockAt=" + treeProbe.blockAt()
+                                + ", expectedBiome=" + treeProbe.observedExpectedBiome()
+                                + ", oakSurvives=" + treeProbe.oakSurvives()
+                                + ", birchSurvives=" + treeProbe.birchSurvives()
+                                + ", spruceSurvives=" + treeProbe.spruceSurvives());
             }
 
             long featurePerformanceStart = performanceMetricsEnabled
