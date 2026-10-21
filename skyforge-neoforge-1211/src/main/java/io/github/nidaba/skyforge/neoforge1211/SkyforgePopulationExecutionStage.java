@@ -8,6 +8,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.WorldGenLevel;
@@ -23,6 +24,12 @@ final class SkyforgePopulationExecutionStage {
     private static final int MAX_WRITE_PREFLIGHT_EVIDENCE_SAMPLES = 32;
     private static final AtomicInteger WRITE_PREFLIGHT_EVIDENCE_COUNT = new AtomicInteger();
     private static final ConcurrentLinkedQueue<String> WRITE_PREFLIGHT_EVIDENCE = new ConcurrentLinkedQueue<>();
+    private static final int MAX_SURFACE_SUPPORT_READ_EVIDENCE_SAMPLES = 16;
+    private static final AtomicInteger SURFACE_SUPPORT_READ_COUNT = new AtomicInteger();
+    private static final AtomicInteger SURFACE_SUPPORT_READ_HITS = new AtomicInteger();
+    private static final AtomicInteger SURFACE_SUPPORT_READ_MISSES = new AtomicInteger();
+    private static final ConcurrentLinkedQueue<String> SURFACE_SUPPORT_READ_EVIDENCE =
+            new ConcurrentLinkedQueue<>();
 
     private SkyforgePopulationExecutionStage() {}
 
@@ -117,7 +124,26 @@ final class SkyforgePopulationExecutionStage {
     }
 
     static String writePreflightRejectionEvidence() {
-        return String.join(" | ", WRITE_PREFLIGHT_EVIDENCE);
+        return String.join(" | ", WRITE_PREFLIGHT_EVIDENCE)
+                + "; surfaceSupportReads=" + SURFACE_SUPPORT_READ_COUNT.get()
+                + ", surfaceSupportHits=" + SURFACE_SUPPORT_READ_HITS.get()
+                + ", surfaceSupportMisses=" + SURFACE_SUPPORT_READ_MISSES.get()
+                + ", surfaceSupportEvidence=" + String.join(" | ", SURFACE_SUPPORT_READ_EVIDENCE);
+    }
+
+    private static void recordSurfaceSupportRead(BlockPos position, Optional<BlockState> state) {
+        int sampleIndex = SURFACE_SUPPORT_READ_COUNT.getAndIncrement();
+        if (state.isPresent()) {
+            SURFACE_SUPPORT_READ_HITS.incrementAndGet();
+        } else {
+            SURFACE_SUPPORT_READ_MISSES.incrementAndGet();
+        }
+        if (sampleIndex >= MAX_SURFACE_SUPPORT_READ_EVIDENCE_SAMPLES) {
+            return;
+        }
+        String blockKey = state.map(value -> String.valueOf(BuiltInRegistries.BLOCK.getKey(value.getBlock())))
+                .orElse("missing");
+        SURFACE_SUPPORT_READ_EVIDENCE.add(position.toShortString() + "=" + blockKey);
     }
 
     private static boolean originChunkContains(
@@ -254,6 +280,7 @@ final class SkyforgePopulationExecutionStage {
                         && !ownerSolid.test(position.above())
                         && level.isPresent()) {
                     var providerSurface = SkyforgeNativeSurfaceSnapshotStage.surfaceBlockAt(position);
+                    recordSurfaceSupportRead(position, providerSurface);
                     if (providerSurface.isPresent()) {
                         return providerSurface.orElseThrow();
                     }
