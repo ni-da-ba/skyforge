@@ -30,6 +30,9 @@ final class SkyforgePopulationExecutionStage {
     private static final AtomicInteger SURFACE_SUPPORT_READ_COUNT = new AtomicInteger();
     private static final AtomicInteger SURFACE_SUPPORT_READ_HITS = new AtomicInteger();
     private static final AtomicInteger SURFACE_SUPPORT_READ_MISSES = new AtomicInteger();
+    private static final AtomicInteger SURFACE_SUPPORT_SNAPSHOT_MISSES = new AtomicInteger();
+    private static final AtomicInteger SURFACE_SUPPORT_EMPTY_COLUMNS = new AtomicInteger();
+    private static final AtomicInteger SURFACE_SUPPORT_UNREGISTERED_BLOCKS = new AtomicInteger();
     private static final ConcurrentLinkedQueue<String> SURFACE_SUPPORT_READ_EVIDENCE =
             new ConcurrentLinkedQueue<>();
 
@@ -130,24 +133,36 @@ final class SkyforgePopulationExecutionStage {
                 + "; surfaceSupportReads=" + SURFACE_SUPPORT_READ_COUNT.get()
                 + ", surfaceSupportHits=" + SURFACE_SUPPORT_READ_HITS.get()
                 + ", surfaceSupportMisses=" + SURFACE_SUPPORT_READ_MISSES.get()
+                + ", surfaceSupportSnapshotMisses=" + SURFACE_SUPPORT_SNAPSHOT_MISSES.get()
+                + ", surfaceSupportEmptyColumns=" + SURFACE_SUPPORT_EMPTY_COLUMNS.get()
+                + ", surfaceSupportUnregisteredBlocks=" + SURFACE_SUPPORT_UNREGISTERED_BLOCKS.get()
                 + ", surfaceSupportEvidence=" + String.join(" | ", SURFACE_SUPPORT_READ_EVIDENCE);
     }
 
-    private static void recordSurfaceSupportRead(BlockPos position, Optional<BlockState> state) {
+    private static void recordSurfaceSupportRead(
+            BlockPos position,
+            SkyforgeNativeSurfaceSnapshotStage.SurfaceLookup lookup) {
         if (!SURFACE_SUPPORT_DIAGNOSTICS) {
             return;
         }
         int sampleIndex = SURFACE_SUPPORT_READ_COUNT.getAndIncrement();
+        Optional<BlockState> state = lookup.state();
         if (state.isPresent()) {
             SURFACE_SUPPORT_READ_HITS.incrementAndGet();
         } else {
             SURFACE_SUPPORT_READ_MISSES.incrementAndGet();
+            switch (lookup.status()) {
+                case SNAPSHOT_MISSING -> SURFACE_SUPPORT_SNAPSHOT_MISSES.incrementAndGet();
+                case EMPTY_COLUMN -> SURFACE_SUPPORT_EMPTY_COLUMNS.incrementAndGet();
+                case BLOCK_UNREGISTERED -> SURFACE_SUPPORT_UNREGISTERED_BLOCKS.incrementAndGet();
+                case PRESENT -> throw new IllegalStateException("present surface lookup has no block state");
+            }
         }
         if (sampleIndex >= MAX_SURFACE_SUPPORT_READ_EVIDENCE_SAMPLES) {
             return;
         }
         String blockKey = state.map(value -> String.valueOf(BuiltInRegistries.BLOCK.getKey(value.getBlock())))
-                .orElse("missing");
+                .orElse("missing:" + lookup.status());
         SURFACE_SUPPORT_READ_EVIDENCE.add(position.toShortString() + "=" + blockKey);
     }
 
@@ -284,10 +299,10 @@ final class SkyforgePopulationExecutionStage {
                         && !originChunkContains(position)
                         && !ownerSolid.test(position.above())
                         && level.isPresent()) {
-                    var providerSurface = SkyforgeNativeSurfaceSnapshotStage.surfaceBlockAt(position);
+                    var providerSurface = SkyforgeNativeSurfaceSnapshotStage.surfaceLookupAt(position);
                     recordSurfaceSupportRead(position, providerSurface);
-                    if (providerSurface.isPresent()) {
-                        return providerSurface.orElseThrow();
+                    if (providerSurface.state().isPresent()) {
+                        return providerSurface.state().orElseThrow();
                     }
                 }
                 return net.minecraft.world.level.block.Blocks.BEDROCK.defaultBlockState();
