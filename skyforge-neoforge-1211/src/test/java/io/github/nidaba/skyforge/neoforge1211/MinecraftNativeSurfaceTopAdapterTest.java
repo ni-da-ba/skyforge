@@ -102,7 +102,7 @@ final class MinecraftNativeSurfaceTopAdapterTest {
     }
 
     @Test
-    void fallingTerrainProfileMaterialUsesDirectStableSupportAndSkipsUnsupportedFringe() {
+    void fallingProviderSurfaceKeepsAuthoredSkyforgeCapMaterialAcrossProjectedRelief() {
         var catalog = SkyforgeNeoForge1211PopulationDevRuntime.catalog();
         var volume = catalog.volumes().getFirst();
         ChunkPos chunkPos = new ChunkPos(0, 0);
@@ -117,44 +117,35 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                 chunk.getMinBuildHeight(),
                 chunk.getHeight());
         var support = adapter.integerSolidRange(volume.id(), 8, 8).orElseThrow();
+        ResourceLocation authoredCapSurface = original.blockKeyAt(8, support.maximumY(), 8);
         ResourceLocation gravel = ResourceLocation.withDefaultNamespace("gravel");
 
-        // A provider gravel cap is safe when the material immediately below it is
-        // stable Skyforge structure.
-        chunk.setBlockState(new BlockPos(8, 63, 8), Blocks.GRAVEL.defaultBlockState(), false);
-        var supported = new MinecraftNativeSurfaceTopAdapter().adaptTerrainProfile(
+        // The provider can still raise the island profile, but a falling surface material must
+        // not paint a large feature-shaped patch over Skyforge's authored cap.
+        int providerSurfaceY = 223;
+        chunk.setBlockState(
+                new BlockPos(8, providerSurfaceY, 8),
+                Blocks.GRAVEL.defaultBlockState(),
+                false);
+        var profile = new MinecraftNativeSurfaceTopAdapter().adaptTerrainProfile(
                 MinecraftNativeSurfaceSnapshot.capture(chunk, 63),
                 original,
                 adapter);
-        assertEquals(gravel, supported.materialization().blockKeyAt(8, support.maximumY(), 8));
-        assertFalse(SkyforgeMinecraftBlockPalette.AIR.equals(
-                supported.materialization().blockKeyAt(8, support.maximumY() - 1, 8)));
 
-        // A provider surface below the cap clamps to the bottom of the exposed Skyforge
-        // segment. That edge has no block beneath it, so retain the stable authored material.
-        ProtoChunk lowSurfaceChunk = MinecraftTestChunkFactory.protoChunk(chunkPos);
-        int unsupportedSurfaceY = lowSurfaceChunk.getMinBuildHeight() + 1;
-        lowSurfaceChunk.setBlockState(
-                new BlockPos(8, unsupportedSurfaceY, 8),
-                Blocks.GRAVEL.defaultBlockState(),
-                false);
-        var unsupported = new MinecraftNativeSurfaceTopAdapter().adaptTerrainProfile(
-                MinecraftNativeSurfaceSnapshot.capture(lowSurfaceChunk, 63),
-                original,
-                adapter);
-        int capBottomY = support.maximumY();
-        while (capBottomY > chunk.getMinBuildHeight()
-                && !SkyforgeMinecraftBlockPalette.AIR.equals(
-                        original.blockKeyAt(8, capBottomY - 1, 8))) {
-            capBottomY--;
-        }
+        int authoredTopMaximumY = (int) Math.floor(volume.bounds().maximumY());
+        int expectedTopY = Math.min(
+                support.maximumY() + 64,
+                Math.min(chunk.getMaxBuildHeight() - 1, authoredTopMaximumY + 64));
+        assertTrue(expectedTopY > support.maximumY(), "the provider height profile should remain active");
         assertEquals(
-                original.blockKeyAt(8, capBottomY, 8),
-                unsupported.materialization().blockKeyAt(8, capBottomY, 8),
-                "unsupported provider gravel must leave the authored Skyforge cap material intact");
-        assertTrue(SkyforgeMinecraftBlockPalette.AIR.equals(
-                unsupported.materialization().blockKeyAt(8, capBottomY - 1, 8)));
+                authoredCapSurface,
+                profile.materialization().blockKeyAt(8, expectedTopY, 8),
+                "falling provider material must resolve to the authored Skyforge cap surface");
+        assertFalse(gravel.equals(profile.materialization().blockKeyAt(8, expectedTopY, 8)));
+        assertTrue(profile.providerWriteClaims().containsKey(
+                BlockPos.asLong(8, support.maximumY() + 1, 8)));
     }
+
     @Test
     void fallingNativeSurfaceIsSkippedEvenWhenTheSkyforgeTopHasSupport() {
         ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(new ChunkPos(0, 0));
