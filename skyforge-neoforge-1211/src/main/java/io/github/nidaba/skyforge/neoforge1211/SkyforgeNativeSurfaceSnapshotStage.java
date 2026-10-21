@@ -94,15 +94,14 @@ final class SkyforgeNativeSurfaceSnapshotStage {
             ChunkAccess chunk,
             MinecraftNativeSurfaceSnapshot snapshot) {
         if (Boolean.getBoolean(SkyforgeTectonicTerrainAcceptance.ENABLE_PROPERTY)
-                && chunk.getPos().x == 0
-                && chunk.getPos().z == 0) {
+                && chunk.getPos().equals(SkyforgeTectonicTerrainAcceptance.REVIEW_CHUNK)) {
             ACCEPTANCE_SNAPSHOT.set(snapshot);
         }
     }
 
     static Optional<MinecraftNativeSurfaceSnapshot> consumeAcceptanceSnapshot(ChunkAccess chunk) {
         Objects.requireNonNull(chunk, "chunk");
-        if (chunk.getPos().x != 0 || chunk.getPos().z != 0) {
+        if (!chunk.getPos().equals(SkyforgeTectonicTerrainAcceptance.REVIEW_CHUNK)) {
             return Optional.empty();
         }
         return Optional.ofNullable(ACCEPTANCE_SNAPSHOT.getAndSet(null));

@@ -41,7 +41,7 @@ final class MinecraftNativeSurfaceTopAdapterTest {
     }
 
     @Test
-    void centeredProviderReliefRaisesPeaksAndCutsValleysWithABoundedGain() {
+    void providerReliefAppliesBoundedSignedDoubleGain() {
         assertEquals(14, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(7));
         assertEquals(30, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(15));
         assertEquals(-30, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(-15));

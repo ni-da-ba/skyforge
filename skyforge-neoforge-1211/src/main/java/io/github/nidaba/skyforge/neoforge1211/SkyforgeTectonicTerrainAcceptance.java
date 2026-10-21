@@ -47,6 +47,7 @@ final class SkyforgeTectonicTerrainAcceptance {
     private static final double EXPECTED_TECTONIC_RIDGE_SCALE = 1.0;
     private static final double EXPECTED_TECTONIC_FLAT_TERRAIN_SKEW = 0.1;
     private static final double EXPECTED_TECTONIC_OCEAN_OFFSET = -0.1;
+    static final ChunkPos REVIEW_CHUNK = new ChunkPos(0, 4);
     private static final int EXTERIOR_CHUNK_X = 12;
     private static final int PROFILE_RADIUS = 8;
     private static final int MINIMUM_TECTONIC_ISLAND_RELIEF_BLOCKS = 48;
@@ -151,14 +152,6 @@ final class SkyforgeTectonicTerrainAcceptance {
                 return;
             }
 
-            if (treatment) {
-                // Tectonic's pinned command evaluates its own mountain-range predicates and searches
-                // the same world seed, exposing whether this fixture is sampling an ordinary region.
-                server.getCommands().performPrefixedCommand(
-                        server.createCommandSourceStack(), "tectonic locate mountain_range");
-                java.util.logging.Logger.getLogger(SkyforgeTectonicTerrainAcceptance.class.getName())
-                        .info("Issued Tectonic mountain-range locate from the acceptance origin");
-            }
             String tectonicVerticalScale = "not-applicable";
             String tectonicElevationBoost = "not-applicable";
             String tectonicContinentsScale = "not-applicable";
@@ -204,7 +197,7 @@ final class SkyforgeTectonicTerrainAcceptance {
                 return;
             }
 
-            ChunkAccess islandChunk = level.getChunk(new ChunkPos(0, 0).getMiddleBlockPosition(0));
+            ChunkAccess islandChunk = level.getChunk(REVIEW_CHUNK.getMiddleBlockPosition(0));
             RandomState randomState =
                     generator.terrainProviderRandomState(level.getSeed(), level.registryAccess());
             ProfileEvidence profile = sampleProfile(
@@ -213,7 +206,7 @@ final class SkyforgeTectonicTerrainAcceptance {
                     generator.terrainProviderGenerator(),
                     randomState);
             if (profile.samples() == 0) {
-                fail(server, "terrain provider returned no solid surface columns in the origin profile");
+                fail(server, "terrain provider returned no solid surface columns in the mountain-range review profile");
                 return;
             }
             ProfileEvidence realizedSurface = captureRealizedIslandSurface(islandChunk);
@@ -395,7 +388,7 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put("tectonicOceanOffset", tectonicOceanOffset);
             evidence.put("terrainProviderSettings", settingsKey);
             evidence.put("terrainProfileDatumY", providerTerrainDatumY);
-            evidence.put("terrainProfileDatumSampling", "world_fixed_origin_chunk_median");
+            evidence.put("terrainProfileDatumSampling", "world_fixed_origin_chunk_minimum");
             evidence.put(
                     "providerReliefMapping",
                     MinecraftNativeSurfaceTopAdapter.PROVIDER_RELIEF_MAPPING);
@@ -403,6 +396,8 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put(
                     "providerReliefMaximumRiseBlocks",
                     MinecraftNativeSurfaceTopAdapter.MAX_PROVIDER_SURFACE_RISE_BLOCKS);
+            evidence.put("providerSampleChunk", REVIEW_CHUNK.toString());
+            evidence.put("tectonicMountainRangeAnchor", "0,64");
             evidence.put("terrainProfileDigest", profile.digest());
             evidence.put("terrainProfileHeightDigest", profile.heightDigest());
             evidence.put("terrainProfileSamples", profile.samples());

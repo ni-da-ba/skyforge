@@ -21,7 +21,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
     private static final int CHUNK_WIDTH = 16;
     static final int MAX_PROVIDER_SURFACE_RISE_BLOCKS = 64;
     static final int PROVIDER_RELIEF_GAIN = 2;
-    static final String PROVIDER_RELIEF_MAPPING = "signed_centered_double";
+    static final String PROVIDER_RELIEF_MAPPING = "bounded_signed_double";
 
     /**
      * Compatibility overload for isolated tests and direct adapter usage.
@@ -151,9 +151,9 @@ public final class MinecraftNativeSurfaceTopAdapter {
     }
 
     /**
-     * Transfers provider relief around the shared world-fixed median datum with a bounded linear gain.
-     * Negative relief cuts valleys into the authored cap; positive relief raises peaks while the
-     * exact Skyforge top-volume envelope continues to bound every column.
+     * Transfers provider relief from a shared, fixed world datum with a bounded linear gain. Positive
+     * relief raises peaks and negative relief cuts valleys while the exact Skyforge top-volume
+     * envelope continues to bound every column.
      */
     static long projectProviderRelief(long providerRelief) {
         return Math.max(
