@@ -20,7 +20,7 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 public final class MinecraftNativeSurfaceTopAdapter {
     private static final int CHUNK_WIDTH = 16;
     static final int MAX_PROVIDER_SURFACE_RISE_BLOCKS = 64;
-    static final int PROVIDER_RELIEF_SCALE = 2;
+    static final int PROVIDER_RELIEF_CURVE_REFERENCE_BLOCKS = 32;
 
     /**
      * Compatibility overload for isolated tests and direct adapter usage.
@@ -105,7 +105,8 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 // volume so positive provider relief is not flattened at its original ceiling;
                 // Skyforge footprint, body, and underside remain untouched.
                 long providerRelief = (long) nativeSurface.orElseThrow().worldY() - snapshot.baselineY();
-                long desiredY = (long) originalTopY + PROVIDER_RELIEF_SCALE * providerRelief;
+                long projectedProviderRelief = projectProviderRelief(providerRelief);
+                long desiredY = (long) originalTopY + projectedProviderRelief;
                 int targetTopY = (int) Math.max(
                         (long) minimumAllowedY,
                         Math.min((long) maximumAllowedY, desiredY));
@@ -146,6 +147,21 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 blockKeys,
                 materialization.candidateVolumeReferences());
         return new TerrainProfileAdaptation(adapted, providerWriteClaims);
+    }
+
+    /**
+     * Concentrates positive provider relief into higher, narrower terrain while retaining a
+     * deterministic world-fixed mapping for every column. The cubic curve keeps the lowlands
+     * near the authored cap and gives the provider's upper tail enough range to form peaks.
+     */
+    static long projectProviderRelief(long providerRelief) {
+        long magnitude = Math.min(
+                Math.abs(providerRelief),
+                PROVIDER_RELIEF_CURVE_REFERENCE_BLOCKS);
+        double normalized = magnitude / (double) PROVIDER_RELIEF_CURVE_REFERENCE_BLOCKS;
+        long projectedMagnitude = Math.round(MAX_PROVIDER_SURFACE_RISE_BLOCKS
+                * normalized * normalized * normalized);
+        return providerRelief < 0 ? -projectedMagnitude : projectedMagnitude;
     }
 
     private static int highestSolidLocalY(
