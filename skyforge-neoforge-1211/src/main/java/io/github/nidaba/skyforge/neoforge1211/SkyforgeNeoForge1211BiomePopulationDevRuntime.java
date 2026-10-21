@@ -1007,6 +1007,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                     + aggregate.attemptedFeatures
                     + ", writePreflightRejections=" + aggregate.writePreflightRejections
                     + ", writeDecisionRejections=" + aggregate.writeDecisionRejections
+                    + ", writePreflightEvidence=" + SkyforgePopulationExecutionStage.writePreflightRejectionEvidence()
                     + ", features=" + aggregate.featureKeys);
         }
         if (!aggregate.hasTreeEvidence()) {
