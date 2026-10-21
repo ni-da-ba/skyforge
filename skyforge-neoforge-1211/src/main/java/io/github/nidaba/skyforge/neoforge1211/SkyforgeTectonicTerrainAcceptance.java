@@ -265,6 +265,7 @@ final class SkyforgeTectonicTerrainAcceptance {
             }
             int grassSurfaceColumns = countTopMaterial(islandChunk, Blocks.GRASS_BLOCK.defaultBlockState());
             String providerSurfaceRuleMaterial = "not-recomputed-on-reopen";
+            String providerIslandSurfaceMaterialGrid = "not-recomputed-on-reopen";
             String providerSurfaceRuleMaterialAdaptation = "not-recomputed-on-reopen";
             int providerSurfaceRuleMaterialColumns = 0;
             int providerSurfaceRuleMaterialUnsupportedColumns = 0;
@@ -298,6 +299,8 @@ final class SkyforgeTectonicTerrainAcceptance {
                     return;
                 }
                 providerSurfaceRuleMaterial = generatedSurfaceMaterial.toString();
+                providerIslandSurfaceMaterialGrid = describeProviderIslandSurfaceMaterialGrid(
+                        islandChunk, providerSurfaceSnapshot);
                 providerSurfaceRuleMaterialAdaptation = fallingProviderMaterial
                         ? (providerSurfaceRuleMaterialColumns == 0
                                 ? "skipped_falling_material"
@@ -424,6 +427,7 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put(
                     "providerSurfaceRuleMaterialUnsupportedColumns",
                     providerSurfaceRuleMaterialUnsupportedColumns);
+            evidence.put("providerIslandSurfaceMaterialGrid", providerIslandSurfaceMaterialGrid);
             evidence.put("reopenPass", reopening);
             evidence.put("persistedProviderSurfaceColumns", persistedGrassColumns);
             evidence.put("persistedPostGenerationMutationColumns", persistedMutationColumns);
@@ -877,6 +881,72 @@ final class SkyforgeTectonicTerrainAcceptance {
                 samples,
                 minimumY,
                 maximumY);
+    }
+
+    /**
+     * Encodes each provider surface and realized island top in the acceptance chunk.
+     *
+     * <p>Rows are local Z 0..15; columns are local X 0..15. Each cell is provider-code/island-code,
+     * and the palette maps codes back to namespaced block IDs. This keeps minority material
+     * regions visible in machine evidence instead of reporting only the dominant provider block.
+     */
+    private static String describeProviderIslandSurfaceMaterialGrid(
+            ChunkAccess chunk, MinecraftNativeSurfaceSnapshot snapshot) {
+        Map<String, Integer> palette = new LinkedHashMap<>();
+        int[][] providerCodes = new int[16][16];
+        int[][] islandCodes = new int[16][16];
+        for (int localZ = 0; localZ < 16; localZ++) {
+            for (int localX = 0; localX < 16; localX++) {
+                String providerMaterial = snapshot.surface(localX, localZ)
+                        .map(surface -> surface.blockKey().toString())
+                        .orElse("none");
+                String islandMaterial = topSurfaceMaterial(chunk, localX, localZ);
+                providerCodes[localZ][localX] = palette.computeIfAbsent(
+                        providerMaterial, ignored -> palette.size());
+                islandCodes[localZ][localX] = palette.computeIfAbsent(
+                        islandMaterial, ignored -> palette.size());
+            }
+        }
+
+        StringBuilder encodedPalette = new StringBuilder();
+        for (Map.Entry<String, Integer> entry : palette.entrySet()) {
+            if (!encodedPalette.isEmpty()) {
+                encodedPalette.append(',');
+            }
+            encodedPalette.append(entry.getValue()).append('=').append(entry.getKey());
+        }
+        StringBuilder rows = new StringBuilder();
+        for (int localZ = 0; localZ < 16; localZ++) {
+            if (!rows.isEmpty()) {
+                rows.append('/');
+            }
+            for (int localX = 0; localX < 16; localX++) {
+                if (localX > 0) {
+                    rows.append(',');
+                }
+                rows.append(providerCodes[localZ][localX])
+                        .append('/')
+                        .append(islandCodes[localZ][localX]);
+            }
+        }
+        return "palette=" + encodedPalette + ";z0_to_z15_x0_to_x15=" + rows;
+    }
+
+    private static String topSurfaceMaterial(ChunkAccess chunk, int localX, int localZ) {
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        int worldX = chunk.getPos().getMinBlockX() + localX;
+        int worldZ = chunk.getPos().getMinBlockZ() + localZ;
+        for (int worldY = chunk.getMaxBuildHeight() - 1;
+                worldY >= chunk.getMinBuildHeight();
+                worldY--) {
+            BlockState state = chunk.getBlockState(cursor.set(worldX, worldY, worldZ));
+            if (state.isAir() || !state.getFluidState().isEmpty()) {
+                continue;
+            }
+            var key = BuiltInRegistries.BLOCK.getKey(state.getBlock());
+            return key == null ? "unknown" : key.toString();
+        }
+        return "none";
     }
 
     private static int countNonAir(ChunkAccess chunk) {
