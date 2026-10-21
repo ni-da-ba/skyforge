@@ -68,5 +68,6 @@ jobs:
             skyforge-neoforge-1211/build/acceptance/sf-imp-0054-modded-biome/
             skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-server/logs/
             skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-join-client/logs/
+            skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-server/saves/acceptance/
           if-no-files-found: warn
           retention-days: 14
