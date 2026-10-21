@@ -166,3 +166,12 @@ At the failed exact head, the captured provider snapshot and base-column sampler
 The owner reports that successive Tectonic specimens remain visually too similar. The current profile uses the origin chunk's minimum provider surface as its datum and maps the resulting positive relief one-to-one onto Skyforge's cap. This provider-profile experiment doubles the sampled relief and raises the provider-owned top-rise ceiling to 64 blocks. This yields a substantially taller, more legible terrain profile while keeping the same exact X/Z island footprint and exact-volume claims. The multiplier is shared by the vanilla control and Tectonic treatment so the A/B isolates the provider's native profile; actual output remains bounded by exact ownership checks and the 64-block ceiling.
 
 The exact-head fixture now requires at least 48 blocks of realized vertical range, a ridge at or above Y=300, and records the relief multiplier. Machine success still does not establish visual coherence. The Tectonic treatment must again be reviewed for visible terrain, stable surface seams, island spawn, intact underside, and surrounding void.
+
+
+## Tectonic profile concentration experiment — in progress
+
+The doubled linear transfer still mapped most of Tectonic's measured source range (Y=271–300) above the island's ridge band: 249 of 256 sampled columns reached Y=300, even after increasing Tectonic's horizontal frequency settings. Exact provider writes all succeeded, so this was a shape-mapping issue rather than an ownership/admission failure.
+
+The development profile adapter now applies a deterministic signed cubic transfer to provider relief relative to its fixed world datum. Relief is normalized to 32 source blocks and mapped into the existing 64-block rise envelope. This keeps modest relief close to the authored cap while concentrating the source profile's upper tail into narrower peaks; negative relief remains deterministic and symmetric. Exact X/Z ownership, added-cell claims, stable material support, body, and underside boundaries are unchanged.
+
+This is an Implementation experiment, not an accepted production terrain-shape contract. The focused adapter test checks the lowland, peak, negative-relief, and saturation values. The exact-head Tectonic A/B must demonstrate both the minimum relief and reduced ridge-band coverage before another visual review is requested.
