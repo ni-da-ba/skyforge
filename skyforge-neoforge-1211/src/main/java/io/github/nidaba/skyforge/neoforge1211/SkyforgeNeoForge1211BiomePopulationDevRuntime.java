@@ -1064,17 +1064,16 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         long upperSeed = ROOT_SEED ^ 0x5441494741L;
         var lowerId = new SkyIslandWorldVolumeId(ROOT_SEED, "sf-imp-0054-biomes", 0, 0, lowerSeed);
         var upperId = new SkyIslandWorldVolumeId(ROOT_SEED, "sf-imp-0054-biomes", 0, 1, upperSeed);
-        // The observed Rocky Shrubland provider patch overlaps the lower island's outer thin
-        // edge at the tree witness. Keep the authored upper specimen unchanged and broaden the
-        // supporting lower province layer so its forest witness has real soil beneath that patch.
+        // The observed Rocky Shrubland provider patch overlapped a thin lower edge. Keep the
+        // upper specimen fixed and give the lower forest witness enough relief for a soil mantle.
         var lower = new SkyIslandWorldVolume(
                 lowerId,
-                new WorldBounds(-144.0, 144.0, 96.0, 168.0, -144.0, 144.0),
-                compileTableland(lowerSeed, 136.0, 144.0));
+                new WorldBounds(-144.0, 144.0, 96.0, 184.0, -144.0, 144.0),
+                compileTableland(lowerSeed, 136.0, 144.0, 40.0));
         var upper = new SkyIslandWorldVolume(
                 upperId,
                 new WorldBounds(-144.0, 144.0, 196.0, 268.0, -144.0, 144.0),
-                compileTableland(upperSeed, 236.0, 112.0));
+                compileTableland(upperSeed, 236.0, 112.0, 12.0));
         return new SkyIslandWorldCatalog(ROOT_SEED, List.of(lower, upper));
     }
 
@@ -1085,7 +1084,8 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 new SkyforgeMinecraftBlockPalette());
     }
 
-    private static CompiledSkyIslandVolume compileTableland(long seed, double elevation, double nominalRadius) {
+    private static CompiledSkyIslandVolume compileTableland(
+            long seed, double elevation, double nominalRadius, double upperElevation) {
         var descriptor = new SkyIslandVolumeDescriptor(
                 SkyIslandVolumeDescriptor.SCHEMA_VERSION_1,
                 seed,
@@ -1093,7 +1093,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 0.0,
                 elevation,
                 nominalRadius,
-                12.0,
+                upperElevation,
                 28.0,
                 10.0,
                 0.0,
