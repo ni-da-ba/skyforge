@@ -13,6 +13,8 @@ import net.minecraft.world.level.block.state.BlockState;
 /** Thread-confined execution state for one exact-volume native population attempt. */
 final class SkyforgePopulationExecutionStage {
     private static final ThreadLocal<Execution> ACTIVE = new ThreadLocal<>();
+    private static final System.Logger LOGGER =
+            System.getLogger(SkyforgePopulationExecutionStage.class.getName());
 
     private SkyforgePopulationExecutionStage() {}
 
@@ -250,8 +252,32 @@ final class SkyforgePopulationExecutionStage {
             return attachmentEnvelope.acceptWrite(position);
         }
 
-        void recordWritePreflightRejection() {
+        String writePreflightRejectionReason(BlockPos position) {
+            Objects.requireNonNull(position, "position");
+            if (!SkyforgeNativeInteriorPlacementPolicy.canWrite(operation, position, ownerSolid)) {
+                return "native-interior-policy";
+            }
+            if (foreignSolid.test(position)) {
+                return "foreign-island-volume";
+            }
+            return "owner-or-attachment-envelope";
+        }
+
+        void recordWritePreflightRejection(BlockPos position, String reason) {
+            Objects.requireNonNull(position, "position");
+            Objects.requireNonNull(reason, "reason");
             writePreflightRejections = Math.addExact(writePreflightRejections, 1);
+            if (writePreflightRejections == 1
+                    && Boolean.getBoolean(SkyforgeNeoForge1211BiomePopulationDevRuntime.ENABLE_PROPERTY)) {
+                LOGGER.log(
+                        System.Logger.Level.INFO,
+                        "SF-IMP-0054 WRITE PREFLIGHT REJECTION: volume=" + operation.volumeId().path()
+                                + ", feature=" + operation.nativeDefinitionKey()
+                                + ", position=" + position.toShortString()
+                                + ", reason=" + reason
+                                + ", ownerSolid=" + ownerSolid.test(position)
+                                + ", foreignSolid=" + foreignSolid.test(position));
+            }
         }
 
         void recordWriteDecisionRejection() {

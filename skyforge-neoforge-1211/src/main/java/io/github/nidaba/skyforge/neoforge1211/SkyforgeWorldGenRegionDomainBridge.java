@@ -67,7 +67,8 @@ public final class SkyforgeWorldGenRegionDomainBridge {
         Objects.requireNonNull(position, "position");
         var execution = SkyforgePopulationExecutionStage.activeExecution();
         if (!SkyforgeStructurePlacementExecutionStage.canWrite(position)) {
-            execution.ifPresent(SkyforgePopulationExecutionStage.Execution::recordWritePreflightRejection);
+            execution.ifPresent(active -> active.recordWritePreflightRejection(
+                    position, "structure-placement-boundary"));
             return false;
         }
         if (execution.isEmpty()) {
@@ -76,7 +77,7 @@ public final class SkyforgeWorldGenRegionDomainBridge {
         var active = execution.orElseThrow();
         boolean accepted = active.canWrite(position);
         if (!accepted) {
-            active.recordWritePreflightRejection();
+            active.recordWritePreflightRejection(position, active.writePreflightRejectionReason(position));
         }
         SkyforgeUndergroundPlacementProbe.observeWritePreflight(
                 active.operation(),
