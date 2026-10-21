@@ -88,6 +88,14 @@ final class SkyforgePopulationAttachmentEnvelope {
         return attachmentDepths.containsKey(position);
     }
 
+    String rejectionEvidence(BlockPos position) {
+        Objects.requireNonNull(position, "position");
+        int parentDepth = minimumAdjacentDepth(position);
+        return "attachmentDepthLimit=" + maximumAttachmentDepth
+                + ", attachmentParentDepth=" + (parentDepth < 0 ? "none" : parentDepth)
+                + ", existingAttachment=" + attachmentDepths.containsKey(position.immutable());
+    }
+
     int attachmentCount() {
         return attachmentDepths.size();
     }
