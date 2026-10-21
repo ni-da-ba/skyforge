@@ -21,6 +21,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
     private static final int CHUNK_WIDTH = 16;
     static final int MAX_PROVIDER_SURFACE_RISE_BLOCKS = 64;
     static final int PROVIDER_RELIEF_CURVE_REFERENCE_BLOCKS = 32;
+    static final String PROVIDER_RELIEF_MAPPING = "signed_cubic";
 
     /**
      * Compatibility overload for isolated tests and direct adapter usage.
