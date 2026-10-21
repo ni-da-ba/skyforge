@@ -9383,6 +9383,7 @@ tasks.register("sfImp0054TectonicTerrainAcceptance") {
                 + ", tectonic=" + treatment.getProperty("terrainProfileDigest")
                 + ", vanillaIslandHeights=" + vanilla.getProperty("realizedIslandSurfaceHeightDigest")
                 + ", tectonicIslandHeights=" + treatment.getProperty("realizedIslandSurfaceHeightDigest")
+                + ", tectonicColumnsAtRidge=" + treatment.getProperty("realizedIslandColumnsAtOrAboveRidge")
                 + ", seed=" + treatment.getProperty("worldSeed")
                 + ", settings=" + treatment.getProperty("terrainProviderSettings")
                 + ", exactIslandUnderside=true, exteriorVoid=true")
