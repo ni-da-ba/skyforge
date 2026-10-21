@@ -337,8 +337,8 @@ final class SkyforgePopulationExecutionStage {
                 }
             }
             return "attachmentOriginChunk=" + operation.originChunk()
-                    + ", adjacentOwnerSolidInattachmentOriginChunk=" + originChunkOwnerCells
-                    + ", adjacentOwnerSolidOutsideattachmentOriginChunk=" + neighboringChunkOwnerCells;
+                    + ", adjacentOwnerSolidInOriginChunk=" + originChunkOwnerCells
+                    + ", adjacentOwnerSolidOutsideOriginChunk=" + neighboringChunkOwnerCells;
         }
 
         private String liveHeightEvidence(BlockPos position) {
