@@ -34,7 +34,7 @@ final class MinecraftNativeSurfaceSnapshot {
     private static final int CHUNK_WIDTH = 16;
     private static final int SAMPLE_COUNT = CHUNK_WIDTH * CHUNK_WIDTH;
     static final int SURFACE_STRATA_DEPTH = 4;
-    private static final int PROFILE_FILTER_RADIUS = 1;
+    private static final int PROFILE_FILTER_RADIUS = 3;
     private static final int PROFILE_FILTER_WIDTH = CHUNK_WIDTH + PROFILE_FILTER_RADIUS * 2;
     private static final int PROFILE_FILTER_SAMPLE_COUNT = PROFILE_FILTER_WIDTH * PROFILE_FILTER_WIDTH;
     private static final Map<ProviderDatumKey, Integer> PROVIDER_TERRAIN_DATUMS = new ConcurrentHashMap<>();
@@ -71,7 +71,7 @@ final class MinecraftNativeSurfaceSnapshot {
             throw new IllegalArgumentException("native surface strata must contain exactly 256 columns");
         }
         if (providerHeightHalo.length != PROFILE_FILTER_SAMPLE_COUNT) {
-            throw new IllegalArgumentException("provider height halo must include the chunk and one-column border");
+            throw new IllegalArgumentException("provider height halo must include the chunk and the profile-filter border");
         }
         this.worldYs = Arrays.copyOf(worldYs, worldYs.length);
         this.blockKeys = Arrays.copyOf(blockKeys, blockKeys.length);
@@ -229,8 +229,10 @@ final class MinecraftNativeSurfaceSnapshot {
                 if (height == Integer.MIN_VALUE) {
                     continue;
                 }
-                int axisWeightX = deltaX == 0 ? 2 : 1;
-                int axisWeightZ = deltaZ == 0 ? 2 : 1;
+                // A triangular 7x7 kernel retains broad mountain forms while damping
+                // block-scale ledges that became visible as repeated vertical faces.
+                int axisWeightX = PROFILE_FILTER_RADIUS + 1 - Math.abs(deltaX);
+                int axisWeightZ = PROFILE_FILTER_RADIUS + 1 - Math.abs(deltaZ);
                 int weight = axisWeightX * axisWeightZ;
                 weightedHeight += height * weight;
                 totalWeight += weight;

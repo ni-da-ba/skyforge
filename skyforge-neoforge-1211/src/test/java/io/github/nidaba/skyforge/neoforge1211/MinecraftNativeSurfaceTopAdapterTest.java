@@ -55,8 +55,8 @@ final class MinecraftNativeSurfaceTopAdapterTest {
     @Test
     void smoothedProviderSurfaceReducesSingleColumnReliefWithoutChangingFlatNeighbors() {
         ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(new ChunkPos(0, 0));
-        for (int localZ = 7; localZ <= 9; localZ++) {
-            for (int localX = 7; localX <= 9; localX++) {
+        for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
+            for (int localX = 0; localX < CHUNK_WIDTH; localX++) {
                 chunk.setBlockState(
                         new BlockPos(localX, 190, localZ),
                         Blocks.GRASS_BLOCK.defaultBlockState(),
@@ -68,13 +68,17 @@ final class MinecraftNativeSurfaceTopAdapterTest {
         MinecraftNativeSurfaceSnapshot snapshot = MinecraftNativeSurfaceSnapshot.capture(chunk, 63);
 
         assertEquals(
-                195,
+                191,
                 snapshot.smoothedProviderSurfaceY(8, 8),
-                "the center spike should blend deterministically with its 3x3 provider neighborhood");
+                "the center spike should blend deterministically with its 7x7 provider neighborhood");
+        assertEquals(
+                191,
+                snapshot.smoothedProviderSurfaceY(7, 7),
+                "the nearby profile should transition gradually away from the spike");
         assertEquals(
                 190,
-                snapshot.smoothedProviderSurfaceY(7, 7),
-                "flat neighborhood columns should retain their shared profile height");
+                snapshot.smoothedProviderSurfaceY(4, 4),
+                "the flat area beyond the smoothing radius should retain its source height");
     }
 
     @Test
