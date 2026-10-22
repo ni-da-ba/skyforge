@@ -61,7 +61,9 @@ public final class MinecraftNativeSurfaceTopAdapter {
         ResourceLocation dominantProviderSurfaceMaterial = dominantStableProviderSurfaceMaterial(snapshot);
         ResourceLocation[] projectedSurfaceMaterials = new ResourceLocation[CHUNK_WIDTH * CHUNK_WIDTH];
         int[] projectedSurfaceTopYs = new int[CHUNK_WIDTH * CHUNK_WIDTH];
+        int[] originalSurfaceTopYs = new int[CHUNK_WIDTH * CHUNK_WIDTH];
         Arrays.fill(projectedSurfaceTopYs, Integer.MIN_VALUE);
+        Arrays.fill(originalSurfaceTopYs, Integer.MIN_VALUE);
         Map<Long, SkyIslandWorldVolumeId> providerWriteClaims = new HashMap<>();
         int maximumMaterializedY = materialization.minimumY() + materialization.height() - 1;
         for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
@@ -211,14 +213,39 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 int surfaceIndex = localX + CHUNK_WIDTH * localZ;
                 projectedSurfaceMaterials[surfaceIndex] = blockKeys[targetIndex];
                 projectedSurfaceTopYs[surfaceIndex] = targetTopY;
+                originalSurfaceTopYs[surfaceIndex] = originalTopY;
             }
         }
 
-        // Provider relief can uncover original Skyforge cap voxels as well as newly added rise
-        // voxels. Skin every horizontally exposed face in the bounded projected surface band;
-        // otherwise a lowered provider column exposes the untouched gray side of its neighbor's
-        // original cap, recreating the broad gray cut-in even when the lowered top is correctly
-        // re-skinned.
+        // Preserve the original bounded skin for newly added rise voxels.
+        for (var claimedCell : providerWriteClaims.keySet()) {
+            net.minecraft.core.BlockPos position = net.minecraft.core.BlockPos.of(claimedCell);
+            int localX = position.getX() - materialization.chunkPos().getMinBlockX();
+            int localZ = position.getZ() - materialization.chunkPos().getMinBlockZ();
+            if (localX < 0 || localX >= CHUNK_WIDTH || localZ < 0 || localZ >= CHUNK_WIDTH) {
+                continue;
+            }
+            int localY = position.getY() - materialization.minimumY();
+            if (localY < 0 || localY >= materialization.height()
+                    || !hasHorizontalAirExposure(blockKeys, localX, localY, localZ)) {
+                continue;
+            }
+            int surfaceIndex = localX + CHUNK_WIDTH * localZ;
+            int projectedTopY = projectedSurfaceTopYs[surfaceIndex];
+            if (projectedTopY == Integer.MIN_VALUE
+                    || projectedTopY - position.getY() < MinecraftNativeSurfaceSnapshot.SURFACE_STRATA_DEPTH) {
+                continue;
+            }
+            ResourceLocation sideSurfaceMaterial = projectedSurfaceMaterials[surfaceIndex];
+            if (stableTerrainProfileMaterial(sideSurfaceMaterial)) {
+                blockKeys[linearIndex(localX, localY, localZ)] = sideSurfaceMaterial;
+            }
+        }
+
+        // A provider cut can expose original Skyforge cap voxels on a neighboring, unlowered
+        // column. Re-skin only faces that were blocked before projection and became exposed
+        // because an adjacent column's projected top moved below this voxel. This leaves natural
+        // island cliffs and unrelated original faces untouched.
         for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
             for (int localX = 0; localX < CHUNK_WIDTH; localX++) {
                 int surfaceIndex = localX + CHUNK_WIDTH * localZ;
@@ -229,7 +256,6 @@ public final class MinecraftNativeSurfaceTopAdapter {
                     continue;
                 }
 
-                var providerSurface = snapshot.surface(localX, localZ).orElseThrow();
                 int lowestSkinnedY = Math.max(
                         materialization.minimumY(),
                         projectedTopY - MAX_PROVIDER_SURFACE_RISE_BLOCKS);
@@ -237,7 +263,13 @@ public final class MinecraftNativeSurfaceTopAdapter {
                     int localY = worldY - materialization.minimumY();
                     int index = linearIndex(localX, localY, localZ);
                     if (SkyforgeMinecraftBlockPalette.AIR.equals(blockKeys[index])
-                            || !hasHorizontalAirExposure(blockKeys, localX, localY, localZ)) {
+                            || !hasHorizontalAirExposure(blockKeys, localX, localY, localZ)
+                            || !exposedByProviderCut(
+                                    originalSurfaceTopYs,
+                                    projectedSurfaceTopYs,
+                                    localX,
+                                    localZ,
+                                    worldY)) {
                         continue;
                     }
 
@@ -247,6 +279,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
                         var stratum = snapshot.surfaceStratum(localX, localZ, depth);
                         if (stratum.isPresent()) {
                             sideSurfaceMaterial = stratum.orElseThrow();
+                            var providerSurface = snapshot.surface(localX, localZ).orElseThrow();
                             if (!stableTerrainProfileMaterial(sideSurfaceMaterial)
                                     || (SkyforgeMinecraftBlockPalette.STONE.equals(providerSurface.blockKey())
                                             && dominantProviderSurfaceMaterial != null
@@ -287,6 +320,33 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 (numerator + PROVIDER_RELIEF_CURVE_REFERENCE_BLOCKS / 2)
                         / PROVIDER_RELIEF_CURVE_REFERENCE_BLOCKS;
         return providerRelief < 0 ? -projectedMagnitude : projectedMagnitude;
+    }
+
+    private static boolean exposedByProviderCut(
+            int[] originalSurfaceTopYs,
+            int[] projectedSurfaceTopYs,
+            int localX,
+            int localZ,
+            int worldY) {
+        return cutExposesNeighbor(originalSurfaceTopYs, projectedSurfaceTopYs, localX - 1, localZ, worldY)
+                || cutExposesNeighbor(originalSurfaceTopYs, projectedSurfaceTopYs, localX + 1, localZ, worldY)
+                || cutExposesNeighbor(originalSurfaceTopYs, projectedSurfaceTopYs, localX, localZ - 1, worldY)
+                || cutExposesNeighbor(originalSurfaceTopYs, projectedSurfaceTopYs, localX, localZ + 1, worldY);
+    }
+
+    private static boolean cutExposesNeighbor(
+            int[] originalSurfaceTopYs,
+            int[] projectedSurfaceTopYs,
+            int localX,
+            int localZ,
+            int worldY) {
+        if (localX < 0 || localX >= CHUNK_WIDTH || localZ < 0 || localZ >= CHUNK_WIDTH) {
+            return false;
+        }
+        int surfaceIndex = localX + CHUNK_WIDTH * localZ;
+        int originalTopY = originalSurfaceTopYs[surfaceIndex];
+        int projectedTopY = projectedSurfaceTopYs[surfaceIndex];
+        return originalTopY >= worldY && projectedTopY < worldY;
     }
 
     private static boolean hasHorizontalAirExposure(
