@@ -173,6 +173,62 @@ final class MinecraftNativeSurfaceTopAdapterTest {
     }
 
     @Test
+    void providerNearSurfaceStrataFollowLoweredIslandTopAndReplaceGrayCap() {
+        var catalog = SkyforgeNeoForge1211PopulationDevRuntime.catalog();
+        var volume = catalog.volumes().getFirst();
+        ChunkPos chunkPos = new ChunkPos(0, 0);
+        ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(chunkPos);
+        var adapter = new SkyforgeNeoForge1211ChunkAdapter(
+                catalog,
+                io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette());
+        MinecraftChunkMaterialization original = adapter.materialize(
+                volume.id(),
+                chunkPos,
+                chunk.getMinBuildHeight(),
+                chunk.getHeight());
+        var support = adapter.integerSolidRange(volume.id(), 8, 8).orElseThrow();
+        chunk.setBlockState(new BlockPos(8, 223, 8), Blocks.GRASS_BLOCK.defaultBlockState(), false);
+        chunk.setBlockState(new BlockPos(8, 222, 8), Blocks.DIRT.defaultBlockState(), false);
+        chunk.setBlockState(new BlockPos(8, 221, 8), Blocks.DIRT.defaultBlockState(), false);
+        chunk.setBlockState(new BlockPos(8, 220, 8), Blocks.STONE.defaultBlockState(), false);
+
+        ResourceLocation[] authoredKeys = original.blockKeys();
+        authoredKeys[8 + CHUNK_WIDTH * (8 + CHUNK_WIDTH * (support.maximumY() - original.minimumY()))] =
+                SkyforgeMinecraftBlockPalette.STONE;
+        MinecraftChunkMaterialization grayCap = new MinecraftChunkMaterialization(
+                chunkPos,
+                original.minimumY(),
+                original.height(),
+                authoredKeys,
+                original.candidateVolumeReferences());
+
+        var profile = new MinecraftNativeSurfaceTopAdapter().adaptTerrainProfile(
+                MinecraftNativeSurfaceSnapshot.capture(chunk, 303),
+                grayCap,
+                adapter);
+
+        int loweredTopY = profile.projectedSurfaceTopYs()[8 + CHUNK_WIDTH * 8];
+        assertTrue(loweredTopY < support.maximumY(), "negative provider relief should cut into the authored cap");
+        assertEquals(
+                ResourceLocation.withDefaultNamespace("grass_block"),
+                profile.materialization().blockKeyAt(8, loweredTopY, 8));
+        assertEquals(
+                ResourceLocation.withDefaultNamespace("dirt"),
+                profile.materialization().blockKeyAt(8, loweredTopY - 1, 8));
+        assertEquals(
+                ResourceLocation.withDefaultNamespace("dirt"),
+                profile.materialization().blockKeyAt(8, loweredTopY - 2, 8));
+        assertEquals(
+                ResourceLocation.withDefaultNamespace("stone"),
+                profile.materialization().blockKeyAt(8, loweredTopY - 3, 8));
+        assertEquals(
+                original.solidBlockCount() - (support.maximumY() - loweredTopY),
+                profile.materialization().solidBlockCount(),
+                "surface re-skinning must not restore cleared occupancy above the lowered top");
+    }
+
+    @Test
     void providerNearSurfaceStrataFollowNewlyProjectedIslandRise() {
         var catalog = SkyforgeNeoForge1211PopulationDevRuntime.catalog();
         var volume = catalog.volumes().getFirst();
