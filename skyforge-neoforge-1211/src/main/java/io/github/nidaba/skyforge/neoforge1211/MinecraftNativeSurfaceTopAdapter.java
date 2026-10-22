@@ -2,6 +2,7 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import io.github.nidaba.skyforge.world.WorldBounds;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -59,6 +60,8 @@ public final class MinecraftNativeSurfaceTopAdapter {
         ResourceLocation[] blockKeys = materialization.blockKeys();
         ResourceLocation dominantProviderSurfaceMaterial = snapshot.mostCommonSurfaceMaterial();
         ResourceLocation[] projectedSurfaceMaterials = new ResourceLocation[CHUNK_WIDTH * CHUNK_WIDTH];
+        int[] projectedSurfaceTopYs = new int[CHUNK_WIDTH * CHUNK_WIDTH];
+        Arrays.fill(projectedSurfaceTopYs, Integer.MIN_VALUE);
         Map<Long, SkyIslandWorldVolumeId> providerWriteClaims = new HashMap<>();
         int maximumMaterializedY = materialization.minimumY() + materialization.height() - 1;
         for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
@@ -160,8 +163,9 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 if (stableTerrainProfileMaterial(selectedSurfaceMaterial)) {
                     blockKeys[targetIndex] = selectedSurfaceMaterial;
                 }
-                projectedSurfaceMaterials[localX + CHUNK_WIDTH * localZ] =
-                        blockKeys[targetIndex];
+                int surfaceIndex = localX + CHUNK_WIDTH * localZ;
+                projectedSurfaceMaterials[surfaceIndex] = blockKeys[targetIndex];
+                projectedSurfaceTopYs[surfaceIndex] = targetTopY;
             }
         }
 
@@ -181,7 +185,13 @@ public final class MinecraftNativeSurfaceTopAdapter {
                     || !hasHorizontalAirExposure(blockKeys, localX, localY, localZ)) {
                 continue;
             }
-            ResourceLocation sideSurfaceMaterial = projectedSurfaceMaterials[localX + CHUNK_WIDTH * localZ];
+            int surfaceIndex = localX + CHUNK_WIDTH * localZ;
+            int projectedTopY = projectedSurfaceTopYs[surfaceIndex];
+            if (projectedTopY == Integer.MIN_VALUE
+                    || projectedTopY - position.getY() < MinecraftNativeSurfaceSnapshot.SURFACE_STRATA_DEPTH) {
+                continue;
+            }
+            ResourceLocation sideSurfaceMaterial = projectedSurfaceMaterials[surfaceIndex];
             if (stableTerrainProfileMaterial(sideSurfaceMaterial)) {
                 blockKeys[linearIndex(localX, localY, localZ)] = sideSurfaceMaterial;
             }
