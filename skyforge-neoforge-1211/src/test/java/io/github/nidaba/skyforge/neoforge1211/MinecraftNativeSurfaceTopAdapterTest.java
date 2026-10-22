@@ -182,54 +182,85 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                 catalog,
                 io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(),
                 new SkyforgeMinecraftBlockPalette());
-        MinecraftChunkMaterialization original = adapter.materialize(
+        MinecraftChunkMaterialization materialized = adapter.materialize(
                 volume.id(),
                 chunkPos,
                 chunk.getMinBuildHeight(),
                 chunk.getHeight());
-        var support = adapter.integerSolidRange(volume.id(), 8, 8).orElseThrow();
-        chunk.setBlockState(new BlockPos(8, 223, 8), Blocks.GRASS_BLOCK.defaultBlockState(), false);
-        chunk.setBlockState(new BlockPos(8, 222, 8), Blocks.DIRT.defaultBlockState(), false);
-        chunk.setBlockState(new BlockPos(8, 221, 8), Blocks.DIRT.defaultBlockState(), false);
-        chunk.setBlockState(new BlockPos(8, 220, 8), Blocks.STONE.defaultBlockState(), false);
 
-        ResourceLocation[] authoredKeys = original.blockKeys();
-        authoredKeys[8 + CHUNK_WIDTH * (8 + CHUNK_WIDTH * (support.maximumY() - original.minimumY()))] =
+        // Pick a genuinely thick cap so a six-block cut still leaves room for the full
+        // captured near-surface profile beneath the newly exposed top.
+        int surfaceX = -1;
+        int surfaceZ = -1;
+        int supportMaximumY = Integer.MIN_VALUE;
+        int capDepth = 0;
+        for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
+            for (int localX = 0; localX < CHUNK_WIDTH; localX++) {
+                var range = adapter.integerSolidRange(volume.id(), localX, localZ);
+                if (range.isEmpty()) {
+                    continue;
+                }
+                int candidateTopY = range.orElseThrow().maximumY();
+                int candidateBottomY = candidateTopY;
+                while (candidateBottomY > materialized.minimumY()
+                        && !SkyforgeMinecraftBlockPalette.AIR.equals(
+                                materialized.blockKeyAt(localX, candidateBottomY - 1, localZ))) {
+                    candidateBottomY--;
+                }
+                int candidateDepth = candidateTopY - candidateBottomY + 1;
+                if (candidateDepth > capDepth) {
+                    surfaceX = localX;
+                    surfaceZ = localZ;
+                    supportMaximumY = candidateTopY;
+                    capDepth = candidateDepth;
+                }
+            }
+        }
+        assertTrue(capDepth >= 10, "fixture needs a thick continuous cap for the bounded cut and three strata");
+        chunk.setBlockState(new BlockPos(surfaceX, 223, surfaceZ), Blocks.GRASS_BLOCK.defaultBlockState(), false);
+        chunk.setBlockState(new BlockPos(surfaceX, 222, surfaceZ), Blocks.DIRT.defaultBlockState(), false);
+        chunk.setBlockState(new BlockPos(surfaceX, 221, surfaceZ), Blocks.DIRT.defaultBlockState(), false);
+        chunk.setBlockState(new BlockPos(surfaceX, 220, surfaceZ), Blocks.STONE.defaultBlockState(), false);
+
+        ResourceLocation[] authoredKeys = materialized.blockKeys();
+        authoredKeys[surfaceX + CHUNK_WIDTH * (surfaceZ + CHUNK_WIDTH * (supportMaximumY - materialized.minimumY()))] =
                 SkyforgeMinecraftBlockPalette.STONE;
         MinecraftChunkMaterialization grayCap = new MinecraftChunkMaterialization(
                 chunkPos,
-                original.minimumY(),
-                original.height(),
+                materialized.minimumY(),
+                materialized.height(),
                 authoredKeys,
-                original.candidateVolumeReferences());
+                materialized.candidateVolumeReferences());
 
         var profile = new MinecraftNativeSurfaceTopAdapter().adaptTerrainProfile(
-                MinecraftNativeSurfaceSnapshot.capture(chunk, 303),
+                MinecraftNativeSurfaceSnapshot.capture(chunk, 238),
                 grayCap,
                 adapter);
 
-        int loweredTopY = original.minimumY() + original.height() - 1;
-        while (loweredTopY >= original.minimumY()
+        int loweredTopY = materialized.minimumY() + materialized.height() - 1;
+        while (loweredTopY >= materialized.minimumY()
                 && SkyforgeMinecraftBlockPalette.AIR.equals(
-                        profile.materialization().blockKeyAt(8, loweredTopY, 8))) {
+                        profile.materialization().blockKeyAt(surfaceX, loweredTopY, surfaceZ))) {
             loweredTopY--;
         }
-        assertTrue(loweredTopY < support.maximumY(), "negative provider relief should cut into the authored cap");
+        int expectedTopY = supportMaximumY
+                + Math.toIntExact(MinecraftNativeSurfaceTopAdapter.projectProviderRelief(-15));
+        assertEquals(expectedTopY, loweredTopY, "negative provider relief should cut into, not through, the cap");
         assertEquals(
                 ResourceLocation.withDefaultNamespace("grass_block"),
-                profile.materialization().blockKeyAt(8, loweredTopY, 8));
+                profile.materialization().blockKeyAt(surfaceX, loweredTopY, surfaceZ));
         assertEquals(
                 ResourceLocation.withDefaultNamespace("dirt"),
-                profile.materialization().blockKeyAt(8, loweredTopY - 1, 8));
+                profile.materialization().blockKeyAt(surfaceX, loweredTopY - 1, surfaceZ));
         assertEquals(
                 ResourceLocation.withDefaultNamespace("dirt"),
-                profile.materialization().blockKeyAt(8, loweredTopY - 2, 8));
+                profile.materialization().blockKeyAt(surfaceX, loweredTopY - 2, surfaceZ));
         assertEquals(
                 ResourceLocation.withDefaultNamespace("stone"),
-                profile.materialization().blockKeyAt(8, loweredTopY - 3, 8));
+                profile.materialization().blockKeyAt(surfaceX, loweredTopY - 3, surfaceZ));
         assertEquals(
                 SkyforgeMinecraftBlockPalette.AIR,
-                profile.materialization().blockKeyAt(8, support.maximumY(), 8),
+                profile.materialization().blockKeyAt(surfaceX, supportMaximumY, surfaceZ),
                 "surface re-skinning must not restore cleared occupancy above the lowered top");
     }
 
