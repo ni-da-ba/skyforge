@@ -58,6 +58,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
 
         ResourceLocation[] blockKeys = materialization.blockKeys();
         ResourceLocation dominantProviderSurfaceMaterial = snapshot.mostCommonSurfaceMaterial();
+        ResourceLocation[] projectedSurfaceMaterials = new ResourceLocation[CHUNK_WIDTH * CHUNK_WIDTH];
         Map<Long, SkyIslandWorldVolumeId> providerWriteClaims = new HashMap<>();
         int maximumMaterializedY = materialization.minimumY() + materialization.height() - 1;
         for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
@@ -159,6 +160,30 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 if (stableTerrainProfileMaterial(selectedSurfaceMaterial)) {
                     blockKeys[targetIndex] = selectedSurfaceMaterial;
                 }
+                projectedSurfaceMaterials[localX + CHUNK_WIDTH * localZ] =
+                        blockKeys[targetIndex];
+            }
+        }
+
+        // Provider uplift is initially solid-filled so it cannot open gaps in the authored island.
+        // Re-skin only those newly claimed blocks whose horizontal faces meet air. This carries the
+        // selected column surface across steep provider-created walls without repainting hidden
+        // interior material or changing any occupancy.
+        for (var claimedCell : providerWriteClaims.keySet()) {
+            net.minecraft.core.BlockPos position = net.minecraft.core.BlockPos.of(claimedCell);
+            int localX = position.getX() - materialization.chunkPos().getMinBlockX();
+            int localZ = position.getZ() - materialization.chunkPos().getMinBlockZ();
+            if (localX < 0 || localX >= CHUNK_WIDTH || localZ < 0 || localZ >= CHUNK_WIDTH) {
+                continue;
+            }
+            int localY = position.getY() - materialization.minimumY();
+            if (localY < 0 || localY >= materialization.height()
+                    || !hasHorizontalAirExposure(blockKeys, localX, localY, localZ)) {
+                continue;
+            }
+            ResourceLocation sideSurfaceMaterial = projectedSurfaceMaterials[localX + CHUNK_WIDTH * localZ];
+            if (stableTerrainProfileMaterial(sideSurfaceMaterial)) {
+                blockKeys[linearIndex(localX, localY, localZ)] = sideSurfaceMaterial;
             }
         }
 
@@ -188,6 +213,25 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 (numerator + PROVIDER_RELIEF_CURVE_REFERENCE_BLOCKS / 2)
                         / PROVIDER_RELIEF_CURVE_REFERENCE_BLOCKS;
         return providerRelief < 0 ? -projectedMagnitude : projectedMagnitude;
+    }
+
+    private static boolean hasHorizontalAirExposure(
+            ResourceLocation[] blockKeys,
+            int localX,
+            int localY,
+            int localZ) {
+        return (localX > 0
+                        && SkyforgeMinecraftBlockPalette.AIR.equals(
+                                blockKeys[linearIndex(localX - 1, localY, localZ)]))
+                || (localX + 1 < CHUNK_WIDTH
+                        && SkyforgeMinecraftBlockPalette.AIR.equals(
+                                blockKeys[linearIndex(localX + 1, localY, localZ)]))
+                || (localZ > 0
+                        && SkyforgeMinecraftBlockPalette.AIR.equals(
+                                blockKeys[linearIndex(localX, localY, localZ - 1)]))
+                || (localZ + 1 < CHUNK_WIDTH
+                        && SkyforgeMinecraftBlockPalette.AIR.equals(
+                                blockKeys[linearIndex(localX, localY, localZ + 1)]));
     }
 
     private static int highestSolidLocalY(

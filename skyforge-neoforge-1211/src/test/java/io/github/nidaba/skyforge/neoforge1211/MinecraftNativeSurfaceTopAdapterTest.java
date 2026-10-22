@@ -190,6 +190,28 @@ final class MinecraftNativeSurfaceTopAdapterTest {
         assertEquals(
                 ResourceLocation.withDefaultNamespace("stone"),
                 profile.materialization().blockKeyAt(8, projectedTopY - 3, 8));
+        assertEquals(
+                ResourceLocation.withDefaultNamespace("grass_block"),
+                profile.materialization().blockKeyAt(8, projectedTopY - 5, 8),
+                "air-facing provider-rise walls should carry the selected stable surface skin");
+    }
+
+    @Test
+    void surfaceStrataStopAtCaveGapsInsteadOfSamplingBelowThem() {
+        ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(new ChunkPos(0, 0));
+        chunk.setBlockState(new BlockPos(8, 223, 8), Blocks.GRASS_BLOCK.defaultBlockState(), false);
+        chunk.setBlockState(new BlockPos(8, 222, 8), Blocks.DIRT.defaultBlockState(), false);
+        // Y=221 is a cave/air gap; stone below it is not part of the surface profile.
+        chunk.setBlockState(new BlockPos(8, 220, 8), Blocks.STONE.defaultBlockState(), false);
+
+        MinecraftNativeSurfaceSnapshot snapshot = MinecraftNativeSurfaceSnapshot.capture(chunk);
+
+        assertEquals(ResourceLocation.withDefaultNamespace("grass_block"),
+                snapshot.surfaceStratum(8, 8, 0).orElseThrow());
+        assertEquals(ResourceLocation.withDefaultNamespace("dirt"),
+                snapshot.surfaceStratum(8, 8, 1).orElseThrow());
+        assertTrue(snapshot.surfaceStratum(8, 8, 2).isEmpty(),
+                "surface strata must not bridge an intervening cave gap");
     }
 
     @Test

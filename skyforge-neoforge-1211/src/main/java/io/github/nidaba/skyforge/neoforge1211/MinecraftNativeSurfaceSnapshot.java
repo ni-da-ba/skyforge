@@ -91,10 +91,16 @@ final class MinecraftNativeSurfaceSnapshot {
                         worldY--) {
                     BlockState state = column.getBlock(worldY);
                     if (state.isAir() || !state.getFluidState().isEmpty()) {
+                        if (layer > 0) {
+                            break;
+                        }
                         continue;
                     }
                     ResourceLocation key = BuiltInRegistries.BLOCK.getKey(state.getBlock());
                     if (key == null || SkyforgeMinecraftBlockPalette.AIR.equals(key)) {
+                        if (layer > 0) {
+                            break;
+                        }
                         continue;
                     }
                     if (layer == 0) {
@@ -217,10 +223,16 @@ final class MinecraftNativeSurfaceSnapshot {
                         worldY--) {
                     BlockState state = chunk.getBlockState(cursor.set(worldX, worldY, worldZ));
                     if (state.isAir() || !state.getFluidState().isEmpty()) {
+                        if (layer > 0) {
+                            break;
+                        }
                         continue;
                     }
                     ResourceLocation key = BuiltInRegistries.BLOCK.getKey(state.getBlock());
                     if (key == null || SkyforgeMinecraftBlockPalette.AIR.equals(key)) {
+                        if (layer > 0) {
+                            break;
+                        }
                         continue;
                     }
                     if (layer == 0) {
