@@ -57,6 +57,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
         }
 
         ResourceLocation[] blockKeys = materialization.blockKeys();
+        ResourceLocation dominantProviderSurfaceMaterial = snapshot.mostCommonSurfaceMaterial();
         Map<Long, SkyIslandWorldVolumeId> providerWriteClaims = new HashMap<>();
         int maximumMaterializedY = materialization.minimumY() + materialization.height() - 1;
         for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
@@ -133,6 +134,13 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 ResourceLocation selectedSurfaceMaterial = stableTerrainProfileMaterial(nativeBlockKey)
                         ? nativeBlockKey
                         : authoredCapSurfaceMaterial;
+                if (SkyforgeMinecraftBlockPalette.STONE.equals(nativeBlockKey)
+                        && dominantProviderSurfaceMaterial != null
+                        && !SkyforgeMinecraftBlockPalette.STONE.equals(dominantProviderSurfaceMaterial)) {
+                    selectedSurfaceMaterial = stableTerrainProfileMaterial(dominantProviderSurfaceMaterial)
+                            ? dominantProviderSurfaceMaterial
+                            : authoredCapSurfaceMaterial;
+                }
                 if (stableTerrainProfileMaterial(selectedSurfaceMaterial)) {
                     blockKeys[targetIndex] = selectedSurfaceMaterial;
                 }
@@ -210,13 +218,12 @@ public final class MinecraftNativeSurfaceTopAdapter {
      * Provider profile materials may replace the authored cap only when they preserve a stable,
      * coherent island surface.
      *
-     * <p>Falling blocks can settle through hollow seams, and provider-selected stone can form an
-     * isolated gray patch on a non-stone Skyforge cap. In either case the authored cap material
-     * remains the surface while provider relief still controls the projected height profile.
+     * <p>Falling blocks can settle through hollow seams. A minority provider-stone region follows
+     * the chunk's dominant stable provider surface material, preventing an isolated gray patch
+     * while retaining stone where it is the provider's dominant terrain surface.
      */
     private static boolean stableTerrainProfileMaterial(ResourceLocation materialKey) {
         return !SkyforgeMinecraftBlockPalette.AIR.equals(materialKey)
-                && !SkyforgeMinecraftBlockPalette.STONE.equals(materialKey)
                 && !(BuiltInRegistries.BLOCK.get(materialKey) instanceof FallingBlock);
     }
 

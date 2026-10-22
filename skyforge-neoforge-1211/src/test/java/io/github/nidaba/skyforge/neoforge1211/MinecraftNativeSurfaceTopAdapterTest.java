@@ -147,7 +147,7 @@ final class MinecraftNativeSurfaceTopAdapterTest {
     }
 
     @Test
-    void providerStoneKeepsTheAuthoredCapMaterialAcrossProjectedRelief() {
+    void minorityProviderStoneUsesDominantStableSurfaceMaterialAcrossProjectedRelief() {
         var catalog = SkyforgeNeoForge1211PopulationDevRuntime.catalog();
         var volume = catalog.volumes().getFirst();
         ChunkPos chunkPos = new ChunkPos(0, 0);
@@ -162,8 +162,15 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                 chunk.getMinBuildHeight(),
                 chunk.getHeight());
         var support = adapter.integerSolidRange(volume.id(), 8, 8).orElseThrow();
-        ResourceLocation authoredCapSurface = original.blockKeyAt(8, support.maximumY(), 8);
 
+        for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
+            for (int localX = 0; localX < CHUNK_WIDTH; localX++) {
+                chunk.setBlockState(
+                        new BlockPos(localX, 190, localZ),
+                        Blocks.GRASS_BLOCK.defaultBlockState(),
+                        false);
+            }
+        }
         chunk.setBlockState(
                 new BlockPos(8, 223, 8),
                 Blocks.STONE.defaultBlockState(),
@@ -180,9 +187,9 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                         (int) Math.floor(volume.bounds().maximumY()) + 64));
         assertTrue(projectedTopY > support.maximumY(), "provider relief should still shape the island");
         assertEquals(
-                authoredCapSurface,
+                ResourceLocation.withDefaultNamespace("grass_block"),
                 profile.materialization().blockKeyAt(8, projectedTopY, 8),
-                "provider stone must not create an isolated surface patch over a different authored cap");
+                "minority provider stone should follow the dominant stable provider surface material");
     }
 
     @Test

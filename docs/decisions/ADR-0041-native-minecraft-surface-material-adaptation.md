@@ -21,7 +21,7 @@ For each `(x, z)` column:
 3. record the first remaining block as that column's native surface-top material;
 4. inspect the accepted Skyforge materialization for exposed solid tops, defined as a Skyforge solid with Skyforge AIR immediately above it;
 5. for representation-only adaptation, copy a sampled material only when it is not a gravity-affected `FallingBlock`;
-6. for terrain-profile projection, place the provider material on the projected cap only when the block directly below is non-air; unsupported fringe retains Skyforge structural material, and provider-selected stone retains a non-stone authored cap surface to avoid an isolated rock patch;
+6. for terrain-profile projection, place the provider material on the projected cap only when the block directly below is non-air; unsupported fringe retains Skyforge structural material, and minority provider-selected stone follows the chunk's dominant stable provider surface material to avoid an isolated rock patch; stone remains unchanged when it is the dominant provider surface;
 7. do not apply the provider material in a second pass to unrelated exposed Skyforge segments;
 8. leave all other Skyforge materialization entries unchanged;
 9. perform the existing additive solid overlay into the real Minecraft chunk.
