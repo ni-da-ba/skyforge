@@ -192,3 +192,12 @@ The four-layer profile reduced the artificial stone shell immediately beneath pr
 ## Minority-stone near-surface blend follow-up — in progress
 
 The exact-head top-material grid showed that 22 Tectonic provider-stone cap selections correctly mapped to the dominant grass surface, but the owner still reported a broad gray center. The top-column grid does not count the copied provider strata immediately below those tops. The bounded rise-profile copy now applies the same minority-stone blend to matching stone strata while retaining other provider layers such as dirt. This prevents shallow exposed uplift faces from rebuilding the isolated gray patch under a grass-colored cap. A focused regression case and exact-head A/B/CI evidence are required; visual acceptance remains open.
+
+
+## Bounded provider-island join skin — 2026-10-22
+
+The owner reviewed the exact-head Tectonic artifact from run 39823162633 and confirmed that the pathological central gravel/gray region is resolved. Two visual defects remain: tall repeating-block faces on one side and locally obvious joins between provider-shaped relief and the authored island cap.
+
+Source inspection found that the provider-rise second pass painted the selected top material onto every horizontally exposed added voxel below the captured strata. A separate provider-cut pass could repaint exposed original Skyforge cap faces for up to the full 64-block relief allowance. Those passes extended the surface material well beyond a natural shallow transition.
+
+The adapter now leaves provider-rise cells below the captured surface strata as structural stone and limits cut-exposed cap reskinning to the four captured native strata. Deeper original Skyforge material remains authored. Regression checks cover both the rise wall and the cut-exposed island face. Exact-head A/B/CI evidence and a fresh owner visual review are still required; this change does not claim the visible join is accepted.
