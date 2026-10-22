@@ -175,3 +175,10 @@ The doubled linear transfer still mapped most of Tectonic's measured source rang
 The development profile adapter now applies a deterministic signed cubic transfer to provider relief relative to its fixed world datum. Relief is normalized to 32 source blocks and mapped into the existing 64-block rise envelope. This keeps modest relief close to the authored cap while concentrating the source profile's upper tail into narrower peaks; negative relief remains deterministic and symmetric. Exact X/Z ownership, added-cell claims, stable material support, body, and underside boundaries are unchanged.
 
 This is an Implementation experiment, not an accepted production terrain-shape contract. The focused adapter test checks the lowland, peak, negative-relief, and saturation values. The exact-head Tectonic A/B must demonstrate both the minimum relief and reduced ridge-band coverage before another visual review is requested.
+
+
+## Bounded native strata on provider-created rises — in progress
+
+Owner visual review of the exact Tectonic treatment still shows a broad exposed gray center. Source inspection identified a representation gap: the provider-profile adapter fills every newly raised voxel with stone and applies native material only to the top voxel. Top-only acceptance evidence therefore cannot detect the exposed stone shell seen on steep relief.
+
+The next bounded experiment captures four solid, non-fluid provider materials from each native surface column and transfers depths 1–3 into newly claimed provider-rise cells beneath the projected top. The top material continues through the existing stable-material policy; gravity-affected layers are not copied. Skyforge still owns the original island body, footprint, lower volume, and underside, and this changes no occupancy. Exact-head acceptance must report the realized material profile, retain ownership/body/void checks, and produce a new client specimen for visual review. Four layers are an initial diagnostic bound, not an accepted production mantle policy.

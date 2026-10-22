@@ -23,35 +23,48 @@ import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.blending.Blender;
 
 /**
- * Immutable native terrain-top representation captured after surface construction and before biome
- * decoration.
+ * Immutable native terrain-top representation and bounded near-surface strata captured after
+ * surface construction and before biome decoration.
  *
  * <p>This snapshot is deliberately not a worldgen height authority. It exists only so a later
- * Skyforge realization can inherit Minecraft's already-decided surface material without mistaking
- * post-surface vegetation or structures for terrain.
+ * Skyforge realization can inherit Minecraft's already-decided surface material profile without
+ * mistaking post-surface vegetation or structures for terrain.
  */
 final class MinecraftNativeSurfaceSnapshot {
     private static final int CHUNK_WIDTH = 16;
     private static final int SAMPLE_COUNT = CHUNK_WIDTH * CHUNK_WIDTH;
+    static final int SURFACE_STRATA_DEPTH = 4;
     private static final Map<ProviderDatumKey, Integer> PROVIDER_TERRAIN_DATUMS = new ConcurrentHashMap<>();
 
     private final ChunkPos chunkPos;
     private final int baselineY;
     private final int[] worldYs;
     private final ResourceLocation[] blockKeys;
+    private final ResourceLocation[][] surfaceStrata;
 
     private MinecraftNativeSurfaceSnapshot(
             ChunkPos chunkPos,
             int baselineY,
             int[] worldYs,
-            ResourceLocation[] blockKeys) {
+            ResourceLocation[] blockKeys,
+            ResourceLocation[][] surfaceStrata) {
         this.chunkPos = Objects.requireNonNull(chunkPos, "chunkPos");
         this.baselineY = baselineY;
         if (worldYs.length != SAMPLE_COUNT || blockKeys.length != SAMPLE_COUNT) {
             throw new IllegalArgumentException("native surface snapshot must contain exactly 256 columns");
         }
+        if (surfaceStrata.length != SAMPLE_COUNT) {
+            throw new IllegalArgumentException("native surface strata must contain exactly 256 columns");
+        }
         this.worldYs = Arrays.copyOf(worldYs, worldYs.length);
         this.blockKeys = Arrays.copyOf(blockKeys, blockKeys.length);
+        this.surfaceStrata = new ResourceLocation[SAMPLE_COUNT][SURFACE_STRATA_DEPTH];
+        for (int index = 0; index < SAMPLE_COUNT; index++) {
+            if (surfaceStrata[index].length != SURFACE_STRATA_DEPTH) {
+                throw new IllegalArgumentException("native surface strata column has an unexpected depth");
+            }
+            this.surfaceStrata[index] = Arrays.copyOf(surfaceStrata[index], SURFACE_STRATA_DEPTH);
+        }
     }
 
     static MinecraftNativeSurfaceSnapshot capture(
@@ -65,13 +78,16 @@ final class MinecraftNativeSurfaceSnapshot {
         int[] worldYs = new int[SAMPLE_COUNT];
         Arrays.fill(worldYs, Integer.MIN_VALUE);
         ResourceLocation[] blockKeys = new ResourceLocation[SAMPLE_COUNT];
+        ResourceLocation[][] surfaceStrata = emptySurfaceStrata();
         for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
             int worldZ = chunk.getPos().getMinBlockZ() + localZ;
             for (int localX = 0; localX < CHUNK_WIDTH; localX++) {
                 int worldX = chunk.getPos().getMinBlockX() + localX;
                 NoiseColumn column = generator.getBaseColumn(worldX, worldZ, chunk, randomState);
+                int index = index(localX, localZ);
+                int layer = 0;
                 for (int worldY = chunk.getMaxBuildHeight() - 1;
-                        worldY >= chunk.getMinBuildHeight();
+                        worldY >= chunk.getMinBuildHeight() && layer < SURFACE_STRATA_DEPTH;
                         worldY--) {
                     BlockState state = column.getBlock(worldY);
                     if (state.isAir() || !state.getFluidState().isEmpty()) {
@@ -81,14 +97,15 @@ final class MinecraftNativeSurfaceSnapshot {
                     if (key == null || SkyforgeMinecraftBlockPalette.AIR.equals(key)) {
                         continue;
                     }
-                    int index = index(localX, localZ);
-                    worldYs[index] = worldY;
-                    blockKeys[index] = key;
-                    break;
+                    if (layer == 0) {
+                        worldYs[index] = worldY;
+                        blockKeys[index] = key;
+                    }
+                    surfaceStrata[index][layer++] = key;
                 }
             }
         }
-        return new MinecraftNativeSurfaceSnapshot(chunk.getPos(), baselineY, worldYs, blockKeys);
+        return new MinecraftNativeSurfaceSnapshot(chunk.getPos(), baselineY, worldYs, blockKeys, surfaceStrata);
     }
 
     /**
@@ -97,7 +114,7 @@ final class MinecraftNativeSurfaceSnapshot {
      *
      * <p>The provider's chunk-level density fill and {@code buildSurface} pipeline run against a
      * detached in-memory chunk using the live worldgen biome, structure, seed, and noise context.
-     * Only the immutable top-column snapshot escapes.
+     * Only the immutable top-column profile escapes.
      */
     static MinecraftNativeSurfaceSnapshot captureProviderSurface(
             WorldGenRegion level,
@@ -185,6 +202,7 @@ final class MinecraftNativeSurfaceSnapshot {
         int[] worldYs = new int[SAMPLE_COUNT];
         Arrays.fill(worldYs, Integer.MIN_VALUE);
         ResourceLocation[] blockKeys = new ResourceLocation[SAMPLE_COUNT];
+        ResourceLocation[][] surfaceStrata = emptySurfaceStrata();
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         int maximumY = chunk.getMinBuildHeight() + chunk.getHeight() - 1;
 
@@ -193,7 +211,10 @@ final class MinecraftNativeSurfaceSnapshot {
             for (int localX = 0; localX < CHUNK_WIDTH; localX++) {
                 int worldX = chunk.getPos().getMinBlockX() + localX;
                 int index = index(localX, localZ);
-                for (int worldY = maximumY; worldY >= chunk.getMinBuildHeight(); worldY--) {
+                int layer = 0;
+                for (int worldY = maximumY;
+                        worldY >= chunk.getMinBuildHeight() && layer < SURFACE_STRATA_DEPTH;
+                        worldY--) {
                     BlockState state = chunk.getBlockState(cursor.set(worldX, worldY, worldZ));
                     if (state.isAir() || !state.getFluidState().isEmpty()) {
                         continue;
@@ -202,13 +223,23 @@ final class MinecraftNativeSurfaceSnapshot {
                     if (key == null || SkyforgeMinecraftBlockPalette.AIR.equals(key)) {
                         continue;
                     }
-                    worldYs[index] = worldY;
-                    blockKeys[index] = key;
-                    break;
+                    if (layer == 0) {
+                        worldYs[index] = worldY;
+                        blockKeys[index] = key;
+                    }
+                    surfaceStrata[index][layer++] = key;
                 }
             }
         }
-        return new MinecraftNativeSurfaceSnapshot(chunk.getPos(), baselineY, worldYs, blockKeys);
+        return new MinecraftNativeSurfaceSnapshot(chunk.getPos(), baselineY, worldYs, blockKeys, surfaceStrata);
+    }
+
+    private static ResourceLocation[][] emptySurfaceStrata() {
+        ResourceLocation[][] strata = new ResourceLocation[SAMPLE_COUNT][SURFACE_STRATA_DEPTH];
+        for (ResourceLocation[] column : strata) {
+            Arrays.fill(column, null);
+        }
+        return strata;
     }
 
     /** Returns the most common non-fluid surface material produced by the selected provider. */
@@ -256,6 +287,16 @@ final class MinecraftNativeSurfaceSnapshot {
         return blockKey == null
                 ? Optional.empty()
                 : Optional.of(new NativeSurface(worldYs[index], blockKey));
+    }
+
+    Optional<ResourceLocation> surfaceStratum(int localX, int localZ, int depth) {
+        if (localX < 0 || localX >= CHUNK_WIDTH || localZ < 0 || localZ >= CHUNK_WIDTH) {
+            throw new IllegalArgumentException("local surface coordinate must be inside one chunk");
+        }
+        if (depth < 0 || depth >= SURFACE_STRATA_DEPTH) {
+            throw new IllegalArgumentException("surface stratum depth is outside the captured profile");
+        }
+        return Optional.ofNullable(surfaceStrata[index(localX, localZ)][depth]);
     }
 
     record NativeSurface(int worldY, ResourceLocation blockKey) {

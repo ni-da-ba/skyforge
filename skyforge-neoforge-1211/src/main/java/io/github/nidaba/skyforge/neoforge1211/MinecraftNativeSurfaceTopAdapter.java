@@ -122,6 +122,21 @@ public final class MinecraftNativeSurfaceTopAdapter {
                                 net.minecraft.core.BlockPos.asLong(worldX, worldY, worldZ),
                                 ownerId);
                     }
+                    // The added island rise needs more than a one-voxel material cap. Copy a
+                    // bounded native near-surface profile into newly claimed cells so exposed
+                    // ledges retain the provider's grass/dirt/stone transition instead of becoming
+                    // an artificial stone shell. Falling materials are excluded at every depth.
+                    for (int depth = 1; depth < MinecraftNativeSurfaceSnapshot.SURFACE_STRATA_DEPTH; depth++) {
+                        int worldY = targetTopY - depth;
+                        if (worldY <= originalTopY) {
+                            break;
+                        }
+                        var stratum = snapshot.surfaceStratum(localX, localZ, depth);
+                        if (stratum.isPresent() && stableTerrainProfileMaterial(stratum.orElseThrow())) {
+                            int localY = worldY - materialization.minimumY();
+                            blockKeys[linearIndex(localX, localY, localZ)] = stratum.orElseThrow();
+                        }
+                    }
                 } else if (targetTopY < originalTopY) {
                     for (int worldY = targetTopY + 1; worldY <= originalTopY; worldY++) {
                         int localY = worldY - materialization.minimumY();

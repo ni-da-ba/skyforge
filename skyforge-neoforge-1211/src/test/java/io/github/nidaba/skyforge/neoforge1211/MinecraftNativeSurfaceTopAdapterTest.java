@@ -147,6 +147,52 @@ final class MinecraftNativeSurfaceTopAdapterTest {
     }
 
     @Test
+    void providerNearSurfaceStrataFollowNewlyProjectedIslandRise() {
+        var catalog = SkyforgeNeoForge1211PopulationDevRuntime.catalog();
+        var volume = catalog.volumes().getFirst();
+        ChunkPos chunkPos = new ChunkPos(0, 0);
+        ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(chunkPos);
+        var adapter = new SkyforgeNeoForge1211ChunkAdapter(
+                catalog,
+                io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette());
+        MinecraftChunkMaterialization original = adapter.materialize(
+                volume.id(),
+                chunkPos,
+                chunk.getMinBuildHeight(),
+                chunk.getHeight());
+        var support = adapter.integerSolidRange(volume.id(), 8, 8).orElseThrow();
+        chunk.setBlockState(new BlockPos(8, 223, 8), Blocks.GRASS_BLOCK.defaultBlockState(), false);
+        chunk.setBlockState(new BlockPos(8, 222, 8), Blocks.DIRT.defaultBlockState(), false);
+        chunk.setBlockState(new BlockPos(8, 221, 8), Blocks.DIRT.defaultBlockState(), false);
+        chunk.setBlockState(new BlockPos(8, 220, 8), Blocks.STONE.defaultBlockState(), false);
+
+        var profile = new MinecraftNativeSurfaceTopAdapter().adaptTerrainProfile(
+                MinecraftNativeSurfaceSnapshot.capture(chunk, 63),
+                original,
+                adapter);
+
+        int projectedTopY = Math.min(
+                support.maximumY() + 64,
+                Math.min(
+                        chunk.getMaxBuildHeight() - 1,
+                        (int) Math.floor(volume.bounds().maximumY()) + 64));
+        assertTrue(projectedTopY - 3 > support.maximumY());
+        assertEquals(
+                ResourceLocation.withDefaultNamespace("grass_block"),
+                profile.materialization().blockKeyAt(8, projectedTopY, 8));
+        assertEquals(
+                ResourceLocation.withDefaultNamespace("dirt"),
+                profile.materialization().blockKeyAt(8, projectedTopY - 1, 8));
+        assertEquals(
+                ResourceLocation.withDefaultNamespace("dirt"),
+                profile.materialization().blockKeyAt(8, projectedTopY - 2, 8));
+        assertEquals(
+                ResourceLocation.withDefaultNamespace("stone"),
+                profile.materialization().blockKeyAt(8, projectedTopY - 3, 8));
+    }
+
+    @Test
     void minorityProviderStoneUsesDominantStableSurfaceMaterialAcrossProjectedRelief() {
         var catalog = SkyforgeNeoForge1211PopulationDevRuntime.catalog();
         var volume = catalog.volumes().getFirst();
