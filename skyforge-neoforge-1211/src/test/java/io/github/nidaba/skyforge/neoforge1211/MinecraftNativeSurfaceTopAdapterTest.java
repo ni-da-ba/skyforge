@@ -309,9 +309,9 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                 ResourceLocation.withDefaultNamespace("stone"),
                 profile.materialization().blockKeyAt(8, projectedTopY - 3, 8));
         assertEquals(
-                ResourceLocation.withDefaultNamespace("grass_block"),
+                ResourceLocation.withDefaultNamespace("stone"),
                 profile.materialization().blockKeyAt(8, projectedTopY - 5, 8),
-                "air-facing provider-rise walls should carry the selected stable surface skin");
+                "provider-rise faces below the captured native strata should retain structural material");
     }
 
     @Test
@@ -412,9 +412,13 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                 projectedCutTopY < riseTopY - 1,
                 "the neighboring provider cut must expose the raised column's original cap wall");
         assertEquals(
-                ResourceLocation.withDefaultNamespace("grass_block"),
+                ResourceLocation.withDefaultNamespace("dirt"),
                 profile.materialization().blockKeyAt(riseX, riseTopY - 1, riseZ),
-                "provider-cut exposure below a raised column's original top must not retain gray Skyforge cap stone");
+                "the exposed join should use the matching shallow provider stratum");
+        assertEquals(
+                grayCappedIsland.blockKeyAt(riseX, riseTopY - 5, riseZ),
+                profile.materialization().blockKeyAt(riseX, riseTopY - 5, riseZ),
+                "deep island material below the bounded join skin must not be repainted into a repeating wall");
     }
 
     @Test
