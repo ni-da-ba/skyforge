@@ -214,37 +214,56 @@ public final class MinecraftNativeSurfaceTopAdapter {
             }
         }
 
-        // Provider uplift is initially solid-filled so it cannot open gaps in the authored island.
-        // Re-skin only those newly claimed blocks whose horizontal faces meet air. This carries the
-        // selected column surface across steep provider-created walls without repainting hidden
-        // interior material or changing any occupancy.
-        for (var claimedCell : providerWriteClaims.keySet()) {
-            net.minecraft.core.BlockPos position = net.minecraft.core.BlockPos.of(claimedCell);
-            int localX = position.getX() - materialization.chunkPos().getMinBlockX();
-            int localZ = position.getZ() - materialization.chunkPos().getMinBlockZ();
-            if (localX < 0 || localX >= CHUNK_WIDTH || localZ < 0 || localZ >= CHUNK_WIDTH) {
-                continue;
-            }
-            int localY = position.getY() - materialization.minimumY();
-            if (localY < 0 || localY >= materialization.height()
-                    || !hasHorizontalAirExposure(blockKeys, localX, localY, localZ)) {
-                continue;
-            }
-            int surfaceIndex = localX + CHUNK_WIDTH * localZ;
-            int projectedTopY = projectedSurfaceTopYs[surfaceIndex];
-            if (projectedTopY == Integer.MIN_VALUE
-                    || projectedTopY - position.getY() < MinecraftNativeSurfaceSnapshot.SURFACE_STRATA_DEPTH) {
-                continue;
-            }
-            ResourceLocation sideSurfaceMaterial = projectedSurfaceMaterials[surfaceIndex];
-            if (stableTerrainProfileMaterial(sideSurfaceMaterial)) {
-                blockKeys[linearIndex(localX, localY, localZ)] = sideSurfaceMaterial;
+        // Provider relief can uncover original Skyforge cap voxels as well as newly added rise
+        // voxels. Skin every horizontally exposed face in the bounded projected surface band;
+        // otherwise a lowered provider column exposes the untouched gray side of its neighbor's
+        // original cap, recreating the broad gray cut-in even when the lowered top is correctly
+        // re-skinned.
+        for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
+            for (int localX = 0; localX < CHUNK_WIDTH; localX++) {
+                int surfaceIndex = localX + CHUNK_WIDTH * localZ;
+                int projectedTopY = projectedSurfaceTopYs[surfaceIndex];
+                ResourceLocation selectedSurfaceMaterial = projectedSurfaceMaterials[surfaceIndex];
+                if (projectedTopY == Integer.MIN_VALUE
+                        || !stableTerrainProfileMaterial(selectedSurfaceMaterial)) {
+                    continue;
+                }
+
+                var providerSurface = snapshot.surface(localX, localZ).orElseThrow();
+                int lowestSkinnedY = Math.max(
+                        materialization.minimumY(),
+                        projectedTopY - MAX_PROVIDER_SURFACE_RISE_BLOCKS);
+                for (int worldY = projectedTopY; worldY >= lowestSkinnedY; worldY--) {
+                    int localY = worldY - materialization.minimumY();
+                    int index = linearIndex(localX, localY, localZ);
+                    if (SkyforgeMinecraftBlockPalette.AIR.equals(blockKeys[index])
+                            || !hasHorizontalAirExposure(blockKeys, localX, localY, localZ)) {
+                        continue;
+                    }
+
+                    int depth = projectedTopY - worldY;
+                    ResourceLocation sideSurfaceMaterial = selectedSurfaceMaterial;
+                    if (depth < MinecraftNativeSurfaceSnapshot.SURFACE_STRATA_DEPTH) {
+                        var stratum = snapshot.surfaceStratum(localX, localZ, depth);
+                        if (stratum.isPresent()) {
+                            sideSurfaceMaterial = stratum.orElseThrow();
+                            if (!stableTerrainProfileMaterial(sideSurfaceMaterial)
+                                    || (SkyforgeMinecraftBlockPalette.STONE.equals(providerSurface.blockKey())
+                                            && dominantProviderSurfaceMaterial != null
+                                            && !SkyforgeMinecraftBlockPalette.STONE.equals(
+                                                    dominantProviderSurfaceMaterial)
+                                            && SkyforgeMinecraftBlockPalette.STONE.equals(sideSurfaceMaterial))) {
+                                sideSurfaceMaterial = selectedSurfaceMaterial;
+                            }
+                        }
+                    }
+                    if (stableTerrainProfileMaterial(sideSurfaceMaterial)) {
+                        blockKeys[index] = sideSurfaceMaterial;
+                    }
+                }
             }
         }
 
-        // The profile loop above already projects the native surface onto each column's
-        // selected cap. Reapplying provider material to every exposed Skyforge segment here
-        // can put gravity blocks on unsupported ledges above or beside the projected cap.
         MinecraftChunkMaterialization adapted = new MinecraftChunkMaterialization(
                 materialization.chunkPos(),
                 materialization.minimumY(),
