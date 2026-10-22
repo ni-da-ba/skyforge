@@ -256,9 +256,10 @@ public final class MinecraftNativeSurfaceTopAdapter {
                     continue;
                 }
 
+                int sideSkinReferenceY = Math.min(projectedTopY, originalSurfaceTopYs[surfaceIndex]);
                 int lowestSkinnedY = Math.max(
                         materialization.minimumY(),
-                        projectedTopY - MAX_PROVIDER_SURFACE_RISE_BLOCKS);
+                        sideSkinReferenceY - MAX_PROVIDER_SURFACE_RISE_BLOCKS);
                 for (int worldY = projectedTopY; worldY >= lowestSkinnedY; worldY--) {
                     int localY = worldY - materialization.minimumY();
                     int index = linearIndex(localX, localY, localZ);

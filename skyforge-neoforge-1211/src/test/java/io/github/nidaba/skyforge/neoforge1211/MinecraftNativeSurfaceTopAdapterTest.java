@@ -315,6 +315,109 @@ final class MinecraftNativeSurfaceTopAdapterTest {
     }
 
     @Test
+    void providerCutReskinsRaisedNeighborWallBelowItsOriginalCapTop() {
+        var catalog = SkyforgeNeoForge1211PopulationDevRuntime.catalog();
+        var volume = catalog.volumes().getFirst();
+        ChunkPos chunkPos = new ChunkPos(0, 0);
+        ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(chunkPos);
+        var adapter = new SkyforgeNeoForge1211ChunkAdapter(
+                catalog,
+                io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette());
+        MinecraftChunkMaterialization original = adapter.materialize(
+                volume.id(),
+                chunkPos,
+                chunk.getMinBuildHeight(),
+                chunk.getHeight());
+
+        int riseX = -1;
+        int riseZ = -1;
+        int cutX = -1;
+        int cutZ = -1;
+        int riseTopY = Integer.MIN_VALUE;
+        int cutTopY = Integer.MIN_VALUE;
+        for (int localZ = 1; localZ < CHUNK_WIDTH - 1 && riseX < 0; localZ++) {
+            for (int localX = 1; localX < CHUNK_WIDTH - 1 && riseX < 0; localX++) {
+                var riseRange = adapter.integerSolidRange(volume.id(), localX, localZ);
+                if (riseRange.isEmpty()) {
+                    continue;
+                }
+                int candidateRiseTopY = riseRange.orElseThrow().maximumY();
+                int riseCapBottomY = candidateRiseTopY;
+                while (riseCapBottomY > original.minimumY()
+                        && !SkyforgeMinecraftBlockPalette.AIR.equals(
+                                original.blockKeyAt(localX, riseCapBottomY - 1, localZ))) {
+                    riseCapBottomY--;
+                }
+                if (candidateRiseTopY - riseCapBottomY < 2) {
+                    continue;
+                }
+                for (int[] direction : new int[][] {{1, 0}, {0, 1}, {-1, 0}, {0, -1}}) {
+                    int neighborX = localX + direction[0];
+                    int neighborZ = localZ + direction[1];
+                    var cutRange = adapter.integerSolidRange(volume.id(), neighborX, neighborZ);
+                    if (cutRange.isEmpty()) {
+                        continue;
+                    }
+                    int candidateCutTopY = cutRange.orElseThrow().maximumY();
+                    int cutCapBottomY = candidateCutTopY;
+                    while (cutCapBottomY > original.minimumY()
+                            && !SkyforgeMinecraftBlockPalette.AIR.equals(
+                                    original.blockKeyAt(neighborX, cutCapBottomY - 1, neighborZ))) {
+                        cutCapBottomY--;
+                    }
+                    if (candidateCutTopY >= candidateRiseTopY
+                            && candidateCutTopY - candidateRiseTopY <= 8
+                            && candidateCutTopY - cutCapBottomY >= 16) {
+                        riseX = localX;
+                        riseZ = localZ;
+                        cutX = neighborX;
+                        cutZ = neighborZ;
+                        riseTopY = candidateRiseTopY;
+                        cutTopY = candidateCutTopY;
+                        break;
+                    }
+                }
+            }
+        }
+        assertTrue(riseX >= 0, "fixture needs adjacent thick-cap columns with a slight top gradient");
+
+        chunk.setBlockState(new BlockPos(riseX, 223, riseZ), Blocks.GRASS_BLOCK.defaultBlockState(), false);
+        chunk.setBlockState(new BlockPos(riseX, 222, riseZ), Blocks.DIRT.defaultBlockState(), false);
+        chunk.setBlockState(new BlockPos(riseX, 221, riseZ), Blocks.DIRT.defaultBlockState(), false);
+        chunk.setBlockState(new BlockPos(riseX, 220, riseZ), Blocks.STONE.defaultBlockState(), false);
+        chunk.setBlockState(new BlockPos(cutX, 30, cutZ), Blocks.GRASS_BLOCK.defaultBlockState(), false);
+
+        ResourceLocation[] authoredKeys = original.blockKeys();
+        authoredKeys[riseX + CHUNK_WIDTH * (riseZ + CHUNK_WIDTH * (riseTopY - original.minimumY()))] =
+                SkyforgeMinecraftBlockPalette.STONE;
+        MinecraftChunkMaterialization grayCappedIsland = new MinecraftChunkMaterialization(
+                chunkPos,
+                original.minimumY(),
+                original.height(),
+                authoredKeys,
+                original.candidateVolumeReferences());
+
+        var profile = new MinecraftNativeSurfaceTopAdapter().adaptTerrainProfile(
+                MinecraftNativeSurfaceSnapshot.capture(chunk, 63),
+                grayCappedIsland,
+                adapter);
+
+        int projectedRiseTopY = riseTopY
+                + Math.toIntExact(MinecraftNativeSurfaceTopAdapter.projectProviderRelief(160));
+        int projectedCutTopY = cutTopY
+                + Math.toIntExact(MinecraftNativeSurfaceTopAdapter.projectProviderRelief(-33));
+        assertEquals(riseTopY + 64, projectedRiseTopY, "the provider ridge should rise by the bounded maximum");
+        assertTrue(
+                projectedCutTopY < riseTopY - 1,
+                "the neighboring provider cut must expose the raised column's original cap wall");
+        assertEquals(
+                ResourceLocation.withDefaultNamespace("grass_block"),
+                profile.materialization().blockKeyAt(riseX, riseTopY - 1, riseZ),
+                "provider-cut exposure below a raised column's original top must not retain gray Skyforge cap stone");
+    }
+
+    @Test
     void surfaceStrataStopAtCaveGapsInsteadOfSamplingBelowThem() {
         ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(new ChunkPos(0, 0));
         chunk.setBlockState(new BlockPos(8, 223, 8), Blocks.GRASS_BLOCK.defaultBlockState(), false);
