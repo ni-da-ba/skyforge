@@ -34,6 +34,9 @@ final class MinecraftNativeSurfaceSnapshot {
     private static final int CHUNK_WIDTH = 16;
     private static final int SAMPLE_COUNT = CHUNK_WIDTH * CHUNK_WIDTH;
     static final int SURFACE_STRATA_DEPTH = 4;
+    private static final int PROFILE_FILTER_RADIUS = 1;
+    private static final int PROFILE_FILTER_WIDTH = CHUNK_WIDTH + PROFILE_FILTER_RADIUS * 2;
+    private static final int PROFILE_FILTER_SAMPLE_COUNT = PROFILE_FILTER_WIDTH * PROFILE_FILTER_WIDTH;
     private static final Map<ProviderDatumKey, Integer> PROVIDER_TERRAIN_DATUMS = new ConcurrentHashMap<>();
 
     private final ChunkPos chunkPos;
@@ -41,6 +44,7 @@ final class MinecraftNativeSurfaceSnapshot {
     private final int[] worldYs;
     private final ResourceLocation[] blockKeys;
     private final ResourceLocation[][] surfaceStrata;
+    private final int[] providerHeightHalo;
 
     private MinecraftNativeSurfaceSnapshot(
             ChunkPos chunkPos,
@@ -48,6 +52,16 @@ final class MinecraftNativeSurfaceSnapshot {
             int[] worldYs,
             ResourceLocation[] blockKeys,
             ResourceLocation[][] surfaceStrata) {
+        this(chunkPos, baselineY, worldYs, blockKeys, surfaceStrata, edgePaddedProviderHeightHalo(worldYs));
+    }
+
+    private MinecraftNativeSurfaceSnapshot(
+            ChunkPos chunkPos,
+            int baselineY,
+            int[] worldYs,
+            ResourceLocation[] blockKeys,
+            ResourceLocation[][] surfaceStrata,
+            int[] providerHeightHalo) {
         this.chunkPos = Objects.requireNonNull(chunkPos, "chunkPos");
         this.baselineY = baselineY;
         if (worldYs.length != SAMPLE_COUNT || blockKeys.length != SAMPLE_COUNT) {
@@ -55,6 +69,9 @@ final class MinecraftNativeSurfaceSnapshot {
         }
         if (surfaceStrata.length != SAMPLE_COUNT) {
             throw new IllegalArgumentException("native surface strata must contain exactly 256 columns");
+        }
+        if (providerHeightHalo.length != PROFILE_FILTER_SAMPLE_COUNT) {
+            throw new IllegalArgumentException("provider height halo must include the chunk and one-column border");
         }
         this.worldYs = Arrays.copyOf(worldYs, worldYs.length);
         this.blockKeys = Arrays.copyOf(blockKeys, blockKeys.length);
@@ -65,6 +82,7 @@ final class MinecraftNativeSurfaceSnapshot {
             }
             this.surfaceStrata[index] = Arrays.copyOf(surfaceStrata[index], SURFACE_STRATA_DEPTH);
         }
+        this.providerHeightHalo = Arrays.copyOf(providerHeightHalo, providerHeightHalo.length);
     }
 
     static MinecraftNativeSurfaceSnapshot capture(
@@ -139,9 +157,88 @@ final class MinecraftNativeSurfaceSnapshot {
         generator.createBiomes(randomState, blender, structureManager, providerChunk).join();
         generator.fillFromNoise(blender, randomState, structureManager, providerChunk).join();
         generator.buildSurface(level, structureManager, randomState, providerChunk);
-        return capture(
+        MinecraftNativeSurfaceSnapshot captured = capture(
                 providerChunk,
                 providerTerrainDatumY(generator, level, randomState));
+        return captured.withProviderHeightHalo(level, generator, randomState);
+    }
+
+    private MinecraftNativeSurfaceSnapshot withProviderHeightHalo(
+            WorldGenRegion level,
+            NoiseBasedChunkGenerator generator,
+            RandomState randomState) {
+        int[] heightHalo = edgePaddedProviderHeightHalo(worldYs);
+        for (int localZ = -PROFILE_FILTER_RADIUS; localZ < CHUNK_WIDTH + PROFILE_FILTER_RADIUS; localZ++) {
+            for (int localX = -PROFILE_FILTER_RADIUS; localX < CHUNK_WIDTH + PROFILE_FILTER_RADIUS; localX++) {
+                if (localX >= 0 && localX < CHUNK_WIDTH && localZ >= 0 && localZ < CHUNK_WIDTH) {
+                    continue;
+                }
+                int worldX = chunkPos.getMinBlockX() + localX;
+                int worldZ = chunkPos.getMinBlockZ() + localZ;
+                NoiseColumn column = generator.getBaseColumn(worldX, worldZ, level, randomState);
+                heightHalo[profileHeightIndex(localX, localZ)] =
+                        firstSolidSurfaceY(column, level.getMinBuildHeight(), level.getMaxBuildHeight());
+            }
+        }
+        return new MinecraftNativeSurfaceSnapshot(
+                chunkPos, baselineY, worldYs, blockKeys, surfaceStrata, heightHalo);
+    }
+
+    private static int[] edgePaddedProviderHeightHalo(int[] worldYs) {
+        if (worldYs.length != SAMPLE_COUNT) {
+            throw new IllegalArgumentException("provider profile must contain exactly 256 chunk columns");
+        }
+        int[] halo = new int[PROFILE_FILTER_SAMPLE_COUNT];
+        Arrays.fill(halo, Integer.MIN_VALUE);
+        for (int localZ = -PROFILE_FILTER_RADIUS; localZ < CHUNK_WIDTH + PROFILE_FILTER_RADIUS; localZ++) {
+            for (int localX = -PROFILE_FILTER_RADIUS; localX < CHUNK_WIDTH + PROFILE_FILTER_RADIUS; localX++) {
+                int clampedX = Math.max(0, Math.min(CHUNK_WIDTH - 1, localX));
+                int clampedZ = Math.max(0, Math.min(CHUNK_WIDTH - 1, localZ));
+                halo[profileHeightIndex(localX, localZ)] = worldYs[index(clampedX, clampedZ)];
+            }
+        }
+        return halo;
+    }
+
+    private static int firstSolidSurfaceY(NoiseColumn column, int minimumY, int maximumY) {
+        for (int worldY = maximumY - 1; worldY >= minimumY; worldY--) {
+            BlockState state = column.getBlock(worldY);
+            if (!state.isAir() && state.getFluidState().isEmpty()) {
+                return worldY;
+            }
+        }
+        return Integer.MIN_VALUE;
+    }
+
+    private static int profileHeightIndex(int localX, int localZ) {
+        return localX + PROFILE_FILTER_RADIUS
+                + PROFILE_FILTER_WIDTH * (localZ + PROFILE_FILTER_RADIUS);
+    }
+
+    /** Uses a chunk-seam-safe weighted neighborhood to soften sharp provider relief transitions. */
+    int smoothedProviderSurfaceY(int localX, int localZ) {
+        if (localX < 0 || localX >= CHUNK_WIDTH || localZ < 0 || localZ >= CHUNK_WIDTH) {
+            throw new IllegalArgumentException("local surface coordinate must be inside one chunk");
+        }
+        int weightedHeight = 0;
+        int totalWeight = 0;
+        for (int deltaZ = -PROFILE_FILTER_RADIUS; deltaZ <= PROFILE_FILTER_RADIUS; deltaZ++) {
+            for (int deltaX = -PROFILE_FILTER_RADIUS; deltaX <= PROFILE_FILTER_RADIUS; deltaX++) {
+                int height = providerHeightHalo[profileHeightIndex(localX + deltaX, localZ + deltaZ)];
+                if (height == Integer.MIN_VALUE) {
+                    continue;
+                }
+                int axisWeightX = deltaX == 0 ? 2 : 1;
+                int axisWeightZ = deltaZ == 0 ? 2 : 1;
+                int weight = axisWeightX * axisWeightZ;
+                weightedHeight += height * weight;
+                totalWeight += weight;
+            }
+        }
+        if (totalWeight == 0) {
+            return Integer.MIN_VALUE;
+        }
+        return (int) Math.round(weightedHeight / (double) totalWeight);
     }
 
     /** Uses a cached, world-fixed minimum origin profile as the provider-relative datum. */
