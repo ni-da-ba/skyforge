@@ -113,7 +113,10 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 // an absolute elevation datum. A bounded linear curve transfers signed source relief
                 // into the extension envelope. Provider-owned rises remain bounded above the authored
                 // top; Skyforge footprint, body, and underside remain untouched.
-                long providerRelief = (long) nativeSurface.orElseThrow().worldY() - snapshot.baselineY();
+                // A seam-safe 3x3 weighted profile keeps neighboring chunks on the same
+                // continuous provider field while reducing one-column cliffs at the island join.
+                long providerRelief = (long) snapshot.smoothedProviderSurfaceY(localX, localZ)
+                        - snapshot.baselineY();
                 long projectedProviderRelief = projectProviderRelief(providerRelief);
                 long desiredY = (long) originalTopY + projectedProviderRelief;
                 int targetTopY = (int) Math.max(
