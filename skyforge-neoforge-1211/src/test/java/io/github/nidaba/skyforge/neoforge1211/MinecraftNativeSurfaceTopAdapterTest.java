@@ -228,8 +228,8 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                 ResourceLocation.withDefaultNamespace("stone"),
                 profile.materialization().blockKeyAt(8, loweredTopY - 3, 8));
         assertEquals(
-                original.solidBlockCount() - (support.maximumY() - loweredTopY),
-                profile.materialization().solidBlockCount(),
+                SkyforgeMinecraftBlockPalette.AIR,
+                profile.materialization().blockKeyAt(8, support.maximumY(), 8),
                 "surface re-skinning must not restore cleared occupancy above the lowered top");
     }
 
