@@ -58,7 +58,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
         }
 
         ResourceLocation[] blockKeys = materialization.blockKeys();
-        ResourceLocation dominantProviderSurfaceMaterial = snapshot.mostCommonSurfaceMaterial();
+        ResourceLocation dominantProviderSurfaceMaterial = dominantStableProviderSurfaceMaterial(snapshot);
         ResourceLocation[] projectedSurfaceMaterials = new ResourceLocation[CHUNK_WIDTH * CHUNK_WIDTH];
         int[] projectedSurfaceTopYs = new int[CHUNK_WIDTH * CHUNK_WIDTH];
         Arrays.fill(projectedSurfaceTopYs, Integer.MIN_VALUE);
@@ -118,15 +118,22 @@ public final class MinecraftNativeSurfaceTopAdapter {
                         (long) minimumAllowedY,
                         Math.min((long) maximumAllowedY, desiredY));
                 ResourceLocation nativeBlockKey = nativeSurface.orElseThrow().blockKey();
-                ResourceLocation selectedSurfaceMaterial = stableTerrainProfileMaterial(nativeBlockKey)
-                        ? nativeBlockKey
-                        : authoredCapSurfaceMaterial;
-                if (SkyforgeMinecraftBlockPalette.STONE.equals(nativeBlockKey)
-                        && dominantProviderSurfaceMaterial != null
-                        && !SkyforgeMinecraftBlockPalette.STONE.equals(dominantProviderSurfaceMaterial)) {
-                    selectedSurfaceMaterial = stableTerrainProfileMaterial(dominantProviderSurfaceMaterial)
-                            ? dominantProviderSurfaceMaterial
-                            : authoredCapSurfaceMaterial;
+                ResourceLocation selectedSurfaceMaterial;
+                if (dominantProviderSurfaceMaterial != null
+                        && ((SkyforgeMinecraftBlockPalette.STONE.equals(nativeBlockKey)
+                                        && !SkyforgeMinecraftBlockPalette.STONE.equals(dominantProviderSurfaceMaterial))
+                                || !stableTerrainProfileMaterial(nativeBlockKey))) {
+                    // A minority stone cap or a falling provider surface (for example gravel) must
+                    // inherit the stable regional surface. Falling blocks cannot be projected onto
+                    // an island top, and falling back to a local authored stone cap recreates the
+                    // isolated gray patch that the provider adaptation is meant to remove.
+                    selectedSurfaceMaterial = dominantProviderSurfaceMaterial;
+                } else if (stableTerrainProfileMaterial(nativeBlockKey)) {
+                    selectedSurfaceMaterial = nativeBlockKey;
+                } else if (stableTerrainProfileMaterial(authoredCapSurfaceMaterial)) {
+                    selectedSurfaceMaterial = authoredCapSurfaceMaterial;
+                } else {
+                    selectedSurfaceMaterial = SkyforgeMinecraftBlockPalette.STONE;
                 }
                 int targetLocalY = targetTopY - materialization.minimumY();
                 if (targetTopY > originalTopY) {
@@ -149,13 +156,14 @@ public final class MinecraftNativeSurfaceTopAdapter {
                         var stratum = snapshot.surfaceStratum(localX, localZ, depth);
                         if (stratum.isPresent()) {
                             ResourceLocation stratumMaterial = stratum.orElseThrow();
-                            if (SkyforgeMinecraftBlockPalette.STONE.equals(nativeBlockKey)
-                                    && dominantProviderSurfaceMaterial != null
-                                    && !SkyforgeMinecraftBlockPalette.STONE.equals(
-                                            dominantProviderSurfaceMaterial)
-                                    && SkyforgeMinecraftBlockPalette.STONE.equals(stratumMaterial)) {
-                                // A minority stone cap is blended as one shallow exposed profile;
-                                // otherwise its stone filler still reads as an isolated rock patch.
+                            if (!stableTerrainProfileMaterial(stratumMaterial)
+                                    || (SkyforgeMinecraftBlockPalette.STONE.equals(nativeBlockKey)
+                                            && dominantProviderSurfaceMaterial != null
+                                            && !SkyforgeMinecraftBlockPalette.STONE.equals(
+                                                    dominantProviderSurfaceMaterial)
+                                            && SkyforgeMinecraftBlockPalette.STONE.equals(stratumMaterial))) {
+                                // Do not leave stone filler where an unsupported provider layer was
+                                // rejected; that fallback recreates the same feature-shaped patch.
                                 stratumMaterial = selectedSurfaceMaterial;
                             }
                             if (stableTerrainProfileMaterial(stratumMaterial)) {
@@ -293,6 +301,33 @@ public final class MinecraftNativeSurfaceTopAdapter {
             providerWriteClaims = Map.copyOf(
                     Objects.requireNonNull(providerWriteClaims, "providerWriteClaims"));
         }
+    }
+
+    private static ResourceLocation dominantStableProviderSurfaceMaterial(
+            MinecraftNativeSurfaceSnapshot snapshot) {
+        Map<ResourceLocation, Integer> counts = new HashMap<>();
+        for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
+            for (int localX = 0; localX < CHUNK_WIDTH; localX++) {
+                snapshot.surface(localX, localZ)
+                        .map(MinecraftNativeSurfaceSnapshot.NativeSurface::blockKey)
+                        .filter(MinecraftNativeSurfaceTopAdapter::stableTerrainProfileMaterial)
+                        .ifPresent(material -> counts.merge(material, 1, Integer::sum));
+            }
+        }
+
+        ResourceLocation dominant = null;
+        int dominantCount = 0;
+        for (var entry : counts.entrySet()) {
+            int count = entry.getValue();
+            if (count > dominantCount
+                    || (count == dominantCount
+                            && (dominant == null
+                                    || entry.getKey().toString().compareTo(dominant.toString()) < 0))) {
+                dominant = entry.getKey();
+                dominantCount = count;
+            }
+        }
+        return dominant;
     }
 
     /**
