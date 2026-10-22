@@ -53,6 +53,31 @@ final class MinecraftNativeSurfaceTopAdapterTest {
     }
 
     @Test
+    void smoothedProviderSurfaceReducesSingleColumnReliefWithoutChangingFlatNeighbors() {
+        ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(new ChunkPos(0, 0));
+        for (int localZ = 7; localZ <= 9; localZ++) {
+            for (int localX = 7; localX <= 9; localX++) {
+                chunk.setBlockState(
+                        new BlockPos(localX, 190, localZ),
+                        Blocks.GRASS_BLOCK.defaultBlockState(),
+                        false);
+            }
+        }
+        chunk.setBlockState(new BlockPos(8, 210, 8), Blocks.GRASS_BLOCK.defaultBlockState(), false);
+
+        MinecraftNativeSurfaceSnapshot snapshot = MinecraftNativeSurfaceSnapshot.capture(chunk, 63);
+
+        assertEquals(
+                195,
+                snapshot.smoothedProviderSurfaceY(8, 8),
+                "the center spike should blend deterministically with its 3x3 provider neighborhood");
+        assertEquals(
+                190,
+                snapshot.smoothedProviderSurfaceY(7, 7),
+                "flat neighborhood columns should retain their shared profile height");
+    }
+
+    @Test
     void nativeReliefRaisesOnlyTheExactIslandTopCapAndClaimsAddedCells() {
         var catalog = SkyforgeNeoForge1211PopulationDevRuntime.catalog();
         var volume = catalog.volumes().getFirst();
@@ -124,6 +149,14 @@ final class MinecraftNativeSurfaceTopAdapterTest {
             for (int localX = 0; localX < CHUNK_WIDTH; localX++) {
                 chunk.setBlockState(
                         new BlockPos(localX, 190, localZ),
+                        Blocks.GRASS_BLOCK.defaultBlockState(),
+                        false);
+            }
+        }
+        for (int localZ = 7; localZ <= 9; localZ++) {
+            for (int localX = 7; localX <= 9; localX++) {
+                chunk.setBlockState(
+                        new BlockPos(localX, 223, localZ),
                         Blocks.GRASS_BLOCK.defaultBlockState(),
                         false);
             }
@@ -461,6 +494,14 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                 chunk.setBlockState(
                         new BlockPos(localX, 190, localZ),
                         Blocks.GRASS_BLOCK.defaultBlockState(),
+                        false);
+            }
+        }
+        for (int localZ = 7; localZ <= 9; localZ++) {
+            for (int localX = 7; localX <= 9; localX++) {
+                chunk.setBlockState(
+                        new BlockPos(localX, 223, localZ),
+                        Blocks.STONE.defaultBlockState(),
                         false);
             }
         }
