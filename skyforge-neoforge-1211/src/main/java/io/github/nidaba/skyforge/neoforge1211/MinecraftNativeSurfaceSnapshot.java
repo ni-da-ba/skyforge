@@ -222,6 +222,7 @@ final class MinecraftNativeSurfaceSnapshot {
         }
         int weightedHeight = 0;
         int totalWeight = 0;
+        int sampleCount = 0;
         for (int deltaZ = -PROFILE_FILTER_RADIUS; deltaZ <= PROFILE_FILTER_RADIUS; deltaZ++) {
             for (int deltaX = -PROFILE_FILTER_RADIUS; deltaX <= PROFILE_FILTER_RADIUS; deltaX++) {
                 int height = providerHeightHalo[profileHeightIndex(localX + deltaX, localZ + deltaZ)];
@@ -233,10 +234,14 @@ final class MinecraftNativeSurfaceSnapshot {
                 int weight = axisWeightX * axisWeightZ;
                 weightedHeight += height * weight;
                 totalWeight += weight;
+                sampleCount++;
             }
         }
-        if (totalWeight == 0) {
-            return Integer.MIN_VALUE;
+        int centerHeight = providerHeightHalo[profileHeightIndex(localX, localZ)];
+        if (sampleCount < 5) {
+            // Sparse/no-surface neighborhoods are common in fixtures and must not invent a
+            // smoothed value from a handful of unrelated columns.
+            return centerHeight;
         }
         return (int) Math.round(weightedHeight / (double) totalWeight);
     }
