@@ -885,12 +885,6 @@ neoForge {
                 "skyforge.dev.acceptanceResultFile",
                 layout.buildDirectory.file("acceptance/sf-imp-0054-tectonic/treatment-reopen.properties").get().asFile.absolutePath,
             )
-            mustRunAfter("runTectonicTerrainTreatmentServer")
-            doFirst {
-                val treatmentDirectory =
-                    layout.projectDirectory.dir("run-sf-imp-0054-tectonic-treatment").asFile
-                configureSfImp0054TectonicTreatment(treatmentDirectory)
-            }
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
@@ -3604,6 +3598,15 @@ neoForge {
     unitTest {
         enable()
         testedMod.set(mods.named("skyforge"))
+    }
+}
+
+tasks.named("runTectonicTerrainTreatmentReopenServer").configure {
+    mustRunAfter("runTectonicTerrainTreatmentServer")
+    doFirst {
+        val treatmentDirectory =
+            layout.projectDirectory.dir("run-sf-imp-0054-tectonic-treatment").asFile
+        configureSfImp0054TectonicTreatment(treatmentDirectory)
     }
 }
 
