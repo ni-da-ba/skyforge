@@ -217,30 +217,9 @@ public final class MinecraftNativeSurfaceTopAdapter {
             }
         }
 
-        // Preserve the original bounded skin for newly added rise voxels.
-        for (var claimedCell : providerWriteClaims.keySet()) {
-            net.minecraft.core.BlockPos position = net.minecraft.core.BlockPos.of(claimedCell);
-            int localX = position.getX() - materialization.chunkPos().getMinBlockX();
-            int localZ = position.getZ() - materialization.chunkPos().getMinBlockZ();
-            if (localX < 0 || localX >= CHUNK_WIDTH || localZ < 0 || localZ >= CHUNK_WIDTH) {
-                continue;
-            }
-            int localY = position.getY() - materialization.minimumY();
-            if (localY < 0 || localY >= materialization.height()
-                    || !hasHorizontalAirExposure(blockKeys, localX, localY, localZ)) {
-                continue;
-            }
-            int surfaceIndex = localX + CHUNK_WIDTH * localZ;
-            int projectedTopY = projectedSurfaceTopYs[surfaceIndex];
-            if (projectedTopY == Integer.MIN_VALUE
-                    || projectedTopY - position.getY() < MinecraftNativeSurfaceSnapshot.SURFACE_STRATA_DEPTH) {
-                continue;
-            }
-            ResourceLocation sideSurfaceMaterial = projectedSurfaceMaterials[surfaceIndex];
-            if (stableTerrainProfileMaterial(sideSurfaceMaterial)) {
-                blockKeys[linearIndex(localX, localY, localZ)] = sideSurfaceMaterial;
-            }
-        }
+        // Newly raised cells deeper than the captured near-surface strata remain structural
+        // stone. Repainting the entire exposed rise with its top block creates tall, repeating
+        // grass/dirt walls; the cap and its first four native layers already form the visible skin.
 
         // A provider cut can expose original Skyforge cap voxels on a neighboring, unlowered
         // column. Re-skin only faces that were blocked before projection and became exposed
@@ -274,21 +253,25 @@ public final class MinecraftNativeSurfaceTopAdapter {
                         continue;
                     }
 
-                    int depth = projectedTopY - worldY;
+                    // Reskin only the captured native near-surface layers at the join.
+                    // Below that short transition, retain the island's authored block instead
+                    // of extending one provider surface block down a tall exposed wall.
+                    int depth = sideSkinReferenceY - worldY;
+                    if (depth < 0 || depth >= MinecraftNativeSurfaceSnapshot.SURFACE_STRATA_DEPTH) {
+                        continue;
+                    }
                     ResourceLocation sideSurfaceMaterial = selectedSurfaceMaterial;
-                    if (depth < MinecraftNativeSurfaceSnapshot.SURFACE_STRATA_DEPTH) {
-                        var stratum = snapshot.surfaceStratum(localX, localZ, depth);
-                        if (stratum.isPresent()) {
-                            sideSurfaceMaterial = stratum.orElseThrow();
-                            var providerSurface = snapshot.surface(localX, localZ).orElseThrow();
-                            if (!stableTerrainProfileMaterial(sideSurfaceMaterial)
-                                    || (SkyforgeMinecraftBlockPalette.STONE.equals(providerSurface.blockKey())
-                                            && dominantProviderSurfaceMaterial != null
-                                            && !SkyforgeMinecraftBlockPalette.STONE.equals(
-                                                    dominantProviderSurfaceMaterial)
-                                            && SkyforgeMinecraftBlockPalette.STONE.equals(sideSurfaceMaterial))) {
-                                sideSurfaceMaterial = selectedSurfaceMaterial;
-                            }
+                    var stratum = snapshot.surfaceStratum(localX, localZ, depth);
+                    if (stratum.isPresent()) {
+                        sideSurfaceMaterial = stratum.orElseThrow();
+                        var providerSurface = snapshot.surface(localX, localZ).orElseThrow();
+                        if (!stableTerrainProfileMaterial(sideSurfaceMaterial)
+                                || (SkyforgeMinecraftBlockPalette.STONE.equals(providerSurface.blockKey())
+                                        && dominantProviderSurfaceMaterial != null
+                                        && !SkyforgeMinecraftBlockPalette.STONE.equals(
+                                                dominantProviderSurfaceMaterial)
+                                        && SkyforgeMinecraftBlockPalette.STONE.equals(sideSurfaceMaterial))) {
+                            sideSurfaceMaterial = selectedSurfaceMaterial;
                         }
                     }
                     if (stableTerrainProfileMaterial(sideSurfaceMaterial)) {
