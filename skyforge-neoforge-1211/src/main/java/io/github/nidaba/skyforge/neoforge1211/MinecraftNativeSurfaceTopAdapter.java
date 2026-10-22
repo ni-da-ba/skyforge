@@ -117,6 +117,17 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 int targetTopY = (int) Math.max(
                         (long) minimumAllowedY,
                         Math.min((long) maximumAllowedY, desiredY));
+                ResourceLocation nativeBlockKey = nativeSurface.orElseThrow().blockKey();
+                ResourceLocation selectedSurfaceMaterial = stableTerrainProfileMaterial(nativeBlockKey)
+                        ? nativeBlockKey
+                        : authoredCapSurfaceMaterial;
+                if (SkyforgeMinecraftBlockPalette.STONE.equals(nativeBlockKey)
+                        && dominantProviderSurfaceMaterial != null
+                        && !SkyforgeMinecraftBlockPalette.STONE.equals(dominantProviderSurfaceMaterial)) {
+                    selectedSurfaceMaterial = stableTerrainProfileMaterial(dominantProviderSurfaceMaterial)
+                            ? dominantProviderSurfaceMaterial
+                            : authoredCapSurfaceMaterial;
+                }
                 int targetLocalY = targetTopY - materialization.minimumY();
                 if (targetTopY > originalTopY) {
                     for (int worldY = originalTopY + 1; worldY <= targetTopY; worldY++) {
@@ -136,9 +147,21 @@ public final class MinecraftNativeSurfaceTopAdapter {
                             break;
                         }
                         var stratum = snapshot.surfaceStratum(localX, localZ, depth);
-                        if (stratum.isPresent() && stableTerrainProfileMaterial(stratum.orElseThrow())) {
-                            int localY = worldY - materialization.minimumY();
-                            blockKeys[linearIndex(localX, localY, localZ)] = stratum.orElseThrow();
+                        if (stratum.isPresent()) {
+                            ResourceLocation stratumMaterial = stratum.orElseThrow();
+                            if (SkyforgeMinecraftBlockPalette.STONE.equals(nativeBlockKey)
+                                    && dominantProviderSurfaceMaterial != null
+                                    && !SkyforgeMinecraftBlockPalette.STONE.equals(
+                                            dominantProviderSurfaceMaterial)
+                                    && SkyforgeMinecraftBlockPalette.STONE.equals(stratumMaterial)) {
+                                // A minority stone cap is blended as one shallow exposed profile;
+                                // otherwise its stone filler still reads as an isolated rock patch.
+                                stratumMaterial = selectedSurfaceMaterial;
+                            }
+                            if (stableTerrainProfileMaterial(stratumMaterial)) {
+                                int localY = worldY - materialization.minimumY();
+                                blockKeys[linearIndex(localX, localY, localZ)] = stratumMaterial;
+                            }
                         }
                     }
                 } else if (targetTopY < originalTopY) {
@@ -149,17 +172,6 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 }
 
                 int targetIndex = linearIndex(localX, targetLocalY, localZ);
-                ResourceLocation nativeBlockKey = nativeSurface.orElseThrow().blockKey();
-                ResourceLocation selectedSurfaceMaterial = stableTerrainProfileMaterial(nativeBlockKey)
-                        ? nativeBlockKey
-                        : authoredCapSurfaceMaterial;
-                if (SkyforgeMinecraftBlockPalette.STONE.equals(nativeBlockKey)
-                        && dominantProviderSurfaceMaterial != null
-                        && !SkyforgeMinecraftBlockPalette.STONE.equals(dominantProviderSurfaceMaterial)) {
-                    selectedSurfaceMaterial = stableTerrainProfileMaterial(dominantProviderSurfaceMaterial)
-                            ? dominantProviderSurfaceMaterial
-                            : authoredCapSurfaceMaterial;
-                }
                 if (stableTerrainProfileMaterial(selectedSurfaceMaterial)) {
                     blockKeys[targetIndex] = selectedSurfaceMaterial;
                 }

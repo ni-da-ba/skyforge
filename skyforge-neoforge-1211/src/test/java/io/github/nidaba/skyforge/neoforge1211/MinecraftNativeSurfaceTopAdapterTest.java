@@ -243,6 +243,9 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                 new BlockPos(8, 223, 8),
                 Blocks.STONE.defaultBlockState(),
                 false);
+        chunk.setBlockState(new BlockPos(8, 222, 8), Blocks.STONE.defaultBlockState(), false);
+        chunk.setBlockState(new BlockPos(8, 221, 8), Blocks.STONE.defaultBlockState(), false);
+        chunk.setBlockState(new BlockPos(8, 220, 8), Blocks.STONE.defaultBlockState(), false);
         var profile = new MinecraftNativeSurfaceTopAdapter().adaptTerrainProfile(
                 MinecraftNativeSurfaceSnapshot.capture(chunk, 63),
                 original,
@@ -254,10 +257,17 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                         chunk.getMaxBuildHeight() - 1,
                         (int) Math.floor(volume.bounds().maximumY()) + 64));
         assertTrue(projectedTopY > support.maximumY(), "provider relief should still shape the island");
+        ResourceLocation grass = ResourceLocation.withDefaultNamespace("grass_block");
         assertEquals(
-                ResourceLocation.withDefaultNamespace("grass_block"),
+                grass,
                 profile.materialization().blockKeyAt(8, projectedTopY, 8),
                 "minority provider stone should follow the dominant stable provider surface material");
+        assertEquals(grass, profile.materialization().blockKeyAt(8, projectedTopY - 1, 8));
+        assertEquals(grass, profile.materialization().blockKeyAt(8, projectedTopY - 2, 8));
+        assertEquals(
+                grass,
+                profile.materialization().blockKeyAt(8, projectedTopY - 3, 8),
+                "minority stone in the captured near-surface profile must not recreate a gray exposed wall");
     }
 
     @Test

@@ -21,7 +21,7 @@ For each `(x, z)` column:
 3. record the first remaining block as that column's native surface-top material;
 4. inspect the accepted Skyforge materialization for exposed solid tops, defined as a Skyforge solid with Skyforge AIR immediately above it;
 5. for representation-only adaptation, copy a sampled material only when it is not a gravity-affected `FallingBlock`;
-6. for terrain-profile projection, place the provider material on the projected cap only when the block directly below is non-air; unsupported fringe retains Skyforge structural material, and minority provider-selected stone follows the chunk's dominant stable provider surface material to avoid an isolated rock patch; stone remains unchanged when it is the dominant provider surface;
+6. for terrain-profile projection, place the provider material on the projected cap only when the block directly below is non-air; unsupported fringe retains Skyforge structural material, and minority provider-selected stone follows the chunk's dominant stable provider surface material across the projected cap and copied near-surface strata to avoid an isolated rock patch; stone and its strata remain unchanged when it is the dominant provider surface;
 7. do not apply the provider material in a second pass to unrelated exposed Skyforge segments;
 8. leave all other Skyforge materialization entries unchanged;
 9. perform the existing additive solid overlay into the real Minecraft chunk.
@@ -187,3 +187,8 @@ The next bounded experiment captures four solid, non-fluid provider materials fr
 ## Exposed provider-rise wall-skin follow-up — in progress
 
 The four-layer profile reduced the artificial stone shell immediately beneath projected tops, but a tall provider uplift can expose additional vertical faces well below those four layers. The adapter now detects newly claimed uplift cells with horizontal air exposure and applies that column's already-selected stable surface material to those faces. Hidden interior cells, original island cells, exact-volume claims, and solid occupancy are unchanged. Surface-strata capture also stops at the first cave or fluid gap, so unrelated underground material cannot be mistaken for contiguous near-surface layers. This remains a bounded visual-coherence experiment; exact-head A/B evidence and owner review are required before accepting the rule.
+
+
+## Minority-stone near-surface blend follow-up — in progress
+
+The exact-head top-material grid showed that 22 Tectonic provider-stone cap selections correctly mapped to the dominant grass surface, but the owner still reported a broad gray center. The top-column grid does not count the copied provider strata immediately below those tops. The bounded rise-profile copy now applies the same minority-stone blend to matching stone strata while retaining other provider layers such as dirt. This prevents shallow exposed uplift faces from rebuilding the isolated gray patch under a grass-colored cap. A focused regression case and exact-head A/B/CI evidence are required; visual acceptance remains open.
