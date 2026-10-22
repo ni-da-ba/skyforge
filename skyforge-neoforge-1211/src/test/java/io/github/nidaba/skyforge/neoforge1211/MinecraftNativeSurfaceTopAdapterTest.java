@@ -102,7 +102,7 @@ final class MinecraftNativeSurfaceTopAdapterTest {
     }
 
     @Test
-    void fallingProviderSurfaceKeepsAuthoredSkyforgeCapMaterialAcrossProjectedRelief() {
+    void fallingProviderSurfaceUsesDominantStableMaterialInsteadOfGrayAuthoredCap() {
         var catalog = SkyforgeNeoForge1211PopulationDevRuntime.catalog();
         var volume = catalog.volumes().getFirst();
         ChunkPos chunkPos = new ChunkPos(0, 0);
@@ -111,22 +111,43 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                 catalog,
                 io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(),
                 new SkyforgeMinecraftBlockPalette());
-        MinecraftChunkMaterialization original = adapter.materialize(
+        MinecraftChunkMaterialization materialized = adapter.materialize(
                 volume.id(),
                 chunkPos,
                 chunk.getMinBuildHeight(),
                 chunk.getHeight());
         var support = adapter.integerSolidRange(volume.id(), 8, 8).orElseThrow();
-        ResourceLocation authoredCapSurface = original.blockKeyAt(8, support.maximumY(), 8);
-        ResourceLocation gravel = ResourceLocation.withDefaultNamespace("gravel");
 
-        // The provider can still raise the island profile, but a falling surface material must
-        // not paint a large feature-shaped patch over Skyforge's authored cap.
-        int providerSurfaceY = 223;
-        chunk.setBlockState(
-                new BlockPos(8, providerSurfaceY, 8),
-                Blocks.GRAVEL.defaultBlockState(),
-                false);
+        // The provider profile is mostly stable grass but has a small, conspicuous gravel patch.
+        // The authored island cap at that patch is stone, which exposed the old fallback bug.
+        for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
+            for (int localX = 0; localX < CHUNK_WIDTH; localX++) {
+                chunk.setBlockState(
+                        new BlockPos(localX, 190, localZ),
+                        Blocks.GRASS_BLOCK.defaultBlockState(),
+                        false);
+            }
+        }
+        chunk.setBlockState(new BlockPos(8, 223, 8), Blocks.GRAVEL.defaultBlockState(), false);
+        chunk.setBlockState(new BlockPos(8, 222, 8), Blocks.GRAVEL.defaultBlockState(), false);
+        chunk.setBlockState(new BlockPos(8, 221, 8), Blocks.GRAVEL.defaultBlockState(), false);
+        chunk.setBlockState(new BlockPos(8, 220, 8), Blocks.GRAVEL.defaultBlockState(), false);
+
+        ResourceLocation[] authoredKeys = materialized.blockKeys();
+        int authoredTopLocalY = support.maximumY() - materialized.minimumY();
+        authoredKeys[8 + CHUNK_WIDTH * (8 + CHUNK_WIDTH * authoredTopLocalY)] =
+                SkyforgeMinecraftBlockPalette.STONE;
+        MinecraftChunkMaterialization original = new MinecraftChunkMaterialization(
+                chunkPos,
+                materialized.minimumY(),
+                materialized.height(),
+                authoredKeys,
+                materialized.candidateVolumeReferences());
+        assertEquals(
+                SkyforgeMinecraftBlockPalette.STONE,
+                original.blockKeyAt(8, support.maximumY(), 8),
+                "fixture must expose the authored gray cap that the old falling-material fallback preserved");
+
         var profile = new MinecraftNativeSurfaceTopAdapter().adaptTerrainProfile(
                 MinecraftNativeSurfaceSnapshot.capture(chunk, 63),
                 original,
@@ -137,11 +158,16 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                 support.maximumY() + 64,
                 Math.min(chunk.getMaxBuildHeight() - 1, authoredTopMaximumY + 64));
         assertTrue(expectedTopY > support.maximumY(), "the provider height profile should remain active");
-        assertEquals(
-                authoredCapSurface,
-                profile.materialization().blockKeyAt(8, expectedTopY, 8),
-                "falling provider material must resolve to the authored Skyforge cap surface");
-        assertFalse(gravel.equals(profile.materialization().blockKeyAt(8, expectedTopY, 8)));
+        ResourceLocation grass = ResourceLocation.withDefaultNamespace("grass_block");
+        for (int depth = 0; depth < 4; depth++) {
+            assertEquals(
+                    grass,
+                    profile.materialization().blockKeyAt(8, expectedTopY - depth, 8),
+                    "rejected falling surface and strata must use the stable regional surface instead of gray filler");
+        }
+        assertFalse(
+                ResourceLocation.withDefaultNamespace("gravel")
+                        .equals(profile.materialization().blockKeyAt(8, expectedTopY, 8)));
         assertTrue(profile.providerWriteClaims().containsKey(
                 BlockPos.asLong(8, support.maximumY() + 1, 8)));
     }
