@@ -208,7 +208,12 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                 grayCap,
                 adapter);
 
-        int loweredTopY = profile.projectedSurfaceTopYs()[8 + CHUNK_WIDTH * 8];
+        int loweredTopY = original.minimumY() + original.height() - 1;
+        while (loweredTopY >= original.minimumY()
+                && SkyforgeMinecraftBlockPalette.AIR.equals(
+                        profile.materialization().blockKeyAt(8, loweredTopY, 8))) {
+            loweredTopY--;
+        }
         assertTrue(loweredTopY < support.maximumY(), "negative provider relief should cut into the authored cap");
         assertEquals(
                 ResourceLocation.withDefaultNamespace("grass_block"),
