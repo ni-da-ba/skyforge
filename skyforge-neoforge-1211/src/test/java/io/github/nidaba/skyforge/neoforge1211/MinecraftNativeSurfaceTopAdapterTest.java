@@ -157,8 +157,8 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                         false);
             }
         }
-        for (int localZ = 7; localZ <= 9; localZ++) {
-            for (int localX = 7; localX <= 9; localX++) {
+        for (int localZ = 4; localZ <= 12; localZ++) {
+            for (int localX = 4; localX <= 12; localX++) {
                 chunk.setBlockState(
                         new BlockPos(localX, 223, localZ),
                         Blocks.GRASS_BLOCK.defaultBlockState(),
@@ -501,8 +501,8 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                         false);
             }
         }
-        for (int localZ = 7; localZ <= 9; localZ++) {
-            for (int localX = 7; localX <= 9; localX++) {
+        for (int localZ = 4; localZ <= 12; localZ++) {
+            for (int localX = 4; localX <= 12; localX++) {
                 chunk.setBlockState(
                         new BlockPos(localX, 223, localZ),
                         Blocks.STONE.defaultBlockState(),
