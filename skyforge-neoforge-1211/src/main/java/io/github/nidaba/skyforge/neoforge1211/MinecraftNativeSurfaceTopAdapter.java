@@ -177,6 +177,31 @@ public final class MinecraftNativeSurfaceTopAdapter {
                         int localY = worldY - materialization.minimumY();
                         blockKeys[linearIndex(localX, localY, localZ)] = SkyforgeMinecraftBlockPalette.AIR;
                     }
+                    // Lowered columns expose the old Skyforge cap interior. Replacing only the
+                    // new top leaves a broad gray stone patch around the provider-cut basin.
+                    // Apply the same bounded provider strata to the newly exposed top layer.
+                    for (int depth = 1; depth < MinecraftNativeSurfaceSnapshot.SURFACE_STRATA_DEPTH; depth++) {
+                        int worldY = targetTopY - depth;
+                        if (worldY < minimumAllowedY) {
+                            break;
+                        }
+                        var stratum = snapshot.surfaceStratum(localX, localZ, depth);
+                        if (stratum.isPresent()) {
+                            ResourceLocation stratumMaterial = stratum.orElseThrow();
+                            if (!stableTerrainProfileMaterial(stratumMaterial)
+                                    || (SkyforgeMinecraftBlockPalette.STONE.equals(nativeBlockKey)
+                                            && dominantProviderSurfaceMaterial != null
+                                            && !SkyforgeMinecraftBlockPalette.STONE.equals(
+                                                    dominantProviderSurfaceMaterial)
+                                            && SkyforgeMinecraftBlockPalette.STONE.equals(stratumMaterial))) {
+                                stratumMaterial = selectedSurfaceMaterial;
+                            }
+                            if (stableTerrainProfileMaterial(stratumMaterial)) {
+                                int localY = worldY - materialization.minimumY();
+                                blockKeys[linearIndex(localX, localY, localZ)] = stratumMaterial;
+                            }
+                        }
+                    }
                 }
 
                 int targetIndex = linearIndex(localX, targetLocalY, localZ);
