@@ -116,6 +116,17 @@ final class MinecraftNativeSurfaceTopAdapterTest {
     }
 
     @Test
+    void providerReliefFadesAcrossTheIslandFootprintEdge() {
+        int radius = MinecraftNativeSurfaceTopAdapter.PROVIDER_RELIEF_EDGE_BLEND_RADIUS_BLOCKS;
+        assertEquals(0, MinecraftNativeSurfaceTopAdapter.blendProviderReliefAtFootprintEdge(64, 0, radius));
+        assertEquals(32, MinecraftNativeSurfaceTopAdapter.blendProviderReliefAtFootprintEdge(64, radius / 2, radius));
+        assertEquals(64, MinecraftNativeSurfaceTopAdapter.blendProviderReliefAtFootprintEdge(64, radius, radius));
+        assertEquals(0, MinecraftNativeSurfaceTopAdapter.blendProviderReliefAtFootprintEdge(-64, 0, radius));
+        assertEquals(-32, MinecraftNativeSurfaceTopAdapter.blendProviderReliefAtFootprintEdge(-64, radius / 2, radius));
+        assertEquals(-64, MinecraftNativeSurfaceTopAdapter.blendProviderReliefAtFootprintEdge(-64, radius, radius));
+    }
+
+    @Test
     void nativeReliefRaisesOnlyTheExactIslandTopCapAndClaimsAddedCells() {
         var catalog = SkyforgeNeoForge1211PopulationDevRuntime.catalog();
         var volume = catalog.volumes().getFirst();
@@ -145,15 +156,19 @@ final class MinecraftNativeSurfaceTopAdapterTest {
         int authoredTopMaximumY = (int) Math.floor(volume.bounds().maximumY());
         int projectedRise = Math.toIntExact(
                 MinecraftNativeSurfaceTopAdapter.projectProviderRelief(providerSurfaceY - 63L));
-        int expectedTopY = Math.min(
-                support.maximumY() + projectedRise,
-                authoredTopMaximumY + 64);
+        int maximumTopY = Math.min(
+                chunk.getMaxBuildHeight() - 1,
+                Math.min(support.maximumY() + projectedRise, authoredTopMaximumY + 64));
         assertEquals(64, projectedRise, "the upper source profile should form a bounded visible island peak");
         assertTrue(expectedTopY > authoredTopMaximumY + 32,
                 "the expanded but bounded profile should use more than the former 32-block rise");
+        int realizedTopY = highestSolidY(profile.materialization(), 8, 8);
+        assertTrue(realizedTopY > authoredTopMaximumY + 32,
+                "the edge blend should still preserve a substantial provider-driven rise");
+        assertTrue(realizedTopY <= maximumTopY, "provider relief must remain inside the bounded cap envelope");
         assertEquals(
                 ResourceLocation.withDefaultNamespace("grass_block"),
-                profile.materialization().blockKeyAt(8, expectedTopY, 8));
+                profile.materialization().blockKeyAt(8, realizedTopY, 8));
         assertFalse(profile.providerWriteClaims().isEmpty(),
                 "the high provider profile should still add claimed island terrain");
         assertEquals(
@@ -311,9 +326,11 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                         profile.materialization().blockKeyAt(surfaceX, loweredTopY, surfaceZ))) {
             loweredTopY--;
         }
-        int expectedTopY = supportMaximumY
-                + Math.toIntExact(MinecraftNativeSurfaceTopAdapter.projectProviderRelief(-15));
-        assertEquals(expectedTopY, loweredTopY, "negative provider relief should cut into, not through, the cap");
+        int maximumCutDepth = Math.toIntExact(-MinecraftNativeSurfaceTopAdapter.projectProviderRelief(-15));
+        assertTrue(loweredTopY < supportMaximumY, "negative provider relief should cut into the cap");
+        assertTrue(
+                loweredTopY >= supportMaximumY - maximumCutDepth,
+                "the edge blend must not deepen the cut beyond the bounded provider relief");
         assertEquals(
                 ResourceLocation.withDefaultNamespace("grass_block"),
                 profile.materialization().blockKeyAt(surfaceX, loweredTopY, surfaceZ));
@@ -358,12 +375,17 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                 original,
                 adapter);
 
-        int projectedTopY = Math.min(
+        int maximumProviderTopY = Math.min(
                 support.maximumY() + 64,
                 Math.min(
                         chunk.getMaxBuildHeight() - 1,
                         (int) Math.floor(volume.bounds().maximumY()) + 64));
-        assertTrue(projectedTopY - 3 > support.maximumY());
+        int projectedTopY = highestSolidY(profile.materialization(), 8, 8);
+        assertTrue(projectedTopY > support.maximumY(), "provider relief should raise the exact island cap");
+        assertTrue(projectedTopY - 3 > support.maximumY(),
+                "the projected rise should leave room for the captured native strata");
+        assertTrue(projectedTopY <= maximumProviderTopY,
+                "edge tapering must keep the realized cap within the bounded provider rise");
         assertEquals(
                 ResourceLocation.withDefaultNamespace("grass_block"),
                 profile.materialization().blockKeyAt(8, projectedTopY, 8));
