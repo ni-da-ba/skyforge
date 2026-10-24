@@ -160,7 +160,7 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                 chunk.getMaxBuildHeight() - 1,
                 Math.min(support.maximumY() + projectedRise, authoredTopMaximumY + 64));
         assertEquals(64, projectedRise, "the upper source profile should form a bounded visible island peak");
-        assertTrue(expectedTopY > authoredTopMaximumY + 32,
+        assertTrue(maximumTopY > authoredTopMaximumY + 32,
                 "the expanded but bounded profile should use more than the former 32-block rise");
         int realizedTopY = highestSolidY(profile.materialization(), 8, 8);
         assertTrue(realizedTopY > authoredTopMaximumY + 32,
