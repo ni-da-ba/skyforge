@@ -304,7 +304,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
         return new TerrainProfileAdaptation(adapted, providerWriteClaims);
     }
 
-    private static long blendProviderReliefAtFootprintEdge(
+    static long blendProviderReliefAtFootprintEdge(
             long projectedRelief,
             int interiorDistance,
             int blendRadius) {
