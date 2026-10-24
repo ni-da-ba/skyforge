@@ -34,7 +34,7 @@ final class MinecraftNativeSurfaceSnapshot {
     private static final int CHUNK_WIDTH = 16;
     private static final int SAMPLE_COUNT = CHUNK_WIDTH * CHUNK_WIDTH;
     static final int SURFACE_STRATA_DEPTH = 4;
-    private static final int PROFILE_FILTER_RADIUS = 3;
+    private static final int PROFILE_FILTER_RADIUS = 5;
     private static final int PROFILE_FILTER_WIDTH = CHUNK_WIDTH + PROFILE_FILTER_RADIUS * 2;
     private static final int PROFILE_FILTER_SAMPLE_COUNT = PROFILE_FILTER_WIDTH * PROFILE_FILTER_WIDTH;
     private static final Map<ProviderDatumKey, Integer> PROVIDER_TERRAIN_DATUMS = new ConcurrentHashMap<>();
@@ -167,21 +167,38 @@ final class MinecraftNativeSurfaceSnapshot {
             WorldGenRegion level,
             NoiseBasedChunkGenerator generator,
             RandomState randomState) {
-        int[] heightHalo = edgePaddedProviderHeightHalo(worldYs);
-        for (int localZ = -PROFILE_FILTER_RADIUS; localZ < CHUNK_WIDTH + PROFILE_FILTER_RADIUS; localZ++) {
-            for (int localX = -PROFILE_FILTER_RADIUS; localX < CHUNK_WIDTH + PROFILE_FILTER_RADIUS; localX++) {
-                if (localX >= 0 && localX < CHUNK_WIDTH && localZ >= 0 && localZ < CHUNK_WIDTH) {
-                    continue;
-                }
-                int worldX = chunkPos.getMinBlockX() + localX;
-                int worldZ = chunkPos.getMinBlockZ() + localZ;
-                NoiseColumn column = generator.getBaseColumn(worldX, worldZ, level, randomState);
-                heightHalo[profileHeightIndex(localX, localZ)] =
-                        firstSolidSurfaceY(column, level.getMinBuildHeight(), level.getMaxBuildHeight());
-            }
-        }
+        int[] heightHalo = sampleProviderHeightHalo(
+                chunkPos,
+                (worldX, worldZ) -> {
+                    NoiseColumn column = generator.getBaseColumn(worldX, worldZ, level, randomState);
+                    return firstSolidSurfaceY(
+                            column, level.getMinBuildHeight(), level.getMaxBuildHeight());
+                });
         return new MinecraftNativeSurfaceSnapshot(
                 chunkPos, baselineY, worldYs, blockKeys, surfaceStrata, heightHalo);
+    }
+
+    /** Samples the complete filter window through one world-coordinate terrain source. */
+    static int[] sampleProviderHeightHalo(
+            ChunkPos chunkPos,
+            ProviderSurfaceHeightSampler sampler) {
+        Objects.requireNonNull(chunkPos, "chunkPos");
+        Objects.requireNonNull(sampler, "sampler");
+        int[] halo = new int[PROFILE_FILTER_SAMPLE_COUNT];
+        Arrays.fill(halo, Integer.MIN_VALUE);
+        for (int localZ = -PROFILE_FILTER_RADIUS; localZ < CHUNK_WIDTH + PROFILE_FILTER_RADIUS; localZ++) {
+            for (int localX = -PROFILE_FILTER_RADIUS; localX < CHUNK_WIDTH + PROFILE_FILTER_RADIUS; localX++) {
+                int worldX = chunkPos.getMinBlockX() + localX;
+                int worldZ = chunkPos.getMinBlockZ() + localZ;
+                halo[profileHeightIndex(localX, localZ)] = sampler.surfaceY(worldX, worldZ);
+            }
+        }
+        return halo;
+    }
+
+    @FunctionalInterface
+    interface ProviderSurfaceHeightSampler {
+        int surfaceY(int worldX, int worldZ);
     }
 
     private static int[] edgePaddedProviderHeightHalo(int[] worldYs) {
@@ -210,7 +227,7 @@ final class MinecraftNativeSurfaceSnapshot {
         return Integer.MIN_VALUE;
     }
 
-    private static int profileHeightIndex(int localX, int localZ) {
+    static int profileHeightIndex(int localX, int localZ) {
         return localX + PROFILE_FILTER_RADIUS
                 + PROFILE_FILTER_WIDTH * (localZ + PROFILE_FILTER_RADIUS);
     }
@@ -220,6 +237,10 @@ final class MinecraftNativeSurfaceSnapshot {
         if (localX < 0 || localX >= CHUNK_WIDTH || localZ < 0 || localZ >= CHUNK_WIDTH) {
             throw new IllegalArgumentException("local surface coordinate must be inside one chunk");
         }
+        return smoothedProviderSurfaceY(providerHeightHalo, localX, localZ);
+    }
+
+    static int smoothedProviderSurfaceY(int[] providerHeightHalo, int localX, int localZ) {
         int weightedHeight = 0;
         int totalWeight = 0;
         int sampleCount = 0;
@@ -229,8 +250,8 @@ final class MinecraftNativeSurfaceSnapshot {
                 if (height == Integer.MIN_VALUE) {
                     continue;
                 }
-                // A triangular 7x7 kernel retains broad mountain forms while damping
-                // block-scale ledges that became visible as repeated vertical faces.
+                // A triangular 11x11 kernel softens block-scale ledges while preserving broad
+                // mountain forms. Every sample comes from the same world-coordinate terrain source.
                 int axisWeightX = PROFILE_FILTER_RADIUS + 1 - Math.abs(deltaX);
                 int axisWeightZ = PROFILE_FILTER_RADIUS + 1 - Math.abs(deltaZ);
                 int weight = axisWeightX * axisWeightZ;

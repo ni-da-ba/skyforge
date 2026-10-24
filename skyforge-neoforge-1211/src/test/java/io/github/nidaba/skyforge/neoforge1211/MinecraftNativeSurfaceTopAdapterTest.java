@@ -53,7 +53,7 @@ final class MinecraftNativeSurfaceTopAdapterTest {
     }
 
     @Test
-    void smoothedProviderSurfaceReducesSingleColumnReliefWithoutChangingFlatNeighbors() {
+    void smoothedProviderSurfaceBlendsBroadRidgesWithGradualTransitions() {
         ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(new ChunkPos(0, 0));
         for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
             for (int localX = 0; localX < CHUNK_WIDTH; localX++) {
@@ -63,22 +63,56 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                         false);
             }
         }
-        chunk.setBlockState(new BlockPos(8, 210, 8), Blocks.GRASS_BLOCK.defaultBlockState(), false);
+        for (int localZ = 7; localZ <= 9; localZ++) {
+            for (int localX = 7; localX <= 9; localX++) {
+                chunk.setBlockState(
+                        new BlockPos(localX, 210, localZ),
+                        Blocks.GRASS_BLOCK.defaultBlockState(),
+                        false);
+            }
+        }
 
         MinecraftNativeSurfaceSnapshot snapshot = MinecraftNativeSurfaceSnapshot.capture(chunk, 63);
 
         assertEquals(
-                191,
+                193,
                 snapshot.smoothedProviderSurfaceY(8, 8),
-                "the center spike should blend deterministically with its 7x7 provider neighborhood");
+                "the broad local ridge should blend into its 11x11 provider neighborhood");
+        assertEquals(
+                193,
+                snapshot.smoothedProviderSurfaceY(7, 7),
+                "the ridge edge should transition gradually");
         assertEquals(
                 191,
-                snapshot.smoothedProviderSurfaceY(7, 7),
-                "the nearby profile should transition gradually away from the spike");
+                snapshot.smoothedProviderSurfaceY(12, 8),
+                "the filtered profile should taper toward the source height");
         assertEquals(
                 190,
-                snapshot.smoothedProviderSurfaceY(4, 4),
-                "the flat area beyond the smoothing radius should retain its source height");
+                snapshot.smoothedProviderSurfaceY(15, 8),
+                "terrain beyond the filter radius should retain its source height");
+        assertEquals(
+                190,
+                snapshot.smoothedProviderSurfaceY(2, 2),
+                "distant terrain should retain its source height");
+    }
+
+    @Test
+    void providerHeightHaloUsesOneWorldAlignedSampleAcrossChunkBorders() {
+        MinecraftNativeSurfaceSnapshot.ProviderSurfaceHeightSampler terrain = (worldX, worldZ) ->
+                100 + Math.floorMod(worldX * 17 + worldZ * 31, 37);
+        int[] left = MinecraftNativeSurfaceSnapshot.sampleProviderHeightHalo(
+                new ChunkPos(0, 0), terrain);
+        int[] right = MinecraftNativeSurfaceSnapshot.sampleProviderHeightHalo(
+                new ChunkPos(1, 0), terrain);
+
+        assertEquals(
+                left[MinecraftNativeSurfaceSnapshot.profileHeightIndex(15, 8)],
+                right[MinecraftNativeSurfaceSnapshot.profileHeightIndex(-1, 8)],
+                "both chunks must sample the shared border from the same world-coordinate profile");
+        assertEquals(
+                MinecraftNativeSurfaceSnapshot.smoothedProviderSurfaceY(left, 15, 8),
+                MinecraftNativeSurfaceSnapshot.smoothedProviderSurfaceY(right, -1, 8),
+                "neighboring chunks must derive the same smoothed height at the shared border sample");
     }
 
     @Test
