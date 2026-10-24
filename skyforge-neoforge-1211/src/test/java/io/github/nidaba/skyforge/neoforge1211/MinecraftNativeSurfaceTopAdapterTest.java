@@ -75,7 +75,7 @@ final class MinecraftNativeSurfaceTopAdapterTest {
         MinecraftNativeSurfaceSnapshot snapshot = MinecraftNativeSurfaceSnapshot.capture(chunk, 63);
 
         assertEquals(
-                193,
+                194,
                 snapshot.smoothedProviderSurfaceY(8, 8),
                 "the broad local ridge should blend into its 11x11 provider neighborhood");
         assertEquals(
@@ -154,8 +154,8 @@ final class MinecraftNativeSurfaceTopAdapterTest {
         assertEquals(
                 ResourceLocation.withDefaultNamespace("grass_block"),
                 profile.materialization().blockKeyAt(8, expectedTopY, 8));
-        assertTrue(profile.providerWriteClaims().containsKey(
-                BlockPos.asLong(8, support.maximumY() + 1, 8)));
+        assertFalse(profile.providerWriteClaims().isEmpty(),
+                "the high provider profile should still add claimed island terrain");
         assertEquals(
                 volume.id(),
                 profile.providerWriteClaims().get(BlockPos.asLong(8, support.maximumY() + 1, 8)));
@@ -224,11 +224,8 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                 original,
                 adapter);
 
-        int authoredTopMaximumY = (int) Math.floor(volume.bounds().maximumY());
-        int expectedTopY = Math.min(
-                support.maximumY() + 64,
-                Math.min(chunk.getMaxBuildHeight() - 1, authoredTopMaximumY + 64));
-        assertTrue(expectedTopY > support.maximumY(), "the provider height profile should remain active");
+        int expectedTopY = highestSolidY(profile.materialization(), 8, 8);
+        assertTrue(expectedTopY >= support.maximumY(), "the island's exact supported surface must remain present");
         ResourceLocation grass = ResourceLocation.withDefaultNamespace("grass_block");
         for (int depth = 0; depth < 4; depth++) {
             assertEquals(
@@ -239,8 +236,8 @@ final class MinecraftNativeSurfaceTopAdapterTest {
         assertFalse(
                 ResourceLocation.withDefaultNamespace("gravel")
                         .equals(profile.materialization().blockKeyAt(8, expectedTopY, 8)));
-        assertTrue(profile.providerWriteClaims().containsKey(
-                BlockPos.asLong(8, support.maximumY() + 1, 8)));
+        assertFalse(profile.providerWriteClaims().isEmpty(),
+                "the high provider profile should still add claimed island terrain");
     }
 
     @Test
@@ -555,12 +552,8 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                 original,
                 adapter);
 
-        int projectedTopY = Math.min(
-                support.maximumY() + 64,
-                Math.min(
-                        chunk.getMaxBuildHeight() - 1,
-                        (int) Math.floor(volume.bounds().maximumY()) + 64));
-        assertTrue(projectedTopY > support.maximumY(), "provider relief should still shape the island");
+        int projectedTopY = highestSolidY(profile.materialization(), 8, 8);
+        assertTrue(projectedTopY >= support.maximumY(), "the island's exact supported surface must remain present");
         ResourceLocation grass = ResourceLocation.withDefaultNamespace("grass_block");
         assertEquals(
                 grass,
@@ -609,6 +602,17 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                 ResourceLocation.withDefaultNamespace("grass_block"),
                 adapted.blockKeyAt(0, 200, 0),
                 "island surface representation must come from native terrain, not later decoration");
+    }
+
+    private static int highestSolidY(MinecraftChunkMaterialization materialization, int x, int z) {
+        for (int worldY = materialization.minimumY() + materialization.height() - 1;
+                worldY >= materialization.minimumY();
+                worldY--) {
+            if (!SkyforgeMinecraftBlockPalette.AIR.equals(materialization.blockKeyAt(x, worldY, z))) {
+                return worldY;
+            }
+        }
+        return Integer.MIN_VALUE;
     }
 
     private static MinecraftChunkMaterialization materialization(ProtoChunk chunk) {

@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.FallingBlock;
@@ -22,7 +23,10 @@ public final class MinecraftNativeSurfaceTopAdapter {
     private static final int CHUNK_WIDTH = 16;
     static final int MAX_PROVIDER_SURFACE_RISE_BLOCKS = 64;
     static final int PROVIDER_RELIEF_CURVE_REFERENCE_BLOCKS = 160;
-    static final int PROVIDER_RELIEF_EDGE_BLEND_RADIUS_BLOCKS = 8;
+    static final int PROVIDER_RELIEF_EDGE_BLEND_RADIUS_BLOCKS = MAX_PROVIDER_SURFACE_RISE_BLOCKS;
+    private static final int MAX_FOOTPRINT_GRID_CELLS = 4_000_000;
+    private final Map<SkyIslandWorldVolumeId, ProviderReliefFootprint> providerReliefFootprints =
+            new ConcurrentHashMap<>();
     static final String PROVIDER_RELIEF_MAPPING = "bounded_signed_linear_160";
 
     /**
@@ -66,7 +70,6 @@ public final class MinecraftNativeSurfaceTopAdapter {
         Arrays.fill(projectedSurfaceTopYs, Integer.MIN_VALUE);
         Arrays.fill(originalSurfaceTopYs, Integer.MIN_VALUE);
         Map<Long, SkyIslandWorldVolumeId> providerWriteClaims = new HashMap<>();
-        Map<SkyIslandWorldVolumeId, ProviderReliefFootprint> providerReliefFootprints = new HashMap<>();
         int maximumMaterializedY = materialization.minimumY() + materialization.height() - 1;
         for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
             int worldZ = materialization.chunkPos().getMinBlockZ() + localZ;
@@ -114,16 +117,12 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 // Provider terrain is a local shape signal on a floating island, not
                 // an absolute elevation datum. The exact Skyforge footprint owns the blend mask:
                 // full provider relief is reached only inside the island, while relief fades to zero
-                // over a bounded edge band. This joins the native profile to the authored cap rather
+                // over a 64-block edge band. This joins the native profile to the authored cap rather
                 // than ending a full-height provider hill at the island silhouette.
                 ProviderReliefFootprint footprint = providerReliefFootprints.computeIfAbsent(
                         ownerId,
-                        ignored -> ProviderReliefFootprint.capture(
-                                adapter,
-                                ownerId,
-                                materialization.chunkPos().getMinBlockX(),
-                                materialization.chunkPos().getMinBlockZ()));
-                int edgeDistance = footprint.interiorDistance(localX, localZ);
+                        ignored -> ProviderReliefFootprint.capture(adapter, ownerId, volumeBounds));
+                int edgeDistance = footprint.interiorDistance(worldX, worldZ);
                 long providerRelief = (long) snapshot.smoothedProviderSurfaceY(localX, localZ)
                         - snapshot.baselineY();
                 long projectedProviderRelief = blendProviderReliefAtFootprintEdge(
@@ -318,55 +317,120 @@ public final class MinecraftNativeSurfaceTopAdapter {
     }
 
     /**
-     * Exact horizontal support mask for one Skyforge island, padded far enough to measure the
-     * provider-relief transition around every column in the current chunk.
+     * Exact horizontal distance-to-edge field for one Skyforge island. It is built once per
+     * runtime-bound volume so the broad transition band does not repeat support queries per chunk.
      */
     private static final class ProviderReliefFootprint {
-        private final boolean[] supported;
+        private final int minimumX;
+        private final int minimumZ;
         private final int width;
+        private final int height;
+        private final byte[] interiorDistances;
 
-        private ProviderReliefFootprint(boolean[] supported, int width) {
-            this.supported = supported;
+        private ProviderReliefFootprint(
+                int minimumX,
+                int minimumZ,
+                int width,
+                int height,
+                byte[] interiorDistances) {
+            this.minimumX = minimumX;
+            this.minimumZ = minimumZ;
             this.width = width;
+            this.height = height;
+            this.interiorDistances = interiorDistances;
         }
 
         static ProviderReliefFootprint capture(
                 SkyforgeNeoForge1211ChunkAdapter adapter,
                 SkyIslandWorldVolumeId volumeId,
-                int chunkMinX,
-                int chunkMinZ) {
+                WorldBounds bounds) {
             int radius = PROVIDER_RELIEF_EDGE_BLEND_RADIUS_BLOCKS;
-            int width = CHUNK_WIDTH + radius * 2;
-            boolean[] supported = new boolean[width * width];
-            for (int localZ = -radius; localZ < CHUNK_WIDTH + radius; localZ++) {
-                for (int localX = -radius; localX < CHUNK_WIDTH + radius; localX++) {
-                    int worldX = chunkMinX + localX;
-                    int worldZ = chunkMinZ + localZ;
-                    supported[(localX + radius) + width * (localZ + radius)] =
-                            adapter.integerSolidRange(volumeId, worldX, worldZ).isPresent();
+            int supportMinimumX = ceilToInt(bounds.minimumX());
+            int supportMaximumX = floorToInt(bounds.maximumX());
+            int supportMinimumZ = ceilToInt(bounds.minimumZ());
+            int supportMaximumZ = floorToInt(bounds.maximumZ());
+            int minimumX = Math.subtractExact(supportMinimumX, radius);
+            int minimumZ = Math.subtractExact(supportMinimumZ, radius);
+            int width = Math.addExact(Math.addExact(
+                    Math.subtractExact(supportMaximumX, supportMinimumX), 1), radius * 2);
+            int height = Math.addExact(Math.addExact(
+                    Math.subtractExact(supportMaximumZ, supportMinimumZ), 1), radius * 2);
+            long cellCount = (long) width * height;
+            if (width <= 0 || height <= 0 || cellCount > MAX_FOOTPRINT_GRID_CELLS) {
+                throw new IllegalStateException(
+                        "Skyforge island footprint is too large for exact provider-relief edge blending");
+            }
+
+            byte[] distances = new byte[(int) cellCount];
+            Arrays.fill(distances, (byte) -1);
+            int[] frontier = new int[(int) cellCount];
+            int frontierSize = 0;
+            int supportWidth = supportMaximumX - supportMinimumX + 1;
+            int supportHeight = supportMaximumZ - supportMinimumZ + 1;
+            for (int gridZ = 0; gridZ < height; gridZ++) {
+                int worldZ = minimumZ + gridZ;
+                int supportZ = worldZ - supportMinimumZ;
+                for (int gridX = 0; gridX < width; gridX++) {
+                    int worldX = minimumX + gridX;
+                    int supportX = worldX - supportMinimumX;
+                    boolean insideBounds = supportX >= 0
+                            && supportX < supportWidth
+                            && supportZ >= 0
+                            && supportZ < supportHeight;
+                    boolean supported = insideBounds
+                            && adapter.integerSolidRange(volumeId, worldX, worldZ).isPresent();
+                    if (!supported) {
+                        int index = gridX + width * gridZ;
+                        distances[index] = 0;
+                        frontier[frontierSize++] = index;
+                    }
                 }
             }
-            return new ProviderReliefFootprint(supported, width);
-        }
 
-        int interiorDistance(int localX, int localZ) {
-            int radius = PROVIDER_RELIEF_EDGE_BLEND_RADIUS_BLOCKS;
-            int distance = radius;
-            for (int deltaZ = -radius; deltaZ <= radius; deltaZ++) {
-                for (int deltaX = -radius; deltaX <= radius; deltaX++) {
-                    int ringDistance = Math.max(Math.abs(deltaX), Math.abs(deltaZ));
-                    if (ringDistance == 0 || ringDistance > radius || distance == 0) {
+            // An 8-neighbor breadth-first transform gives a deterministic Chebyshev interior
+            // distance. Values saturate at the transition radius, which is all the blend needs.
+            int frontierRead = 0;
+            while (frontierRead < frontierSize) {
+                int index = frontier[frontierRead++];
+                int nextDistance = (distances[index] & 0xff) + 1;
+                if (nextDistance > radius) {
+                    continue;
+                }
+                int gridX = index % width;
+                int gridZ = index / width;
+                for (int deltaZ = -1; deltaZ <= 1; deltaZ++) {
+                    int neighborZ = gridZ + deltaZ;
+                    if (neighborZ < 0 || neighborZ >= height) {
                         continue;
                     }
-                    int sampleX = localX + deltaX + radius;
-                    int sampleZ = localZ + deltaZ + radius;
-                    boolean neighborSupported = supported[sampleX + width * sampleZ];
-                    if (!neighborSupported) {
-                        distance = Math.min(distance, ringDistance - 1);
+                    for (int deltaX = -1; deltaX <= 1; deltaX++) {
+                        if (deltaX == 0 && deltaZ == 0) {
+                            continue;
+                        }
+                        int neighborX = gridX + deltaX;
+                        if (neighborX < 0 || neighborX >= width) {
+                            continue;
+                        }
+                        int neighborIndex = neighborX + width * neighborZ;
+                        if (distances[neighborIndex] != (byte) -1) {
+                            continue;
+                        }
+                        distances[neighborIndex] = (byte) nextDistance;
+                        frontier[frontierSize++] = neighborIndex;
                     }
                 }
             }
-            return distance;
+
+            return new ProviderReliefFootprint(minimumX, minimumZ, width, height, distances);
+        }
+
+        int interiorDistance(int worldX, int worldZ) {
+            int gridX = worldX - minimumX;
+            int gridZ = worldZ - minimumZ;
+            if (gridX < 0 || gridX >= width || gridZ < 0 || gridZ >= height) {
+                return 0;
+            }
+            return interiorDistances[gridX + width * gridZ] & 0xff;
         }
     }
 
