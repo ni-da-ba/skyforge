@@ -60,6 +60,61 @@ val tectonicTerrainTreatmentRuntime = sourceSets.create("tectonicTerrainTreatmen
     compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
     runtimeClasspath += sourceSets.main.get().output + sourceSets.main.get().runtimeClasspath + development.output
 }
+
+val tectonicVanillaReviewGameDirectory =
+    layout.buildDirectory.dir("sf-imp-0054-tectonic/review-vanilla").get().asFile
+val tectonicTreatmentReviewGameDirectory =
+    layout.buildDirectory.dir("sf-imp-0054-tectonic/review-treatment").get().asFile
+
+fun prepareTectonicReviewSave(
+    taskName: String,
+    sourceDirectory: String,
+    targetGameDirectory: java.io.File,
+) = tasks.register<org.gradle.api.tasks.Sync>(taskName) {
+    val sourceSave = layout.projectDirectory.dir(sourceDirectory).asFile
+    from(sourceSave)
+    into(targetGameDirectory.resolve("saves/acceptance"))
+    notCompatibleWithConfigurationCache(
+        "Tectonic review save staging reads a locally extracted generated world.",
+    )
+    doFirst {
+        check(sourceSave.resolve("level.dat").isFile) {
+            "missing SF-IMP-0054 review save; extract the exact-head A/B artifact first"
+        }
+        val provenanceFile =
+            layout.projectDirectory.file("build/acceptance/sf-imp-0054-tectonic/review-provenance.properties").asFile
+        check(provenanceFile.isFile) {
+            "missing review artifact provenance; download the matching SF-IMP-0054 A/B artifact"
+        }
+        val artifactSourceSha = Properties().apply {
+            provenanceFile.inputStream().use(::load)
+        }.getProperty("sourceSha")
+        check(!artifactSourceSha.isNullOrBlank()) {
+            "review artifact provenance has no sourceSha"
+        }
+        val git = ProcessBuilder("git", "rev-parse", "HEAD")
+            .directory(rootProject.projectDir)
+            .start()
+        val checkedOutHead = git.inputStream.bufferedReader().use { it.readText().trim() }
+        check(git.waitFor() == 0 && artifactSourceSha == checkedOutHead) {
+            "review artifact source $artifactSourceSha does not match checkout $checkedOutHead; use the exact source commit"
+        }
+    }
+}
+
+val prepareTectonicVanillaReviewSave = prepareTectonicReviewSave(
+    "prepareTectonicVanillaReviewSave",
+    "run-sf-imp-0054-tectonic-vanilla/saves/acceptance",
+    tectonicVanillaReviewGameDirectory,
+)
+val prepareTectonicTreatmentReviewSave = prepareTectonicReviewSave(
+    "prepareTectonicTreatmentReviewSave",
+    "run-sf-imp-0054-tectonic-treatment/saves/acceptance",
+    tectonicTreatmentReviewGameDirectory,
+)
+prepareTectonicTreatmentReviewSave.configure {
+    doLast { configureSfImp0054TectonicTreatment(tectonicTreatmentReviewGameDirectory) }
+}
 val tectonicTerrainPinFile = layout.projectDirectory.file("sf-imp-0054-tectonic-mods.properties")
 val tectonicTerrainPins = Properties().apply {
     tectonicTerrainPinFile.asFile.inputStream().use(::load)
@@ -805,6 +860,60 @@ neoForge {
                 "skyforge.dev.acceptanceResultFile",
                 layout.buildDirectory.file("acceptance/sf-imp-0054-tectonic/treatment.properties").get().asFile.absolutePath,
             )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("tectonicTerrainTreatmentReopenServer") {
+            server()
+            sourceSet.set(tectonicTerrainTreatmentRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0054-tectonic-treatment").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.specimen", "true")
+            systemProperty("skyforge.dev.tectonicTerrain", "true")
+            systemProperty("skyforge.dev.tectonicTerrain.treatment", "true")
+            systemProperty("skyforge.dev.tectonicTerrain.reopen", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0054-tectonic-treatment-reopen")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "420")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0054-tectonic/treatment-reopen.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // Local review clients open the exact saves produced by the provider A/B servers.
+        // Run sfImp0054TectonicTerrainAcceptance first; these clients skip the acceptance harness
+        // and open the saved worlds directly for interactive inspection.
+        create("tectonicTerrainVanillaReviewClient") {
+            client()
+            sourceSet.set(tectonicTerrainControlRuntime)
+            gameDirectory = tectonicVanillaReviewGameDirectory
+            taskBefore(prepareTectonicVanillaReviewSave)
+            programArgument("--quickPlaySingleplayer")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.specimen", "true")
+            systemProperty("skyforge.dev.tectonicTerrain", "true")
+            systemProperty("skyforge.dev.tectonicTerrain.treatment", "false")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("tectonicTerrainTreatmentReviewClient") {
+            client()
+            sourceSet.set(tectonicTerrainTreatmentRuntime)
+            gameDirectory = tectonicTreatmentReviewGameDirectory
+            taskBefore(prepareTectonicTreatmentReviewSave)
+            programArgument("--quickPlaySingleplayer")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.specimen", "true")
+            systemProperty("skyforge.dev.tectonicTerrain", "true")
+            systemProperty("skyforge.dev.tectonicTerrain.treatment", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
@@ -3489,6 +3598,15 @@ neoForge {
     unitTest {
         enable()
         testedMod.set(mods.named("skyforge"))
+    }
+}
+
+tasks.named("runTectonicTerrainTreatmentReopenServer").configure {
+    mustRunAfter("runTectonicTerrainTreatmentServer")
+    doFirst {
+        val treatmentDirectory =
+            layout.projectDirectory.dir("run-sf-imp-0054-tectonic-treatment").asFile
+        configureSfImp0054TectonicTreatment(treatmentDirectory)
     }
 }
 
@@ -9140,6 +9258,40 @@ tasks.register("f4kHydrologyReviewPrepareVerify") {
 }
 
 
+val sfImp0054TectonicVerticalScale = 2.0
+val sfImp0054TectonicElevationBoost = 2.0
+// Higher horizontal noise frequency and thicker mountain ranges target island-scale relief.
+val sfImp0054TectonicContinentsScale = 0.5
+val sfImp0054TectonicErosionScale = 1.0
+val sfImp0054TectonicRidgeScale = 1.0
+val sfImp0054TectonicFlatTerrainSkew = 0.1
+val sfImp0054TectonicConfig = """
+    {
+      "minor_version": 1,
+      "general": {
+        "mod_enabled": true,
+        "snow_start_offset": 128
+      },
+      "continents": {
+        "continents_scale": $sfImp0054TectonicContinentsScale,
+        "erosion_scale": $sfImp0054TectonicErosionScale,
+        "flat_terrain_skew": $sfImp0054TectonicFlatTerrainSkew,
+        "ridge_scale": $sfImp0054TectonicRidgeScale,
+        "ocean_offset": -0.1
+      },
+      "global_terrain": {
+        "vertical_scale": $sfImp0054TectonicVerticalScale,
+        "elevation_boost": $sfImp0054TectonicElevationBoost
+      }
+    }
+""".trimIndent() + "\n"
+
+fun configureSfImp0054TectonicTreatment(gameDirectory: java.io.File) {
+    val configFile = gameDirectory.resolve("config/tectonic.json")
+    configFile.parentFile.mkdirs()
+    configFile.writeText(sfImp0054TectonicConfig)
+}
+
 val sfImp0054TectonicResultDirectory = layout.buildDirectory.dir("acceptance/sf-imp-0054-tectonic")
 val sfImp0054TectonicServerProperties = """
     level-name=acceptance
@@ -9193,7 +9345,11 @@ tasks.named("runTectonicTerrainVanillaReopenServer").configure {
 tasks.named("runTectonicTerrainTreatmentServer").configure {
     notCompatibleWithConfigurationCache("SF-IMP-0054 Tectonic A/B owns a disposable dedicated-server world.")
     mustRunAfter("runTectonicTerrainVanillaReopenServer")
-    doFirst { prepareSfImp0054TectonicServerDirectory("run-sf-imp-0054-tectonic-treatment") }
+    doFirst {
+        val treatmentDirectory = layout.projectDirectory.dir("run-sf-imp-0054-tectonic-treatment").asFile
+        prepareSfImp0054TectonicServerDirectory("run-sf-imp-0054-tectonic-treatment")
+        configureSfImp0054TectonicTreatment(treatmentDirectory)
+    }
     doLast { requireSfImp0054TectonicPass("treatment") }
 }
 
@@ -9205,15 +9361,33 @@ tasks.register("sfImp0054TectonicTerrainAcceptance") {
         "runTectonicTerrainVanillaServer",
         "runTectonicTerrainVanillaReopenServer",
         "runTectonicTerrainTreatmentServer",
+        "runTectonicTerrainTreatmentReopenServer",
     )
     doLast {
         val vanilla = requireSfImp0054TectonicPass("vanilla")
         val treatment = requireSfImp0054TectonicPass("treatment")
         val reopened = requireSfImp0054TectonicPass("reopen")
+        val treatmentReopened = requireSfImp0054TectonicPass("treatment-reopen")
         check(reopened.getProperty("reopenPass") == "true"
                 && reopened.getProperty("persistedProviderSurfaceColumns").toInt() > 0
                 && reopened.getProperty("persistedPostGenerationMutationColumns").toInt() > 0) {
             "SF-IMP-0054 provider surface or post-generation edit did not persist on reopen: $reopened"
+        }
+        check(treatmentReopened.getProperty("reopenPass") == "true"
+                && treatmentReopened.getProperty("profile") == "tectonic"
+                && treatmentReopened.getProperty("tectonicModLoaded") == "true"
+                && treatmentReopened.getProperty("tectonicPackSelected") == "true"
+                && treatmentReopened.getProperty("worldSeed") == treatment.getProperty("worldSeed")
+                && treatmentReopened.getProperty("realizedIslandSurfaceDigest")
+                    == treatment.getProperty("realizedIslandSurfaceDigest")
+                && treatmentReopened.getProperty("realizedIslandSurfaceHeightDigest")
+                    == treatment.getProperty("realizedIslandSurfaceHeightDigest")
+                && treatmentReopened.getProperty("realizedIslandSurfaceColumns")
+                    == treatment.getProperty("realizedIslandSurfaceColumns")
+                && treatmentReopened.getProperty("persistedProviderSurfaceColumns").toInt() > 0
+                && treatmentReopened.getProperty("exteriorNonAirBlocks") == "0"
+                && treatmentReopened.getProperty("islandUndersideSolidSamples").toInt() > 0) {
+            "SF-IMP-0054 Tectonic provider surface did not persist unchanged across save/reopen: $treatmentReopened"
         }
         check(vanilla.getProperty("worldSeed") == treatment.getProperty("worldSeed")) {
             "SF-IMP-0054 Tectonic A/B seeds differ"
@@ -9230,17 +9404,37 @@ tasks.register("sfImp0054TectonicTerrainAcceptance") {
                 && vanilla.getProperty("providerSurfaceRuleMaterialColumns").toInt() > 0) {
             "SF-IMP-0054 vanilla control evidence is incomplete: $vanilla"
         }
+        val treatmentSurfaceMaterialColumns =
+            treatment.getProperty("providerSurfaceRuleMaterialColumns").toInt()
+        val treatmentSurfaceMaterialHandled = when (
+            treatment.getProperty("providerSurfaceRuleMaterialAdaptation")
+        ) {
+            "inherited" -> treatmentSurfaceMaterialColumns > 0
+            "supported_falling_material" ->
+                treatmentSurfaceMaterialColumns > 0
+                    && treatment.getProperty("providerSurfaceRuleMaterialUnsupportedColumns").toInt() == 0
+            "skipped_falling_material" -> treatmentSurfaceMaterialColumns == 0
+            else -> false
+        }
         check(treatment.getProperty("profile") == "tectonic"
                 && treatment.getProperty("tectonicModLoaded") == "true"
                 && treatment.getProperty("tectonicPackSelected") == "true"
+                && treatment.getProperty("tectonicVerticalScale") == sfImp0054TectonicVerticalScale.toString()
+                && treatment.getProperty("tectonicElevationBoost") == sfImp0054TectonicElevationBoost.toString()
+                && treatment.getProperty("tectonicErosionScale") == sfImp0054TectonicErosionScale.toString()
+                && treatment.getProperty("tectonicFlatTerrainSkew") == sfImp0054TectonicFlatTerrainSkew.toString()
                 && treatment.getProperty("exteriorNonAirBlocks") == "0"
                 && treatment.getProperty("islandUndersideSolidSamples").toInt() > 0
                 && treatment.getProperty("providerSurfaceRuleMaterial").isNotBlank()
-                && treatment.getProperty("providerSurfaceRuleMaterialColumns").toInt() > 0) {
+                && treatmentSurfaceMaterialHandled) {
             "SF-IMP-0054 Tectonic treatment evidence is incomplete: $treatment"
         }
         check(vanilla.getProperty("terrainProfileDigest") != treatment.getProperty("terrainProfileDigest")) {
             "SF-IMP-0054 Tectonic terrain profile did not differ from vanilla"
+        }
+        check(vanilla.getProperty("terrainProfileHeightDigest")
+                    != treatment.getProperty("terrainProfileHeightDigest")) {
+            "SF-IMP-0054 Tectonic provider relief did not differ from vanilla"
         }
         check(vanilla.getProperty("realizedIslandSurfaceColumns").toInt() > 0
                 && treatment.getProperty("realizedIslandSurfaceColumns").toInt() > 0
@@ -9248,9 +9442,16 @@ tasks.register("sfImp0054TectonicTerrainAcceptance") {
                     != treatment.getProperty("realizedIslandSurfaceDigest")) {
             "SF-IMP-0054 Tectonic profile was not reflected in the realized Skyforge island surface"
         }
+        check(vanilla.getProperty("realizedIslandSurfaceHeightDigest")
+                    != treatment.getProperty("realizedIslandSurfaceHeightDigest")) {
+            "SF-IMP-0054 realized island shape did not reflect Tectonic height relief"
+        }
         println("SF-IMP-0054 TECTONIC TERRAIN A/B PASS: vanilla="
                 + vanilla.getProperty("terrainProfileDigest")
                 + ", tectonic=" + treatment.getProperty("terrainProfileDigest")
+                + ", vanillaIslandHeights=" + vanilla.getProperty("realizedIslandSurfaceHeightDigest")
+                + ", tectonicIslandHeights=" + treatment.getProperty("realizedIslandSurfaceHeightDigest")
+                + ", tectonicColumnsAtRidge=" + treatment.getProperty("realizedIslandColumnsAtOrAboveRidge")
                 + ", seed=" + treatment.getProperty("worldSeed")
                 + ", settings=" + treatment.getProperty("terrainProviderSettings")
                 + ", exactIslandUnderside=true, exteriorVoid=true")

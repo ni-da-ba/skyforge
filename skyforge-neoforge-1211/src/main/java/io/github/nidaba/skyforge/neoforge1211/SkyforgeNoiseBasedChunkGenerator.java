@@ -612,7 +612,21 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
             return;
         }
         if (SkyforgeNeoForge1211SurfaceStage.hasNativeSurfaceAdaptation()) {
-            MinecraftNativeSurfaceSnapshot snapshot = SkyforgeNativeSurfaceSnapshotStage.consume(chunk);
+            MinecraftNativeSurfaceSnapshot snapshot;
+            if (voidBase) {
+                if (!(level instanceof WorldGenRegion worldGenRegion)) {
+                    throw new IllegalStateException(
+                            "void-base native surface recovery requires an active worldgen region");
+                }
+                snapshot = SkyforgeNativeSurfaceSnapshotStage.consumeOrCaptureProviderSurface(
+                        worldGenRegion,
+                        structureManager,
+                        chunk,
+                        terrainProvider,
+                        terrainProviderRandomState(level.getSeed(), level.registryAccess()));
+            } else {
+                snapshot = SkyforgeNativeSurfaceSnapshotStage.consume(chunk);
+            }
             SkyforgeNeoForge1211SurfaceStage.realize(chunk, snapshot);
         } else {
             SkyforgeNeoForge1211SurfaceStage.realize(chunk);

@@ -20,9 +20,11 @@ For each `(x, z)` column:
 2. ignore air and fluid blocks;
 3. record the first remaining block as that column's native surface-top material;
 4. inspect the accepted Skyforge materialization for exposed solid tops, defined as a Skyforge solid with Skyforge AIR immediately above it;
-5. when an exposed Skyforge top is above the native surface, replace only that top block key with the sampled native surface block key;
-6. leave all other Skyforge materialization entries unchanged;
-7. perform the existing additive solid overlay into the real Minecraft chunk.
+5. for representation-only adaptation, copy a sampled material only when it is not a gravity-affected `FallingBlock`;
+6. for terrain-profile projection, place the provider material on the projected cap only when the block directly below is non-air; unsupported fringe retains Skyforge structural material, and minority provider-selected stone follows the chunk's dominant stable provider surface material across the projected cap and copied near-surface strata to avoid an isolated rock patch; stone and its strata remain unchanged when it is the dominant provider surface;
+7. do not apply the provider material in a second pass to unrelated exposed Skyforge segments;
+8. leave all other Skyforge materialization entries unchanged;
+9. perform the existing additive solid overlay into the real Minecraft chunk.
 
 Conceptually:
 
@@ -52,7 +54,7 @@ This is intentionally a representation adapter, not a new environmental simulati
 
 ## Why only the exposed top block
 
-SF-IMP-0037 is the smallest useful proof. Replacing the exposed top gives Minecraft-native visual/environmental continuity while preserving accepted structural palette choices for the rest of the island.
+SF-IMP-0037 is the smallest useful proof. Replacing eligible exposed tops gives Minecraft-native visual/environmental continuity while preserving accepted structural palette choices for the rest of the island. Gravity-affected surface materials require a support check: owner review of the Tectonic treatment showed gravel falling into a hollow seam. The profile adapter now applies gravity-affected material only on a projected cap with structural support directly below it, and avoids repainting separate exposed ledges. Unsupported fringe keeps Skyforge's stable structural material.
 
 Copying an arbitrary depth of native filler material would require a separate policy for mantle thickness, falling blocks, shore/ocean columns and vertically varying biome context. Those concerns should be justified by observed results rather than folded into the first adapter.
 
@@ -82,9 +84,10 @@ A distinct native-surface-adapted binding opts into this representation behavior
 4. The adapter never changes Skyforge AIR into a solid block.
 5. The adapter never removes a Skyforge solid.
 6. Native fluid blocks are not copied as Skyforge surface solids.
-7. Native terrain at or above a Skyforge top prevents that top from being treated as a floating exposed surface.
-8. No planner/group/archipelago work enters the per-chunk hot path.
-9. The development world preset remains development-only and excluded from the production JAR.
+7. Gravity-affected native surface blocks are copied only onto projected tops with a direct solid Skyforge support; unsupported fringe retains stable structural material.
+8. Native terrain at or above a Skyforge top prevents that top from being treated as a floating exposed surface.
+9. No planner/group/archipelago work enters the per-chunk hot path.
+10. The development world preset remains development-only and excluded from the production JAR.
 
 ## Explicit limitations
 
@@ -94,6 +97,7 @@ SF-IMP-0037 does **not** claim that:
 - the sampled ground-level surface always represents a vertically different high-altitude biome perfectly;
 - native subsurface/filler depth has been reproduced;
 - beaches, ocean floors, snow layers, powder snow, fluids or shore transitions are production-tuned;
+- falling-block surface materials are inherited on unsupported floating island edges;
 - structure placement is Skyforge-aware;
 - every modded surface system is automatically compatible;
 - the current Massif morphology is final.
@@ -122,3 +126,78 @@ All criteria above passed.
 Automated validation passed through `scripts\verify-sf-imp-0037-native-surface-adaptation.bat` and repository-wide `gradlew.bat check`, including the final regression diagnostic proving that preserved lower ground remains present while Minecraft's final single-valued world-surface heightmap selects the elevated Skyforge surface.
 
 In the real ModDev client, the Massif remained geometrically intact and persistent, native terrain remained additive, the exposed island top appeared remarkably like the surrounding Minecraft terrain, copied native material remained shallow rather than replacing the whole island interior, and later world-generation/lighting behavior remained functional. The sparse vegetation observed directly beneath the Massif is recorded as the heightmap/multi-surface integration boundary described above, not as a failure of native material adaptation.
+
+
+## SF-IMP-0054 provider height-profile experiment — in progress
+
+The separate provider-profile path may shape the exposed Skyforge cap while preserving its horizontal footprint and the authored lower body/underside. To prevent positive provider relief from being flattened at the original cap ceiling, this development experiment permits up to 32 blocks of additional height above the authored top-volume bound, constrained by Minecraft's build range. Added cells receive claims for the same exact Skyforge volume. This is experimental Implementation evidence and is not a production morphology or world-scale policy; acceptance requires exact-head A/B evidence and owner visual review.
+
+## Tectonic visible-relief datum follow-up — in progress
+
+The owner found consecutive Tectonic treatments visually too similar. Evidence from the pinned profile showed the origin-chunk median datum leaving the provider surface at or below the authored island cap, so the adapter mostly carved relief downward. The isolated experiment now uses the lower-quartile surface elevation from the provider origin chunk as its single world-fixed datum. This keeps cross-chunk continuity while allowing the upper part of the provider profile to rise above the authored cap; the existing 32-block rise ceiling, exact-volume claims, stable support rule, footprint, body, and underside remain unchanged. This is a tuning hypothesis pending exact-head A/B machine evidence and owner visual review.
+
+
+## Broad-window Tectonic datum and ridge acceptance — in progress
+
+Exact-head run [39511112544](https://github.com/ni-da-ba/skyforge/actions/runs/39511112544) passed its general terrain checks after switching to the origin-chunk lower quartile, but the realized Tectonic top still ended at Y=265, the same cap as the vanilla specimen. Relief alone had not made provider ridges visible above the authored cap. The next experiment samples a fixed 256-by-256-block window for its world-shared lower-quartile datum and requires the treatment's realized maximum top to reach Y=273. The existing exact-volume, footprint, underside, support, and 32-block extension rules remain in force. Visual acceptance remains pending.
+
+
+## Low-percentile origin datum — in progress
+
+The adaptive broad-window retry kept the vanilla control green but still left the Tectonic treatment flat at the authored Y=265 cap. Its 29-block provider source range produced zero realized island relief. The next mapping uses a world-fixed fifth-percentile datum sampled from the origin chunk: the same reference applies across island chunks, while most provider columns carry positive ridge relief above the authored cap. The acceptance now reports that datum on relief failures. The machine ridge threshold remains Y=273; visual acceptance remains pending.
+
+## Minimum-datum Tectonic follow-up — 2026-10-20
+
+The exact-head 5th-percentile experiment measured the datum at Y=292 against Tectonic source Y=271–300; realized island relief remained 21 blocks (Y=244–265), with no ridge above the authored cap. This confirms the source-height distribution is weighted toward its upper end and the 5th percentile remains too high. The next profile uses the minimum of the same fixed origin chunk as its datum, mapping the full sampled source relief upward. The existing 32-block cap-rise allowance limits outlier influence; the A/B still requires at least 24 blocks of realized relief and a ridge at Y≥273. Visual acceptance remains pending.
+
+
+## Provider-rise admission fix — in progress
+
+The minimum-datum A/B run measured datum Y=271 against source Y=271–300, but the realized cap remained flat at Y=265. The terrain adapter had emitted exact provider claims for added top cells, but physical admission still required every claimed cell to be inside the authored volume's vertical bounds; that contradicted the adapter's existing bounded 32-block top-rise allowance. Provider claims now authorize writes above the authored top only within the same island's horizontal bounds, above its existing solid support, and no more than 32 blocks above the authored Y maximum. Interior, underside, competing-volume, and unclaimed writes remain blocked. The next exact-head A/B must demonstrate the uplift; human visual acceptance remains pending.
+
+
+## Provider-write diagnosis — in progress
+
+At the failed exact head, the captured provider snapshot and base-column sampler agree at Y=271–300, with 255 of 256 columns above the Y=271 datum, yet the realized island is unchanged. This rules out provider snapshot and datum mismatch. The development writer now records exact claimed-cell counts, admission rejections, occupied positions, and successful provider writes in the Tectonic acceptance log. Use that accounting to isolate the remaining write-path failure before further terrain tuning.
+
+
+## Tectonic relief amplification follow-up — in progress
+
+The owner reports that successive Tectonic specimens remain visually too similar. The current profile uses the origin chunk's minimum provider surface as its datum and maps the resulting positive relief one-to-one onto Skyforge's cap. This provider-profile experiment doubles the sampled relief and raises the provider-owned top-rise ceiling to 64 blocks. This yields a substantially taller, more legible terrain profile while keeping the same exact X/Z island footprint and exact-volume claims. The multiplier is shared by the vanilla control and Tectonic treatment so the A/B isolates the provider's native profile; actual output remains bounded by exact ownership checks and the 64-block ceiling.
+
+The exact-head fixture now requires at least 48 blocks of realized vertical range, a ridge at or above Y=300, and records the relief multiplier. Machine success still does not establish visual coherence. The Tectonic treatment must again be reviewed for visible terrain, stable surface seams, island spawn, intact underside, and surrounding void.
+
+
+## Tectonic profile concentration experiment — in progress
+
+The doubled linear transfer still mapped most of Tectonic's measured source range (Y=271–300) above the island's ridge band: 249 of 256 sampled columns reached Y=300, even after increasing Tectonic's horizontal frequency settings. Exact provider writes all succeeded, so this was a shape-mapping issue rather than an ownership/admission failure.
+
+The development profile adapter now applies a deterministic signed cubic transfer to provider relief relative to its fixed world datum. Relief is normalized to 32 source blocks and mapped into the existing 64-block rise envelope. This keeps modest relief close to the authored cap while concentrating the source profile's upper tail into narrower peaks; negative relief remains deterministic and symmetric. Exact X/Z ownership, added-cell claims, stable material support, body, and underside boundaries are unchanged.
+
+This is an Implementation experiment, not an accepted production terrain-shape contract. The focused adapter test checks the lowland, peak, negative-relief, and saturation values. The exact-head Tectonic A/B must demonstrate both the minimum relief and reduced ridge-band coverage before another visual review is requested.
+
+
+## Bounded native strata on provider-created rises — in progress
+
+Owner visual review of the exact Tectonic treatment still shows a broad exposed gray center. Source inspection identified a representation gap: the provider-profile adapter fills every newly raised voxel with stone and applies native material only to the top voxel. Top-only acceptance evidence therefore cannot detect the exposed stone shell seen on steep relief.
+
+The next bounded experiment captures four solid, non-fluid provider materials from each native surface column and transfers depths 1–3 into newly claimed provider-rise cells beneath the projected top. The top material continues through the existing stable-material policy; gravity-affected layers are not copied. Skyforge still owns the original island body, footprint, lower volume, and underside, and this changes no occupancy. Exact-head acceptance must report the realized material profile, retain ownership/body/void checks, and produce a new client specimen for visual review. Four layers are an initial diagnostic bound, not an accepted production mantle policy.
+
+
+## Exposed provider-rise wall-skin follow-up — in progress
+
+The four-layer profile reduced the artificial stone shell immediately beneath projected tops, but a tall provider uplift can expose additional vertical faces well below those four layers. The adapter now detects newly claimed uplift cells with horizontal air exposure and applies that column's already-selected stable surface material to those faces. Hidden interior cells, original island cells, exact-volume claims, and solid occupancy are unchanged. Surface-strata capture also stops at the first cave or fluid gap, so unrelated underground material cannot be mistaken for contiguous near-surface layers. This remains a bounded visual-coherence experiment; exact-head A/B evidence and owner review are required before accepting the rule.
+
+
+## Minority-stone near-surface blend follow-up — in progress
+
+The exact-head top-material grid showed that 22 Tectonic provider-stone cap selections correctly mapped to the dominant grass surface, but the owner still reported a broad gray center. The top-column grid does not count the copied provider strata immediately below those tops. The bounded rise-profile copy now applies the same minority-stone blend to matching stone strata while retaining other provider layers such as dirt. This prevents shallow exposed uplift faces from rebuilding the isolated gray patch under a grass-colored cap. A focused regression case and exact-head A/B/CI evidence are required; visual acceptance remains open.
+
+
+## Bounded provider-island join skin — 2026-10-22
+
+The owner reviewed the exact-head Tectonic artifact from run 39823162633 and confirmed that the pathological central gravel/gray region is resolved. Two visual defects remain: tall repeating-block faces on one side and locally obvious joins between provider-shaped relief and the authored island cap.
+
+Source inspection found that the provider-rise second pass painted the selected top material onto every horizontally exposed added voxel below the captured strata. A separate provider-cut pass could repaint exposed original Skyforge cap faces for up to the full 64-block relief allowance. Those passes extended the surface material well beyond a natural shallow transition.
+
+The adapter now leaves provider-rise cells below the captured surface strata as structural stone and limits cut-exposed cap reskinning to the four captured native strata. Deeper original Skyforge material remains authored. Regression checks cover both the rise wall and the cut-exposed island face. Exact-head A/B/CI evidence and a fresh owner visual review are still required; this change does not claim the visible join is accepted.
