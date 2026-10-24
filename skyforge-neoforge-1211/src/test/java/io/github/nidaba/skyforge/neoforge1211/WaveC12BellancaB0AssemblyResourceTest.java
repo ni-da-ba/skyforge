@@ -28,6 +28,9 @@ final class WaveC12BellancaB0AssemblyResourceTest {
         assertTrue(source.contains("PhysicsAssemblerBlockEntity"));
         assertTrue(source.contains("ServerSubLevelContainer"));
         assertTrue(source.contains("getMassTracker"));
+        assertTrue(source.contains("ForceGroups"));
+        assertTrue(source.contains("getField(\"LIFT\")"));
+        assertTrue(source.contains("WAVE_C12_BELLANCA_B0_LIFT PASS"));
         assertFalse(source.contains("SimAssemblyHelper.assembleFromSingleBlock"));
         assertFalse(source.contains("import dev.simulated"));
         assertFalse(source.contains("import dev.ryanhcode.sable"));

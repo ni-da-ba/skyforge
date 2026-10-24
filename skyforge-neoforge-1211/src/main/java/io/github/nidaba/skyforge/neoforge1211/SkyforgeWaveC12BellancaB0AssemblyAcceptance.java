@@ -1,6 +1,7 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -23,7 +24,7 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 
 /**
- * C12 B0-A1/A2: build the exact historical B0-A MAIN_BODY, assemble it through Simulated's actual
+ * C12 B0-A1/A2/A3: build the exact historical B0-A MAIN_BODY, assemble it through Simulated's actual
  * Physics Assembler, prove exact membership, then read authoritative live Sable mass/COM evidence.
  *
  * <p>The optional flight stack is accessed by registry ID/reflection so normal packaged Skyforge
@@ -175,6 +176,7 @@ final class SkyforgeWaveC12BellancaB0AssemblyAcceptance {
             assertNear("lateral COM symmetry", 0.5, localComX, 0.000001);
 
             double forwardOfWingCenter = 0.5 - localComZ;
+            verifyLiveLiftSign(level, subLevel);
 
             LOGGER.log(
                     System.Logger.Level.INFO,
@@ -201,6 +203,123 @@ final class SkyforgeWaveC12BellancaB0AssemblyAcceptance {
                     : failure;
             throw new IllegalStateException("C12 B0-A assembly acceptance reflection failure", cause);
         }
+    }
+
+    /**
+     * Measures the actual Sable LIFT force for the accepted 66-sail wing while the assembled
+     * aircraft receives a controlled horizontal velocity. This qualifies instantaneous force sign,
+     * not sustained flight or lift-to-weight performance.
+     */
+    private static void verifyLiveLiftSign(ServerLevel level, Object subLevel)
+            throws ReflectiveOperationException {
+        Object container = requireServerSubLevelContainer(level);
+        Object physicsSystem = publicMethod(container, "physicsSystem").invoke(container);
+        Object handle = oneArgMethod(physicsSystem, "getPhysicsHandle", subLevel)
+                .invoke(physicsSystem, subLevel);
+        if (handle == null) {
+            fail("Sable physics handle missing for live lift-sign observation");
+        }
+
+        Object currentLinear = vector3d(0.0, 0.0, 0.0);
+        Object currentAngular = vector3d(0.0, 0.0, 0.0);
+        oneArgMethod(handle, "getLinearVelocity", currentLinear).invoke(handle, currentLinear);
+        oneArgMethod(handle, "getAngularVelocity", currentAngular).invoke(handle, currentAngular);
+        Object deltaLinear = vector3d(
+                10.0 - component(currentLinear, "x"),
+                -component(currentLinear, "y"),
+                -component(currentLinear, "z"));
+        Object deltaAngular = vector3d(
+                -component(currentAngular, "x"),
+                -component(currentAngular, "y"),
+                -component(currentAngular, "z"));
+        twoArgMethod(handle, "addLinearAndAngularVelocity", deltaLinear, deltaAngular)
+                .invoke(handle, deltaLinear, deltaAngular);
+
+        Class<?> forceGroups = Class.forName("dev.ryanhcode.sable.api.physics.force.ForceGroups");
+        Field liftField = forceGroups.getField("LIFT");
+        Object liftRegistryObject = liftField.get(null);
+        Object liftGroup = liftField.getType().getMethod("get").invoke(liftRegistryObject);
+        Method tracking =
+                publicMethod(subLevel, "enableIndividualQueuedForcesTracking", boolean.class);
+        tracking.invoke(subLevel, true);
+
+        List<?> recorded;
+        try {
+            oneArgMethod(physicsSystem, "tick", container).invoke(physicsSystem, container);
+            Object queuedLift = oneArgMethod(subLevel, "getOrCreateQueuedForceGroup", liftGroup)
+                    .invoke(subLevel, liftGroup);
+            Object raw = publicMethod(queuedLift, "getRecordedPointForces").invoke(queuedLift);
+            if (!(raw instanceof List<?>)) {
+                fail("Sable LIFT point-force record has unexpected type=" + raw);
+            }
+            recorded = List.copyOf((List<?>) raw);
+        } finally {
+            tracking.invoke(subLevel, false);
+        }
+
+        assertTrue("regular-sail wing produced tracked Sable LIFT forces", !recorded.isEmpty());
+        Object bodyPose = publicMethod(subLevel, "logicalPose").invoke(subLevel);
+        double forceX = 0.0;
+        double forceY = 0.0;
+        double forceZ = 0.0;
+        for (Object pointForce : recorded) {
+            Object localForce = publicMethod(pointForce, "force").invoke(pointForce);
+            Object worldForce = vector3d(
+                    component(localForce, "x"),
+                    component(localForce, "y"),
+                    component(localForce, "z"));
+            oneArgMethod(bodyPose, "transformNormal", worldForce).invoke(bodyPose, worldForce);
+            forceX += component(worldForce, "x");
+            forceY += component(worldForce, "y");
+            forceZ += component(worldForce, "z");
+        }
+        assertTrue(
+                "Sable LIFT force components are finite",
+                Double.isFinite(forceX) && Double.isFinite(forceY) && Double.isFinite(forceZ));
+        assertTrue("regular-sail wing produces upward world-space Sable LIFT", forceY > 0.001);
+
+        LOGGER.log(
+                System.Logger.Level.INFO,
+                "WAVE_C12_BELLANCA_B0_LIFT PASS probeHorizontalVelocity=10.0"
+                        + " pointForceCount=" + recorded.size()
+                        + " forceWorldX=" + forceX
+                        + " forceWorldY=" + forceY
+                        + " forceWorldZ=" + forceZ
+                        + " wingSails=66"
+                        + " physicsSystem=real");
+    }
+
+    private static Object vector3d(double x, double y, double z)
+            throws ReflectiveOperationException {
+        Class<?> vectorClass = Class.forName("org.joml.Vector3d");
+        Constructor<?> constructor =
+                vectorClass.getConstructor(double.class, double.class, double.class);
+        return constructor.newInstance(x, y, z);
+    }
+
+    private static Method oneArgMethod(Object target, String name, Object argument)
+            throws NoSuchMethodException {
+        for (Method method : target.getClass().getMethods()) {
+            if (method.getName().equals(name)
+                    && method.getParameterCount() == 1
+                    && method.getParameterTypes()[0].isAssignableFrom(argument.getClass())) {
+                return method;
+            }
+        }
+        throw new NoSuchMethodException(target.getClass().getName() + "." + name);
+    }
+
+    private static Method twoArgMethod(Object target, String name, Object first, Object second)
+            throws NoSuchMethodException {
+        for (Method method : target.getClass().getMethods()) {
+            if (method.getName().equals(name)
+                    && method.getParameterCount() == 2
+                    && method.getParameterTypes()[0].isAssignableFrom(first.getClass())
+                    && method.getParameterTypes()[1].isAssignableFrom(second.getClass())) {
+                return method;
+            }
+        }
+        throw new NoSuchMethodException(target.getClass().getName() + "." + name);
     }
 
     private static LinkedHashMap<BlockPos, ExpectedBlock> exactMainBody() {
