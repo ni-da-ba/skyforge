@@ -36,7 +36,7 @@ The canonical model JSON writes schema versions, world and zone keys as fixed-wi
 
 ## Deferred alpha work
 
-- Deterministic spatial assignment of zones over the world and islands.
+- Wire the accepted spatial compiler to the live provider-backed province catalog and persist those actual world assignments. The current persistence acceptance proves compiler output round-trips from a deterministic development catalog, but it does not yet prove production provider-world composition is connected.
 - Mapping habitat traits to content-owned species/spawn policy.
 - Modded/native biome projection and exact-volume runtime persistence proof.
 - Visual/play review of whether these sky regions read clearly in-game.
