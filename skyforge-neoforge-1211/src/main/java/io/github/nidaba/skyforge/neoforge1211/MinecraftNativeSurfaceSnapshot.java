@@ -35,7 +35,8 @@ final class MinecraftNativeSurfaceSnapshot {
     private static final int SAMPLE_COUNT = CHUNK_WIDTH * CHUNK_WIDTH;
     static final int SURFACE_STRATA_DEPTH = 4;
     private static final int PROFILE_FILTER_RADIUS = 5;
-    private static final int PROFILE_FILTER_WIDTH = CHUNK_WIDTH + PROFILE_FILTER_RADIUS * 2;
+    private static final int PROFILE_SAMPLE_HALO_RADIUS = PROFILE_FILTER_RADIUS + 1;
+    private static final int PROFILE_FILTER_WIDTH = CHUNK_WIDTH + PROFILE_SAMPLE_HALO_RADIUS * 2;
     private static final int PROFILE_FILTER_SAMPLE_COUNT = PROFILE_FILTER_WIDTH * PROFILE_FILTER_WIDTH;
     private static final Map<ProviderDatumKey, Integer> PROVIDER_TERRAIN_DATUMS = new ConcurrentHashMap<>();
 
