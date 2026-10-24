@@ -22,6 +22,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
     private static final int CHUNK_WIDTH = 16;
     static final int MAX_PROVIDER_SURFACE_RISE_BLOCKS = 64;
     static final int PROVIDER_RELIEF_CURVE_REFERENCE_BLOCKS = 160;
+    static final int PROVIDER_RELIEF_EDGE_BLEND_RADIUS_BLOCKS = 8;
     static final String PROVIDER_RELIEF_MAPPING = "bounded_signed_linear_160";
 
     /**
@@ -65,6 +66,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
         Arrays.fill(projectedSurfaceTopYs, Integer.MIN_VALUE);
         Arrays.fill(originalSurfaceTopYs, Integer.MIN_VALUE);
         Map<Long, SkyIslandWorldVolumeId> providerWriteClaims = new HashMap<>();
+        Map<SkyIslandWorldVolumeId, ProviderReliefFootprint> providerReliefFootprints = new HashMap<>();
         int maximumMaterializedY = materialization.minimumY() + materialization.height() - 1;
         for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
             int worldZ = materialization.chunkPos().getMinBlockZ() + localZ;
@@ -110,14 +112,24 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 }
 
                 // Provider terrain is a local shape signal on a floating island, not
-                // an absolute elevation datum. A bounded linear curve transfers signed source relief
-                // into the extension envelope. Provider-owned rises remain bounded above the authored
-                // top; Skyforge footprint, body, and underside remain untouched.
-                // A seam-safe 3x3 weighted profile keeps neighboring chunks on the same
-                // continuous provider field while reducing one-column cliffs at the island join.
+                // an absolute elevation datum. The exact Skyforge footprint owns the blend mask:
+                // full provider relief is reached only inside the island, while relief fades to zero
+                // over a bounded edge band. This joins the native profile to the authored cap rather
+                // than ending a full-height provider hill at the island silhouette.
+                ProviderReliefFootprint footprint = providerReliefFootprints.computeIfAbsent(
+                        ownerId,
+                        ignored -> ProviderReliefFootprint.capture(
+                                adapter,
+                                ownerId,
+                                materialization.chunkPos().getMinBlockX(),
+                                materialization.chunkPos().getMinBlockZ()));
+                int edgeDistance = footprint.interiorDistance(localX, localZ);
                 long providerRelief = (long) snapshot.smoothedProviderSurfaceY(localX, localZ)
                         - snapshot.baselineY();
-                long projectedProviderRelief = projectProviderRelief(providerRelief);
+                long projectedProviderRelief = blendProviderReliefAtFootprintEdge(
+                        projectProviderRelief(providerRelief),
+                        edgeDistance,
+                        PROVIDER_RELIEF_EDGE_BLEND_RADIUS_BLOCKS);
                 long desiredY = (long) originalTopY + projectedProviderRelief;
                 int targetTopY = (int) Math.max(
                         (long) minimumAllowedY,
@@ -291,6 +303,71 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 blockKeys,
                 materialization.candidateVolumeReferences());
         return new TerrainProfileAdaptation(adapted, providerWriteClaims);
+    }
+
+    private static long blendProviderReliefAtFootprintEdge(
+            long projectedRelief,
+            int interiorDistance,
+            int blendRadius) {
+        if (interiorDistance < 0 || blendRadius <= 0) {
+            throw new IllegalArgumentException("provider relief blend distance/radius is invalid");
+        }
+        double position = Math.min(1.0, interiorDistance / (double) blendRadius);
+        double smoothstep = position * position * (3.0 - 2.0 * position);
+        return Math.round(projectedRelief * smoothstep);
+    }
+
+    /**
+     * Exact horizontal support mask for one Skyforge island, padded far enough to measure the
+     * provider-relief transition around every column in the current chunk.
+     */
+    private static final class ProviderReliefFootprint {
+        private final boolean[] supported;
+        private final int width;
+
+        private ProviderReliefFootprint(boolean[] supported, int width) {
+            this.supported = supported;
+            this.width = width;
+        }
+
+        static ProviderReliefFootprint capture(
+                SkyforgeNeoForge1211ChunkAdapter adapter,
+                SkyIslandWorldVolumeId volumeId,
+                int chunkMinX,
+                int chunkMinZ) {
+            int radius = PROVIDER_RELIEF_EDGE_BLEND_RADIUS_BLOCKS;
+            int width = CHUNK_WIDTH + radius * 2;
+            boolean[] supported = new boolean[width * width];
+            for (int localZ = -radius; localZ < CHUNK_WIDTH + radius; localZ++) {
+                for (int localX = -radius; localX < CHUNK_WIDTH + radius; localX++) {
+                    int worldX = chunkMinX + localX;
+                    int worldZ = chunkMinZ + localZ;
+                    supported[(localX + radius) + width * (localZ + radius)] =
+                            adapter.integerSolidRange(volumeId, worldX, worldZ).isPresent();
+                }
+            }
+            return new ProviderReliefFootprint(supported, width);
+        }
+
+        int interiorDistance(int localX, int localZ) {
+            int radius = PROVIDER_RELIEF_EDGE_BLEND_RADIUS_BLOCKS;
+            int distance = radius;
+            for (int deltaZ = -radius; deltaZ <= radius; deltaZ++) {
+                for (int deltaX = -radius; deltaX <= radius; deltaX++) {
+                    int ringDistance = Math.max(Math.abs(deltaX), Math.abs(deltaZ));
+                    if (ringDistance == 0 || ringDistance > radius || distance == 0) {
+                        continue;
+                    }
+                    int sampleX = localX + deltaX + radius;
+                    int sampleZ = localZ + deltaZ + radius;
+                    boolean neighborSupported = supported[sampleX + width * sampleZ];
+                    if (!neighborSupported) {
+                        distance = Math.min(distance, ringDistance - 1);
+                    }
+                }
+            }
+            return distance;
+        }
     }
 
     /**
