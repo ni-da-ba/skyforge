@@ -64,9 +64,12 @@ verify_result() {
   test -f "$result"
   grep -Eq '^status=PASS$' "$result"
   grep -Eq '^worldSeed=592850352$' "$result"
-  grep -Eq '^zoneKey=534b5942494f4d45$' "$result"
-  grep -Fqx 'skyBiomeId=skyforge\:cloud_shelf' "$result"
-  grep -Eq '^assignmentCount=1$' "$result"
+  grep -Eq '^compiledZoneCount=4$' "$result"
+  grep -Eq '^assignmentCount=4$' "$result"
+  grep -Eq '^containsOpenSky=true$' "$result"
+  grep -Eq '^containsCloudShelf=true$' "$result"
+  grep -Eq '^containsIslandLee=true$' "$result"
+  grep -Eq '^fieldFingerprint=[0-9a-f]{64}$' "$result"
 }
 launch_server "$write_task"
 wait_server
@@ -84,6 +87,12 @@ wait_server
 verify_result reload
 grep -Eq '^assignmentCreated=true$' "$result_dir/write.properties"
 grep -Eq '^assignmentRestored=true$' "$result_dir/reload.properties"
+write_fingerprint="$(sed -n 's/^fieldFingerprint=//p' "$result_dir/write.properties")"
+reload_fingerprint="$(sed -n 's/^fieldFingerprint=//p' "$result_dir/reload.properties")"
+if [[ -z "$write_fingerprint" || "$write_fingerprint" != "$reload_fingerprint" ]]; then
+  echo "Compiled SkyBiome field changed across same-world reopen."
+  exit 1
+fi
 test -f "$server_dir/saves/acceptance/level.dat"
 cp "$server_dir/logs/latest.log" "$result_dir/reload-server.log"
 printf 'status=PASS\nserverBoots=2\nsameWorldFolder=saves/acceptance\n' > "$result_dir/summary.properties"

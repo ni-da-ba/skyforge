@@ -3,6 +3,7 @@ package io.github.nidaba.skyforge.neoforge1211;
 import io.github.nidaba.skyforge.model.skyisland.SkyBiomeId;
 import io.github.nidaba.skyforge.model.skyisland.SkyBiomeZoneAssignment;
 import io.github.nidaba.skyforge.model.skyisland.SkyBiomeZoneIdentity;
+import io.github.nidaba.skyforge.world.SkyBiomeSpatialField;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NavigableMap;
@@ -89,6 +90,48 @@ final class SkyforgeSkyBiomeZoneSavedData extends SavedData {
         assignments.put(identity.zoneKey(), assignment);
         setDirty();
         return true;
+    }
+
+    /**
+     * Adds every assignment produced by one deterministic spatial field.
+     *
+     * <p>The complete field is validated before mutation so a cross-world value, conflicting
+     * identity, or capacity overflow cannot leave a partially persisted province.
+     */
+    int assignField(SkyBiomeSpatialField field) {
+        Objects.requireNonNull(field, "field");
+        if (worldSeed == null) {
+            throw new IllegalStateException("SkyBiome SavedData must be bound to an Overworld seed first");
+        }
+        if (field.worldSeed() != worldSeed.longValue()) {
+            throw new IllegalArgumentException("SkyBiome spatial field belongs to a different world seed");
+        }
+
+        int additions = 0;
+        for (var zone : field.zones()) {
+            SkyBiomeZoneAssignment candidate = zone.assignment();
+            if (candidate.zoneIdentity().worldSeed() != worldSeed.longValue()) {
+                throw new IllegalArgumentException("SkyBiome spatial field contains a cross-world assignment");
+            }
+            SkyBiomeZoneAssignment existing = assignments.get(candidate.zoneIdentity().zoneKey());
+            if (existing == null) {
+                additions++;
+            } else if (!existing.equals(candidate)) {
+                throw new IllegalStateException(
+                        "SkyBiome zone key is already assigned to a different identity");
+            }
+        }
+        if ((long) assignments.size() + additions > MAXIMUM_ASSIGNMENTS) {
+            throw new IllegalStateException("SkyBiome assignment limit exceeded: " + MAXIMUM_ASSIGNMENTS);
+        }
+
+        int created = 0;
+        for (var zone : field.zones()) {
+            if (assign(zone.assignment())) {
+                created++;
+            }
+        }
+        return created;
     }
 
     void bindWorldSeed(long seed) {
