@@ -4,10 +4,14 @@ import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.Holder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.RegistryAccess;
@@ -17,13 +21,17 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.LevelHeightAccessor;
+import net.minecraft.world.level.NoiseColumn;
 import net.minecraft.world.level.StructureManager;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.BiomeSource;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.chunk.ChunkGeneratorStructureState;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.levelgen.blending.Blender;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
@@ -43,25 +51,44 @@ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemp
 /**
  * Vanilla noise generator with explicit Skyforge terrain-domain isolation.
  *
- * <p>No active island-generation scope means BASE_WORLD. In that state all native height queries,
- * structures and biome decoration run through vanilla unchanged and Skyforge is observationally
- * absent. Only an explicit {@link SkyforgeGenerationDomainStage} island scope may expose one exact
- * compiled Skyforge volume to native generation machinery.
+ * <p>No active island-generation scope means BASE_WORLD. Ordinary worlds retain vanilla behavior.
+ * The opt-in alpha void-base mode suppresses base terrain and routes native content only through
+ * exact-volume population. An explicit {@link SkyforgeGenerationDomainStage} island scope may expose
+ * one exact compiled Skyforge volume to native generation machinery.
  */
 public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGenerator {
     public static final MapCodec<SkyforgeNoiseBasedChunkGenerator> CODEC = RecordCodecBuilder.mapCodec(instance ->
             instance.group(
                             BiomeSource.CODEC.fieldOf("biome_source").forGetter(generator -> generator.biomeSource),
-                            NoiseGeneratorSettings.CODEC.fieldOf("settings").forGetter(generator -> generator.settings))
+                            NoiseGeneratorSettings.CODEC.fieldOf("settings").forGetter(generator -> generator.settings),
+                            NoiseGeneratorSettings.CODEC.optionalFieldOf("terrain_provider_settings")
+                                    .forGetter(generator -> Optional.of(generator.terrainProviderSettings)),
+                            com.mojang.serialization.Codec.BOOL.optionalFieldOf("void_base", false)
+                                    .forGetter(generator -> generator.voidBase))
                     .apply(instance, instance.stable(SkyforgeNoiseBasedChunkGenerator::new)));
 
     private final Holder<NoiseGeneratorSettings> settings;
+    private final Holder<NoiseGeneratorSettings> terrainProviderSettings;
+    private final NoiseBasedChunkGenerator terrainProvider;
+    private final boolean voidBase;
+    private final ConcurrentHashMap<Long, RandomState> terrainProviderRandomStates = new ConcurrentHashMap<>();
 
     public SkyforgeNoiseBasedChunkGenerator(
             BiomeSource biomeSource,
             Holder<NoiseGeneratorSettings> settings) {
+        this(biomeSource, settings, Optional.empty(), false);
+    }
+
+    public SkyforgeNoiseBasedChunkGenerator(
+            BiomeSource biomeSource,
+            Holder<NoiseGeneratorSettings> settings,
+            Optional<Holder<NoiseGeneratorSettings>> terrainProviderSettings,
+            boolean voidBase) {
         super(biomeSource, settings);
         this.settings = settings;
+        this.terrainProviderSettings = terrainProviderSettings.orElse(settings);
+        this.terrainProvider = new NoiseBasedChunkGenerator(biomeSource, this.terrainProviderSettings);
+        this.voidBase = voidBase;
     }
 
     @Override
@@ -78,7 +105,7 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
             RandomState random) {
         var islandVolumeId = SkyforgeGenerationDomainStage.activeIslandVolumeId();
         if (islandVolumeId.isEmpty()) {
-            return super.getBaseHeight(x, z, type, level, random);
+            return voidBase ? level.getMinBuildHeight() : super.getBaseHeight(x, z, type, level, random);
         }
 
         var skyforgeClaim = SkyforgeNeoForge1211SurfaceStage.queryBaseHeightClaim(
@@ -95,6 +122,49 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         MinecraftSkyforgeHeightClaim claim = skyforgeClaim.orElseThrow();
         SkyforgeStructureCandidateStage.record(claim);
         return claim.height();
+    }
+
+    @Override
+    public int getSpawnHeight(LevelHeightAccessor level) {
+        if (!voidBase) {
+            return super.getSpawnHeight(level);
+        }
+        return SkyforgeNeoForge1211SurfaceStage.querySpawnHeight(
+                        level.getMinBuildHeight(),
+                        level.getHeight())
+                .orElseThrow(() -> new IllegalStateException(
+                        "void-base Skyforge Overworld requires an admitted island surface at the origin spawn column"));
+    }
+
+    @Override
+    public NoiseColumn getBaseColumn(int x, int z, LevelHeightAccessor height, RandomState random) {
+        if (!voidBase || SkyforgeGenerationDomainStage.activeIslandVolumeId().isPresent()) {
+            return super.getBaseColumn(x, z, height, random);
+        }
+        BlockState[] states = new BlockState[height.getHeight()];
+        Arrays.fill(states, Blocks.AIR.defaultBlockState());
+        return new NoiseColumn(height.getMinBuildHeight(), states);
+    }
+
+    @Override
+    public CompletableFuture<ChunkAccess> fillFromNoise(
+            Blender blender,
+            RandomState random,
+            StructureManager structureManager,
+            ChunkAccess chunk) {
+        return voidBase
+                ? CompletableFuture.completedFuture(chunk)
+                : super.fillFromNoise(blender, random, structureManager, chunk);
+    }
+
+    private RandomState terrainProviderRandomState(WorldGenRegion level) {
+        long seed = level.getSeed();
+        return terrainProviderRandomStates.computeIfAbsent(
+                seed,
+                ignored -> RandomState.create(
+                        terrainProviderSettings.value(),
+                        level.registryAccess().lookupOrThrow(Registries.NOISE),
+                        seed));
     }
 
     /**
@@ -251,7 +321,7 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         var activeIslandVolumeId = SkyforgeGenerationDomainStage.activeIslandVolumeId();
         Structure structure = structureSelectionEntry.structure().value();
         if (activeIslandVolumeId.isEmpty()) {
-            if (SkyforgeDr30NativeStructureAcceptance.suppressBaseWorldProbe(structure, chunkPos)) {
+            if (voidBase || SkyforgeDr30NativeStructureAcceptance.suppressBaseWorldProbe(structure, chunkPos)) {
                 return false;
             }
             return super.tryGenerateStructure(
@@ -490,10 +560,19 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
             StructureManager structureManager,
             RandomState random,
             ChunkAccess chunk) {
-        super.buildSurface(level, structureManager, random, chunk);
+        if (!voidBase) {
+            super.buildSurface(level, structureManager, random, chunk);
+        }
         if (SkyforgeNeoForge1211SurfaceStage.hasNativeSurfaceAdaptation()
                 && SkyforgeNeoForge1211SurfaceStage.hasCandidateVolume(chunk)) {
-            SkyforgeNativeSurfaceSnapshotStage.capture(chunk);
+            if (voidBase) {
+                SkyforgeNativeSurfaceSnapshotStage.capture(
+                        chunk,
+                        terrainProvider,
+                        terrainProviderRandomState(level));
+            } else {
+                SkyforgeNativeSurfaceSnapshotStage.capture(chunk, getSeaLevel());
+            }
         }
     }
 
@@ -502,9 +581,13 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
             WorldGenLevel level,
             ChunkAccess chunk,
             StructureManager structureManager) {
-        // BASE_WORLD completes its ordinary structure/feature/decoration stream before any Skyforge
-        // block exists in the live chunk. This is the core SF-IMP-0052 isolation invariant.
-        super.applyBiomeDecoration(level, chunk, structureManager);
+        // In alpha void-base mode, native content is run only through exact-volume population
+        // after Skyforge terrain realization. Ordinary BASE_WORLD decoration sees no land.
+        if (!voidBase) {
+            // BASE_WORLD completes its ordinary structure/feature/decoration stream before any Skyforge
+            // block exists in the live chunk. This is the core SF-IMP-0052 isolation invariant.
+            super.applyBiomeDecoration(level, chunk, structureManager);
+        }
 
         if (!SkyforgeNeoForge1211SurfaceStage.hasActiveBinding()
                 || !SkyforgeNeoForge1211SurfaceStage.hasCandidateVolume(chunk)) {

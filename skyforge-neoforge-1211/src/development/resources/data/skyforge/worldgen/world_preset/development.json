@@ -8,7 +8,9 @@
           "type": "minecraft:multi_noise",
           "preset": "minecraft:overworld"
         },
-        "settings": "minecraft:overworld"
+        "settings": "minecraft:overworld",
+        "terrain_provider_settings": "minecraft:overworld",
+        "void_base": true
       }
     },
     "minecraft:the_nether": {

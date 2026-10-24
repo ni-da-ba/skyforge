@@ -1,6 +1,8 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import net.minecraft.core.BlockPos;
@@ -36,6 +38,49 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                 "Skyforge solids below the native surface are terrain intersections, not floating exposed tops");
         assertEquals(original.solidBlockCount(), adapted.solidBlockCount());
         assertEquals(original.candidateVolumeReferences(), adapted.candidateVolumeReferences());
+    }
+
+    @Test
+    void nativeReliefRaisesOnlyTheExactIslandTopCapAndClaimsAddedCells() {
+        var catalog = SkyforgeNeoForge1211PopulationDevRuntime.catalog();
+        var volume = catalog.volumes().getFirst();
+        ChunkPos chunkPos = new ChunkPos(0, 0);
+        ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(chunkPos);
+        var adapter = new SkyforgeNeoForge1211ChunkAdapter(
+                catalog,
+                io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette());
+        MinecraftChunkMaterialization original = adapter.materialize(
+                volume.id(),
+                chunkPos,
+                chunk.getMinBuildHeight(),
+                chunk.getHeight());
+        var support = adapter.integerSolidRange(volume.id(), 8, 8).orElseThrow();
+        int providerSurfaceY = 80;
+        chunk.setBlockState(
+                new BlockPos(8, providerSurfaceY, 8),
+                Blocks.GRASS_BLOCK.defaultBlockState(),
+                false);
+
+        var profile = new MinecraftNativeSurfaceTopAdapter().adaptTerrainProfile(
+                MinecraftNativeSurfaceSnapshot.capture(chunk, 63),
+                original,
+                adapter);
+
+        int expectedTopY = Math.min(
+                support.maximumY() + providerSurfaceY - 63,
+                (int) Math.floor(volume.bounds().maximumY()));
+        assertEquals(
+                ResourceLocation.withDefaultNamespace("grass_block"),
+                profile.materialization().blockKeyAt(8, expectedTopY, 8));
+        assertTrue(profile.providerWriteClaims().containsKey(
+                BlockPos.asLong(8, support.maximumY() + 1, 8)));
+        assertEquals(
+                volume.id(),
+                profile.providerWriteClaims().get(BlockPos.asLong(8, support.maximumY() + 1, 8)));
+        assertFalse(profile.providerWriteClaims().containsKey(
+                BlockPos.asLong(8, support.maximumY(), 8)));
+        assertTrue(profile.materialization().solidBlockCount() > original.solidBlockCount());
     }
 
     @Test

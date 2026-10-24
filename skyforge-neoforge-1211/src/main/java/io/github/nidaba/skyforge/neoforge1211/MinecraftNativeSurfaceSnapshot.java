@@ -7,8 +7,11 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.NoiseColumn;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
+import net.minecraft.world.level.levelgen.RandomState;
 
 /**
  * Immutable native terrain-top representation captured after surface construction and before biome
@@ -23,14 +26,17 @@ final class MinecraftNativeSurfaceSnapshot {
     private static final int SAMPLE_COUNT = CHUNK_WIDTH * CHUNK_WIDTH;
 
     private final ChunkPos chunkPos;
+    private final int baselineY;
     private final int[] worldYs;
     private final ResourceLocation[] blockKeys;
 
     private MinecraftNativeSurfaceSnapshot(
             ChunkPos chunkPos,
+            int baselineY,
             int[] worldYs,
             ResourceLocation[] blockKeys) {
         this.chunkPos = Objects.requireNonNull(chunkPos, "chunkPos");
+        this.baselineY = baselineY;
         if (worldYs.length != SAMPLE_COUNT || blockKeys.length != SAMPLE_COUNT) {
             throw new IllegalArgumentException("native surface snapshot must contain exactly 256 columns");
         }
@@ -38,7 +44,48 @@ final class MinecraftNativeSurfaceSnapshot {
         this.blockKeys = Arrays.copyOf(blockKeys, blockKeys.length);
     }
 
+    static MinecraftNativeSurfaceSnapshot capture(
+            ChunkAccess chunk,
+            NoiseBasedChunkGenerator generator,
+            RandomState randomState) {
+        Objects.requireNonNull(chunk, "chunk");
+        Objects.requireNonNull(generator, "generator");
+        Objects.requireNonNull(randomState, "randomState");
+        int baselineY = generator.getSeaLevel();
+        int[] worldYs = new int[SAMPLE_COUNT];
+        Arrays.fill(worldYs, Integer.MIN_VALUE);
+        ResourceLocation[] blockKeys = new ResourceLocation[SAMPLE_COUNT];
+        for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
+            int worldZ = chunk.getPos().getMinBlockZ() + localZ;
+            for (int localX = 0; localX < CHUNK_WIDTH; localX++) {
+                int worldX = chunk.getPos().getMinBlockX() + localX;
+                NoiseColumn column = generator.getBaseColumn(worldX, worldZ, chunk, randomState);
+                for (int worldY = chunk.getMaxBuildHeight() - 1;
+                        worldY >= chunk.getMinBuildHeight();
+                        worldY--) {
+                    BlockState state = column.getBlock(worldY);
+                    if (state.isAir() || !state.getFluidState().isEmpty()) {
+                        continue;
+                    }
+                    ResourceLocation key = BuiltInRegistries.BLOCK.getKey(state.getBlock());
+                    if (key == null || SkyforgeMinecraftBlockPalette.AIR.equals(key)) {
+                        continue;
+                    }
+                    int index = index(localX, localZ);
+                    worldYs[index] = worldY;
+                    blockKeys[index] = key;
+                    break;
+                }
+            }
+        }
+        return new MinecraftNativeSurfaceSnapshot(chunk.getPos(), baselineY, worldYs, blockKeys);
+    }
+
     static MinecraftNativeSurfaceSnapshot capture(ChunkAccess chunk) {
+        return capture(chunk, 63);
+    }
+
+    static MinecraftNativeSurfaceSnapshot capture(ChunkAccess chunk, int baselineY) {
         Objects.requireNonNull(chunk, "chunk");
         int[] worldYs = new int[SAMPLE_COUNT];
         Arrays.fill(worldYs, Integer.MIN_VALUE);
@@ -66,11 +113,15 @@ final class MinecraftNativeSurfaceSnapshot {
                 }
             }
         }
-        return new MinecraftNativeSurfaceSnapshot(chunk.getPos(), worldYs, blockKeys);
+        return new MinecraftNativeSurfaceSnapshot(chunk.getPos(), baselineY, worldYs, blockKeys);
     }
 
     ChunkPos chunkPos() {
         return chunkPos;
+    }
+
+    int baselineY() {
+        return baselineY;
     }
 
     Optional<NativeSurface> surface(int localX, int localZ) {

@@ -175,7 +175,47 @@ final class SkyforgePhysicalVolumeAdmissionStage {
      * cannot veto another admitted owner. If all exact owners are rejected, no Skyforge write occurs.
      */
     static boolean allowsWriteAt(int worldX, int worldY, int worldZ) {
+        return allowsWriteAt(
+                worldX,
+                worldY,
+                worldZ,
+                SkyforgeNativeTerrainWriteAuthority.ownerAt(worldX, worldY, worldZ));
+    }
+
+    static boolean allowsWriteAt(
+            int worldX,
+            int worldY,
+            int worldZ,
+            Optional<SkyIslandWorldVolumeId> providerOwner) {
+        Objects.requireNonNull(providerOwner, "providerOwner");
         Binding binding = ACTIVE.get();
+        if (providerOwner.isPresent()) {
+            if (binding == null) {
+                return false;
+            }
+            SkyIslandWorldVolumeId ownerId = providerOwner.orElseThrow();
+            var owner = binding.catalog().volumes().stream()
+                    .filter(volume -> volume.id().equals(ownerId))
+                    .findFirst()
+                    .orElse(null);
+            var support = owner == null
+                    ? Optional.<SkyforgeExactVoxelSupportBounds.ColumnRange>empty()
+                    : SkyforgeNeoForge1211SurfaceStage.integerSolidRange(ownerId, worldX, worldZ);
+            if (owner == null
+                    || !binding.ledger().admitted(ownerId)
+                    || !owner.bounds().contains(worldX, worldY, worldZ)
+                    || support.isEmpty()
+                    // Provider terrain may extend the island's top but must not alter its interior
+                    // or underside, which remain exclusively Skyforge-authored.
+                    || worldY <= support.orElseThrow().maximumY()
+                    || SkyforgeNeoForge1211SurfaceStage.isSolidOwnedByOtherVolume(
+                                    ownerId, worldX, worldY, worldZ)
+                            .orElseThrow(() -> new IllegalStateException(
+                                    "Skyforge terrain binding disappeared during provider write admission"))) {
+                return false;
+            }
+            return true;
+        }
         if (binding == null) {
             return true;
         }
