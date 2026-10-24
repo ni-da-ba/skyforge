@@ -186,8 +186,8 @@ final class MinecraftNativeSurfaceSnapshot {
         Objects.requireNonNull(sampler, "sampler");
         int[] halo = new int[PROFILE_FILTER_SAMPLE_COUNT];
         Arrays.fill(halo, Integer.MIN_VALUE);
-        for (int localZ = -PROFILE_FILTER_RADIUS; localZ < CHUNK_WIDTH + PROFILE_FILTER_RADIUS; localZ++) {
-            for (int localX = -PROFILE_FILTER_RADIUS; localX < CHUNK_WIDTH + PROFILE_FILTER_RADIUS; localX++) {
+        for (int localZ = -PROFILE_SAMPLE_HALO_RADIUS; localZ < CHUNK_WIDTH + PROFILE_SAMPLE_HALO_RADIUS; localZ++) {
+            for (int localX = -PROFILE_SAMPLE_HALO_RADIUS; localX < CHUNK_WIDTH + PROFILE_SAMPLE_HALO_RADIUS; localX++) {
                 int worldX = chunkPos.getMinBlockX() + localX;
                 int worldZ = chunkPos.getMinBlockZ() + localZ;
                 halo[profileHeightIndex(localX, localZ)] = sampler.surfaceY(worldX, worldZ);
@@ -207,8 +207,8 @@ final class MinecraftNativeSurfaceSnapshot {
         }
         int[] halo = new int[PROFILE_FILTER_SAMPLE_COUNT];
         Arrays.fill(halo, Integer.MIN_VALUE);
-        for (int localZ = -PROFILE_FILTER_RADIUS; localZ < CHUNK_WIDTH + PROFILE_FILTER_RADIUS; localZ++) {
-            for (int localX = -PROFILE_FILTER_RADIUS; localX < CHUNK_WIDTH + PROFILE_FILTER_RADIUS; localX++) {
+        for (int localZ = -PROFILE_SAMPLE_HALO_RADIUS; localZ < CHUNK_WIDTH + PROFILE_SAMPLE_HALO_RADIUS; localZ++) {
+            for (int localX = -PROFILE_SAMPLE_HALO_RADIUS; localX < CHUNK_WIDTH + PROFILE_SAMPLE_HALO_RADIUS; localX++) {
                 int clampedX = Math.max(0, Math.min(CHUNK_WIDTH - 1, localX));
                 int clampedZ = Math.max(0, Math.min(CHUNK_WIDTH - 1, localZ));
                 halo[profileHeightIndex(localX, localZ)] = worldYs[index(clampedX, clampedZ)];
@@ -228,8 +228,8 @@ final class MinecraftNativeSurfaceSnapshot {
     }
 
     static int profileHeightIndex(int localX, int localZ) {
-        return localX + PROFILE_FILTER_RADIUS
-                + PROFILE_FILTER_WIDTH * (localZ + PROFILE_FILTER_RADIUS);
+        return localX + PROFILE_SAMPLE_HALO_RADIUS
+                + PROFILE_FILTER_WIDTH * (localZ + PROFILE_SAMPLE_HALO_RADIUS);
     }
 
     /** Uses a chunk-seam-safe weighted neighborhood to soften sharp provider relief transitions. */
