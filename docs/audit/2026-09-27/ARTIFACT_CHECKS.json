@@ -1,0 +1,16 @@
+{
+  "scope": "Audit artifact consistency only; not project verification",
+  "generated_at_utc": "2026-09-27 18:22:07 UTC",
+  "schema_validation_errors": [],
+  "missing_baseline_workflow_paths": [],
+  "dangling_node_references": [],
+  "unique_node_ids": true,
+  "unique_criterion_ids": true,
+  "node_count": 47,
+  "edge_count": 57,
+  "criterion_count": 134,
+  "finding_count": 40,
+  "all_findings_mapped": true,
+  "acyclic": true,
+  "dispatch_disabled": true
+}
