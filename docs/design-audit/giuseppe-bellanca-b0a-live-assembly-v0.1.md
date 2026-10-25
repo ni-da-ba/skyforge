@@ -1,17 +1,16 @@
 # Giuseppe Bellanca B0-A Live Assembly Evidence v0.1
 
 **Parent:** CONTENT C12 / issue #239  
-**Status:** Candidate; live workflow pending.  
+**Status:** Candidate; A1/A2/A3 exact-stack workflow pending.  
 **Historical design input:** closed/unmerged PR #242.
 
 ## Scope
 
-This slice owns B0-A1 assembly integrity and B0-A2 live mass/center-of-mass only.
+This slice owns B0-A1 assembly integrity, B0-A2 live mass/center-of-mass, and B0-A3 live lift-force sign.
 
 It deliberately does **not** yet own:
 
 - PROP_CHILD preassembly/reassembly;
-- lift sign;
 - single/dual-engine stress cooperation;
 - governed propeller RPM;
 - control surfaces;
@@ -54,6 +53,7 @@ The dedicated-server specimen must:
 6. prove no additional block occupies the translated MAIN_BODY bounding volume;
 7. read Sable's live merged mass tracker;
 8. record local X/Y/Z COM and longitudinal offset from the wing geometric center;
-9. stop for explicit review if bare MAIN_BODY mass exceeds 60 kpg.
+9. stop for explicit review if bare MAIN_BODY mass exceeds 60 kpg;
+10. drive the real Sable PhysicsSystem with controlled horizontal velocity, record `ForceGroups.LIFT`, and require a finite positive world-space Y force from the 66-sail regular wing.
 
-The prior 38.5-kpg paper MAIN_BODY estimate and paper COM are comparison hypotheses only.
+The prior 38.5-kpg paper MAIN_BODY estimate and paper COM are comparison hypotheses only. The A3 force-sign proof is instantaneous; it does not establish lift exceeding weight, takeoff, climb, or controlled flight.
