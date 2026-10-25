@@ -164,6 +164,12 @@ final class SkyforgeAtmosphereReconstructionProvenanceAcceptance {
         SkyforgeAtmosphereView.Sample sample = selected.sample();
         String sampleDigest = sampleDigest(selected.position(), sample);
 
+        // The presentation proof consumes this exact, already-authoritative fixture sample. It
+        // verifies server-side cue dispatch without claiming that a delayed unattended client
+        // spawn is itself a representative player-location sample.
+        SkyforgeAtmospherePresentationDevRuntime.presentAcceptedEvidenceSample(
+                level, anchor, gameTick, sample);
+
         SkyforgeThermalSoaringDecision.State hawkBefore =
                 SkyforgeThermalSoaringDecision.State.inactive();
         SkyforgeThermalSoaringDecision.State hawkAfter =
