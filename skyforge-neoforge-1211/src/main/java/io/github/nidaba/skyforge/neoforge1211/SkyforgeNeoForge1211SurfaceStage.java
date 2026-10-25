@@ -81,13 +81,22 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         SkyforgeNeoForge1211IsolationDevRuntime.Proof isolationProof =
                 SkyforgeNeoForge1211IsolationDevRuntime.captureBeforeSkyforge(chunk);
         MinecraftChunkMaterialization materialization = materialize(binding, chunk);
+        Map<Long, SkyIslandWorldVolumeId> providerWriteClaims = Map.of();
         if (binding.nativeSurfaceTopAdapter().isPresent()) {
             var adapter = binding.nativeSurfaceTopAdapter().orElseThrow();
-            materialization = nativeSurfaceSnapshot.isPresent()
-                    ? adapter.adapt(nativeSurfaceSnapshot.orElseThrow(), materialization)
-                    : adapter.adapt(chunk, materialization);
+            if (nativeSurfaceSnapshot.isPresent()) {
+                var profile = adapter.adaptTerrainProfile(
+                        nativeSurfaceSnapshot.orElseThrow(),
+                        materialization,
+                        binding.adapter());
+                materialization = profile.materialization();
+                providerWriteClaims = profile.providerWriteClaims();
+            } else {
+                materialization = adapter.adapt(chunk, materialization);
+            }
         }
-        MinecraftChunkWriteResult result = binding.writer().writeSolidOverlay(chunk, materialization);
+        MinecraftChunkWriteResult result = binding.writer().writeProviderTerrainOverlay(
+                chunk, materialization, providerWriteClaims);
         applyHydrology(chunk, binding);
         SkyforgeNeoForge1211IsolationDevRuntime.verifyAfterSkyforge(chunk, isolationProof);
         SkyforgeRuntimePerformanceMetrics.recordSince("terrain.realize", performanceStart);
@@ -247,16 +256,23 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                     preparation.cumulativeWorkNanos());
             progressData.discardCachedPreparation(pending.volumeId(), pending.chunkKey());
 
+            Map<Long, SkyIslandWorldVolumeId> providerWriteClaims = Map.of();
             if (binding.nativeSurfaceTopAdapter().isPresent()) {
                 MinecraftNativeSurfaceSnapshot snapshot = pending.nativeSurfaceSnapshot()
                         .orElseThrow(() -> new IllegalStateException(
                                 "native-surface-adapted deferred realization lost its pre-decoration snapshot"));
                 long adaptStart = SkyforgeRuntimePerformanceMetrics.start();
-                materialization = binding.nativeSurfaceTopAdapter().orElseThrow().adapt(snapshot, materialization);
+                var profile = binding.nativeSurfaceTopAdapter().orElseThrow().adaptTerrainProfile(
+                        snapshot, materialization, binding.adapter());
+                materialization = profile.materialization();
+                providerWriteClaims = profile.providerWriteClaims();
                 SkyforgeRuntimePerformanceMetrics.recordSince("terrain.deferred.adaptSurface", adaptStart);
             }
-            progressData.cacheMaterialization(pending.volumeId(), pending.chunkKey(), materialization);
+            progressData.cacheMaterialization(
+                    pending.volumeId(), pending.chunkKey(), materialization, providerWriteClaims);
         }
+        Map<Long, SkyIslandWorldVolumeId> providerWriteClaims =
+                progressData.cachedProviderWriteClaims(pending.volumeId(), pending.chunkKey());
 
         int expectedSolidBlocks;
         if (existing.isPresent()) {
@@ -300,7 +316,8 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                 materialization,
                 progress.cursor(),
                 maximumAssignedSolidWrites,
-                !exactAdmissionFastPath);
+                !exactAdmissionFastPath,
+                providerWriteClaims);
         long writeElapsedNanos = SkyforgeRuntimePerformanceMetrics.elapsedSince(writeStart);
         SkyforgeRuntimePerformanceMetrics.recordElapsed("terrain.deferred.writePacket", writeElapsedNanos);
         SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
@@ -389,12 +406,16 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         SkyforgeRuntimePerformanceMetrics.recordSince(
                 "terrain.deferred.materialize",
                 materializeStart);
+        Map<Long, SkyIslandWorldVolumeId> providerWriteClaims = Map.of();
         if (binding.nativeSurfaceTopAdapter().isPresent()) {
             MinecraftNativeSurfaceSnapshot snapshot = pending.nativeSurfaceSnapshot()
                     .orElseThrow(() -> new IllegalStateException(
                             "native-surface-adapted deferred realization lost its pre-decoration snapshot"));
             long adaptStart = SkyforgeRuntimePerformanceMetrics.start();
-            materialization = binding.nativeSurfaceTopAdapter().orElseThrow().adapt(snapshot, materialization);
+            var profile = binding.nativeSurfaceTopAdapter().orElseThrow().adaptTerrainProfile(
+                    snapshot, materialization, binding.adapter());
+            materialization = profile.materialization();
+            providerWriteClaims = profile.providerWriteClaims();
             SkyforgeRuntimePerformanceMetrics.recordSince(
                     "terrain.deferred.adaptSurface",
                     adaptStart);
@@ -420,9 +441,9 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         }
 
         long writeStart = SkyforgeRuntimePerformanceMetrics.start();
-        MinecraftChunkWriteResult result = exactAdmissionFastPath
+        MinecraftChunkWriteResult result = exactAdmissionFastPath && providerWriteClaims.isEmpty()
                 ? binding.writer().writeAdmittedExactSolidOverlay(chunk, materialization)
-                : binding.writer().writeSolidOverlay(chunk, materialization);
+                : binding.writer().writeProviderTerrainOverlay(chunk, materialization, providerWriteClaims);
         SkyforgeRuntimePerformanceMetrics.recordSince(
                 "terrain.deferred.write",
                 writeStart);

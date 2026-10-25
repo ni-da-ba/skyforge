@@ -12,8 +12,12 @@ final class SkyforgeNativeSurfaceSnapshotStage {
     private SkyforgeNativeSurfaceSnapshotStage() {}
 
     static void capture(ChunkAccess chunk) {
+        capture(chunk, 63);
+    }
+
+    static void capture(ChunkAccess chunk, int baselineY) {
         Objects.requireNonNull(chunk, "chunk");
-        MinecraftNativeSurfaceSnapshot snapshot = MinecraftNativeSurfaceSnapshot.capture(chunk);
+        MinecraftNativeSurfaceSnapshot snapshot = MinecraftNativeSurfaceSnapshot.capture(chunk, baselineY);
         MinecraftNativeSurfaceSnapshot previous = SNAPSHOTS.put(chunk.getPos().toLong(), snapshot);
         if (previous != null) {
             throw new IllegalStateException("native surface snapshot already captured for chunk " + chunk.getPos());

@@ -2,7 +2,9 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
+import java.util.Map;
 import java.util.Objects;
+import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.state.BlockState;
@@ -63,6 +65,27 @@ public final class SkyforgeNeoForge1211ChunkWriter {
     }
 
     /**
+     * Writes native-provider terrain under explicit per-position island ownership claims.
+     *
+     * <p>Claims are rechecked by the physical-admission stage at each position. A provider solid
+     * never overwrites live native content; occupied claimed positions are left untouched.
+     */
+    MinecraftChunkWriteResult writeProviderTerrainOverlay(
+            ChunkAccess chunk,
+            MinecraftChunkMaterialization materialization,
+            Map<Long, SkyIslandWorldVolumeId> providerWriteClaims) {
+        validateOwnership(chunk, materialization);
+        try (AutoCloseable scope = SkyforgeNativeTerrainWriteAuthority.open(providerWriteClaims)) {
+            Objects.requireNonNull(scope, "provider write-authority scope");
+            return writeInternal(chunk, materialization, true, true);
+        } catch (RuntimeException failure) {
+            throw failure;
+        } catch (Exception failure) {
+            throw new IllegalStateException("native terrain write-authority scope failed", failure);
+        }
+    }
+
+    /**
      * Writes one exact deferred materialization after the admission stage has proved that the entire
      * chunk/Y interval has no other catalog candidate.
      *
@@ -93,7 +116,26 @@ public final class SkyforgeNeoForge1211ChunkWriter {
             DeferredSolidWriteCursor cursor,
             int maximumAssignedSolidWrites,
             boolean enforcePhysicalAdmission) {
+        return writeDeferredSolidOverlayPacket(
+                chunk,
+                materialization,
+                cursor,
+                maximumAssignedSolidWrites,
+                enforcePhysicalAdmission,
+                Map.of());
+    }
+
+    /** Advances a deferred provider packet under persisted exact-volume write claims. */
+    DeferredSolidWriteAdvance writeDeferredSolidOverlayPacket(
+            ChunkAccess chunk,
+            MinecraftChunkMaterialization materialization,
+            DeferredSolidWriteCursor cursor,
+            int maximumAssignedSolidWrites,
+            boolean enforcePhysicalAdmission,
+            Map<Long, SkyIslandWorldVolumeId> providerWriteClaims) {
         validateOwnership(chunk, materialization);
+        Map<Long, SkyIslandWorldVolumeId> scopedProviderClaims =
+                Map.copyOf(Objects.requireNonNull(providerWriteClaims, "providerWriteClaims"));
         Objects.requireNonNull(cursor, "cursor");
         if (maximumAssignedSolidWrites <= 0) {
             throw new IllegalArgumentException("deferred solid-write packet budget must be positive");
@@ -134,8 +176,11 @@ public final class SkyforgeNeoForge1211ChunkWriter {
             if (!SkyforgeMinecraftBlockPalette.AIR.equals(key)) {
                 int worldX = Math.addExact(minimumX, localX);
                 int worldZ = Math.addExact(minimumZ, localZ);
-                if (enforcePhysicalAdmission
-                        && !SkyforgePhysicalVolumeAdmissionStage.allowsWriteAt(worldX, worldY, worldZ)) {
+                var providerOwner = SkyforgeNativeTerrainWriteAuthority.ownerAt(
+                        scopedProviderClaims, worldX, worldY, worldZ);
+                if ((enforcePhysicalAdmission || providerOwner.isPresent())
+                        && !SkyforgePhysicalVolumeAdmissionStage.allowsWriteAt(
+                                worldX, worldY, worldZ, providerOwner)) {
                     DeferredSolidWriteCursor blockedCursor = new DeferredSolidWriteCursor(
                             nextLinearIndex,
                             Math.addExact(cursor.cumulativeAssignedSolidWrites(), assignedThisPacket),
@@ -158,14 +203,19 @@ public final class SkyforgeNeoForge1211ChunkWriter {
 
                 blockPos.set(worldX, worldY, worldZ);
                 BlockState previousState = chunk.getBlockState(blockPos);
-                chunk.setBlockState(blockPos, state, false);
-                BlockState stored = chunk.getBlockState(blockPos);
-                if (!stored.equals(state)) {
-                    throw new IllegalStateException("ChunkAccess did not retain the resolved BlockState");
+                if (providerOwner.isPresent() && !previousState.isAir()) {
+                    // Preserve native content, but advance persisted progress past this occupied cell.
+                    assignedThisPacket++;
+                } else {
+                    chunk.setBlockState(blockPos, state, false);
+                    BlockState stored = chunk.getBlockState(blockPos);
+                    if (!stored.equals(state)) {
+                        throw new IllegalStateException("ChunkAccess did not retain the resolved BlockState");
+                    }
+                    SkyforgeDeferredChunkMutationLifecycle.afterWrite(chunk, blockPos, previousState, stored);
+                    assignedThisPacket++;
+                    solidThisPacket++;
                 }
-                SkyforgeDeferredChunkMutationLifecycle.afterWrite(chunk, blockPos, previousState, stored);
-                assignedThisPacket++;
-                solidThisPacket++;
             }
 
             nextLinearIndex++;
@@ -248,6 +298,7 @@ public final class SkyforgeNeoForge1211ChunkWriter {
         int minimumZ = materialization.chunkPos().getMinBlockZ();
         int assigned = 0;
         int solid = 0;
+        var providerClaims = SkyforgeNativeTerrainWriteAuthority.currentClaims();
         BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos();
 
         for (int worldY = materialization.minimumY();
@@ -263,9 +314,15 @@ public final class SkyforgeNeoForge1211ChunkWriter {
                     }
 
                     int worldX = Math.addExact(minimumX, localX);
+                    var providerOwner = SkyforgeNativeTerrainWriteAuthority.ownerAt(
+                            providerClaims,
+                            worldX,
+                            worldY,
+                            worldZ);
                     if (!expectedAir
                             && enforcePhysicalAdmission
-                            && !SkyforgePhysicalVolumeAdmissionStage.allowsWriteAt(worldX, worldY, worldZ)) {
+                            && !SkyforgePhysicalVolumeAdmissionStage.allowsWriteAt(
+                                    worldX, worldY, worldZ, providerOwner)) {
                         continue;
                     }
 
@@ -277,6 +334,9 @@ public final class SkyforgeNeoForge1211ChunkWriter {
 
                     blockPos.set(worldX, worldY, worldZ);
                     BlockState previousState = chunk.getBlockState(blockPos);
+                    if (providerOwner.isPresent() && !previousState.isAir()) {
+                        continue;
+                    }
                     chunk.setBlockState(blockPos, state, false);
                     BlockState stored = chunk.getBlockState(blockPos);
                     if (!stored.equals(state)) {
