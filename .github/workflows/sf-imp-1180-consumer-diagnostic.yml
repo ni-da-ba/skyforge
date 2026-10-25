@@ -1,0 +1,328 @@
+name: SF-IMP-1180 Consumer A-B Diagnostic
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/sf-imp-1180-consumer-diagnostic.yml"
+      - "third_party/patches/aerodynamics4mc/**"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeSfImp1180ConsumerDiagnosticRuntime.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWaveC6SoaringFaunaDevRuntime.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWaveC7GliderLiftDevRuntime.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeGliderLiftCoupling.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAtmosphereTerrainAuthority.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeA4mcTerrainBridge.java"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sf-imp-1180-consumer-ab-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dr50-consumer-ab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out Skyforge
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check out exact pinned A4MC source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: MozillaFiredoge/Aerodynamics4MC-Core
+          ref: 62a52a584e9c65246e50226b29a1f0449e43995e
+          path: a4mc-source
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Apply public terrain-provider seam
+        shell: bash
+        run: |
+          set -euo pipefail
+          git -C a4mc-source apply --check ../third_party/patches/aerodynamics4mc/0001-public-terrain-provider-api.patch
+          git -C a4mc-source apply ../third_party/patches/aerodynamics4mc/0001-public-terrain-provider-api.patch
+          git -C a4mc-source diff --check
+
+      - name: Build exact patched A4MC core
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd a4mc-source
+          ./gradlew buildAndCollect --no-daemon
+          find build/libs -maxdepth 4 -type f -name '*.jar' -print | sort | tee ../sf-imp-1180-a4mc-jars.txt
+          patched_core=""
+          while IFS= read -r candidate; do
+            [[ "$(basename "$candidate")" == *'-neoforge+1.21.1-SNAPSHOT.jar' ]] || continue
+            jar tf "$candidate" | grep -Fqx 'com/aerodynamics4mc/runtime/AeroServerRuntime.class' || continue
+            api_present=0
+            if jar tf "$candidate" | grep -Fqx 'com/aerodynamics4mc/api/AeroTerrainApi.class'; then
+              api_present=1
+            else
+              nested_api="$(jar tf "$candidate" | grep -E '^META-INF/jarjar/.*aerodynamics4mc-api.*[.]jar$' | head -n1 || true)"
+              if [[ -n "$nested_api" ]]; then
+                tmp_api="$(mktemp --suffix=.jar)"
+                unzip -p "$candidate" "$nested_api" > "$tmp_api"
+                if jar tf "$tmp_api" | grep -Fqx 'com/aerodynamics4mc/api/AeroTerrainApi.class'; then
+                  api_present=1
+                fi
+                rm -f "$tmp_api"
+              fi
+            fi
+            [[ "$api_present" -eq 1 ]] || continue
+            if [[ -n "$patched_core" ]]; then
+              echo "FAIL multiple patched A4MC core jars: $patched_core and $candidate"
+              exit 1
+            fi
+            patched_core="$(realpath "$candidate")"
+          done < ../sf-imp-1180-a4mc-jars.txt
+          test -n "$patched_core"
+          echo "A4MC_PATCHED_CORE=$patched_core" >> "$GITHUB_ENV"
+          echo "Selected patched core: $patched_core"
+
+      - name: Compile diagnostic and resolve combined evidence runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:compileJava --no-configuration-cache
+          ./gradlew :skyforge-neoforge-1211:waveC3ResolvePinnedMods \
+            -PskyforgeA4mcProbeCoreOverrideJar="$A4MC_PATCHED_CORE" \
+            --no-configuration-cache
+
+      - name: Prepare pristine accepted DR-50 world
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:runDr50IntegratedRegionAcceptanceA --no-configuration-cache
+          test -f skyforge-neoforge-1211/run-dr50-auto-a/saves/acceptance/level.dat
+          rm -rf /tmp/sf-imp-1180-dr50-pristine
+          cp -a skyforge-neoforge-1211/run-dr50-auto-a /tmp/sf-imp-1180-dr50-pristine
+          rm -rf skyforge-neoforge-1211/build/acceptance/sf-imp-1180
+          mkdir -p skyforge-neoforge-1211/build/acceptance/sf-imp-1180
+
+      - name: Configure unattended client
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_dir="skyforge-neoforge-1211/run-dr50-auto-a"
+          printf '%s\n' \
+            'onboardAccessibility:false' \
+            'pauseOnLostFocus:false' \
+            > "$run_dir/options.txt"
+
+      - name: Acquire C6-C7 disabled control
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          set -euo pipefail
+          log="sf-imp-1180-control.log"
+          setsid xvfb-run -a ./gradlew \
+            :skyforge-neoforge-1211:runSfImp1180ConsumerControlClient \
+            -PskyforgeA4mcProbeCoreOverrideJar="$A4MC_PATCHED_CORE" \
+            --no-daemon --no-configuration-cache >"$log" 2>&1 &
+          pid=$!
+          outcome=""
+          for _ in $(seq 1 480); do
+            if grep -Fq "SF_IMP_1180_CONSUMER_DIAGNOSTIC PASS arm=control" "$log" 2>/dev/null; then
+              outcome="pass"
+              break
+            fi
+            if grep -Fq "SF_IMP_1180_CONSUMER_DIAGNOSTIC FAIL" "$log" 2>/dev/null; then
+              outcome="fail"
+              break
+            fi
+            if ! kill -0 "$pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          if [[ "$outcome" != "pass" ]]; then
+            echo "FAIL #1180 control acquisition"
+            cat "$log"
+            kill -TERM -- "-$pid" 2>/dev/null || true
+            sleep 1
+            kill -KILL -- "-$pid" 2>/dev/null || true
+            wait "$pid" 2>/dev/null || true
+            exit 1
+          fi
+          grep -F "SF_IMP_1180_CONSUMER_DIAGNOSTIC PASS" "$log"
+          test -f skyforge-neoforge-1211/build/acceptance/sf-imp-1180/control.json
+          kill -TERM -- "-$pid" 2>/dev/null || true
+          sleep 2
+          kill -KILL -- "-$pid" 2>/dev/null || true
+          wait "$pid" 2>/dev/null || true
+
+      - name: Restore pristine DR-50 world
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf skyforge-neoforge-1211/run-dr50-auto-a
+          cp -a /tmp/sf-imp-1180-dr50-pristine skyforge-neoforge-1211/run-dr50-auto-a
+          printf '%s\n' \
+            'onboardAccessibility:false' \
+            'pauseOnLostFocus:false' \
+            > skyforge-neoforge-1211/run-dr50-auto-a/options.txt
+
+      - name: Acquire C6-C7 enabled treatment
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          set -euo pipefail
+          log="sf-imp-1180-treatment.log"
+          setsid xvfb-run -a ./gradlew \
+            :skyforge-neoforge-1211:runSfImp1180ConsumerTreatmentClient \
+            -PskyforgeA4mcProbeCoreOverrideJar="$A4MC_PATCHED_CORE" \
+            --no-daemon --no-configuration-cache >"$log" 2>&1 &
+          pid=$!
+          outcome=""
+          for _ in $(seq 1 480); do
+            if grep -Fq "SF_IMP_1180_CONSUMER_DIAGNOSTIC PASS arm=treatment" "$log" 2>/dev/null; then
+              outcome="pass"
+              break
+            fi
+            if grep -Fq "SF_IMP_1180_CONSUMER_DIAGNOSTIC FAIL" "$log" 2>/dev/null; then
+              outcome="fail"
+              break
+            fi
+            if ! kill -0 "$pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          if [[ "$outcome" != "pass" ]]; then
+            echo "FAIL #1180 treatment acquisition"
+            cat "$log"
+            kill -TERM -- "-$pid" 2>/dev/null || true
+            sleep 1
+            kill -KILL -- "-$pid" 2>/dev/null || true
+            wait "$pid" 2>/dev/null || true
+            exit 1
+          fi
+          grep -F "SF_IMP_1180_CONSUMER_DIAGNOSTIC PASS" "$log"
+          test -f skyforge-neoforge-1211/build/acceptance/sf-imp-1180/treatment.json
+          kill -TERM -- "-$pid" 2>/dev/null || true
+          sleep 2
+          kill -KILL -- "-$pid" 2>/dev/null || true
+          wait "$pid" 2>/dev/null || true
+
+      - name: Classify consumer A-B evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("skyforge-neoforge-1211/build/acceptance/sf-imp-1180")
+          control = json.loads((root / "control.json").read_text())
+          treatment = json.loads((root / "treatment.json").read_text())
+
+          assert control["arm"] == "control"
+          assert treatment["arm"] == "treatment"
+          assert control["c6_enabled"] is False and control["c7_enabled"] is False
+          assert treatment["c6_enabled"] is True and treatment["c7_enabled"] is True
+          assert control["world_seed"] == treatment["world_seed"]
+          assert control["warmup_ticks"] == treatment["warmup_ticks"] == 2600
+          assert control["observation_ticks"] == treatment["observation_ticks"] == 600
+
+          for arm in (control, treatment):
+              terrain = arm["terrain_provider"]
+              assert terrain["registered"] is True
+              assert terrain["queries"] > 0
+              assert terrain["claims"] > 0
+              frames = arm["glider"]["frames"]
+              assert len(frames) == 31
+              assert any(frame["trusted"] for frame in frames)
+              for frame in frames:
+                  assert abs(frame["stronger_native_result_y"] - 0.70) < 1e-12
+
+          # Same-sample replay is the causal glider A/B: every real provider frame is fed to both
+          # the C7-off native baseline and exact C7 coupling, so weather drift cannot create delta.
+          treatment_frames = treatment["glider"]["frames"]
+          positive = [frame for frame in treatment_frames if frame["delta_y"] > 1e-12]
+          glider_max_delta = max(frame["delta_y"] for frame in treatment_frames)
+          glider_projected_delta = treatment["glider"][
+              "projected_coupled_minus_control_altitude_blocks"
+          ]
+          assert positive, "real DR-50 field produced no positive C7 response during bounded treatment"
+          assert glider_projected_delta > 0.0
+
+          def cohort(arm, name):
+              return [hawk for hawk in arm["hawks"] if hawk["cohort"] == name]
+
+          for arm in (control, treatment):
+              assert len(cohort(arm, "island")) == 12
+              assert len(cohort(arm, "ground")) == 12
+
+          control_island = cohort(control, "island")
+          treatment_island = cohort(treatment, "island")
+          control_ground = cohort(control, "ground")
+          treatment_ground = cohort(treatment, "ground")
+
+          control_departures = sum(h["left_semantic_island"] for h in control_island)
+          treatment_departures = sum(h["left_semantic_island"] for h in treatment_island)
+          control_ground_descents = sum(h["near_ordinary_ground"] for h in control_ground)
+          treatment_ground_descents = sum(h["near_ordinary_ground"] for h in treatment_ground)
+          treatment_transitions = sum(h["c6_transitions"] for h in treatment["hawks"])
+          treatment_steering = sum(h["c6_steering_commands"] for h in treatment["hawks"])
+          treatment_adapted = sum(h["c6_adapted"] for h in treatment["hawks"])
+          control_adapted = sum(h["c6_adapted"] for h in control["hawks"])
+          assert treatment_adapted == 24
+          assert control_adapted == 0
+
+          active_c6 = treatment_transitions > 0 or treatment_steering > 0
+          if active_c6:
+              hawk_classification = "ACTIVE_C6_THERMAL_INTERVENTION_OBSERVED"
+          elif control_departures == 0 and treatment_departures == 0:
+              hawk_classification = "HUMAN_SKY_ISLAND_DEPARTURE_TREND_NOT_REPRODUCED"
+          elif abs(control_departures - treatment_departures) <= 3:
+              hawk_classification = "STOCK_WORLD_GEOMETRY_CONSISTENT_WITH_HUMAN_OBSERVATION"
+          else:
+              hawk_classification = "ARM_DIVERGENCE_WITHOUT_SOAR_REQUIRES_FOLLOWUP"
+
+          comparison = {
+              "artifact_kind": "SKYFORGE_SF_IMP_1180_CONSUMER_AB",
+              "same_world_seed": True,
+              "glider": {
+                  "same_sample_replay": True,
+                  "positive_response_frames": len(positive),
+                  "max_vertical_velocity_delta_blocks_per_tick": glider_max_delta,
+                  "projected_600_tick_altitude_delta_blocks": glider_projected_delta,
+                  "stronger_native_updraft_preserved": True,
+              },
+              "hawks": {
+                  "classification": hawk_classification,
+                  "control_island_departures": control_departures,
+                  "treatment_island_departures": treatment_departures,
+                  "control_ground_near_ground": control_ground_descents,
+                  "treatment_ground_near_ground": treatment_ground_descents,
+                  "treatment_c6_transitions": treatment_transitions,
+                  "treatment_c6_steering_commands": treatment_steering,
+                  "treatment_adapted_hawks": treatment_adapted,
+              },
+          }
+          (root / "comparison.json").write_text(json.dumps(comparison, indent=2) + "\n")
+          print(json.dumps(comparison, indent=2))
+          PY
+
+      - name: Upload #1180 evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sf-imp-1180-consumer-ab-${{ github.sha }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            sf-imp-1180-a4mc-jars.txt
+            sf-imp-1180-control.log
+            sf-imp-1180-treatment.log
+            skyforge-neoforge-1211/build/acceptance/sf-imp-1180/**
