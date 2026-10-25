@@ -1932,6 +1932,47 @@
     $("terrain-slice-value").textContent = fmt(y, 1);
   }
 
+  function renderHydrologyRunSummary() {
+    const panel = $("hydrology-run-summary");
+    const summary = window.SkyforgeStudioHydrologyRunSummary.summarize(scene, overlay);
+    panel.hidden = !summary;
+    if (!summary) return;
+
+    const count = value => new Intl.NumberFormat().format(value);
+    const compactValue = value => {
+      const trimmed = Number(value).toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+      return trimmed === "-0" ? "0" : trimmed;
+    };
+    const rangeText = range => range
+      ? compactValue(range.minimum) + " to " + compactValue(range.maximum)
+      : "No recorded values";
+
+    $("hydrology-summary-terrain").textContent =
+      count(summary.terrainGrid.xSamples) + " × " +
+      count(summary.terrainGrid.ySamples) + " × " +
+      count(summary.terrainGrid.zSamples) + " samples";
+    $("hydrology-summary-causes").textContent =
+      count(summary.causeGrid.xSamples) + " × " + count(summary.causeGrid.zSamples) +
+      " grid · stride " + count(summary.causeGrid.stride) +
+      " · " + count(summary.causeSampleCount) + " samples";
+    $("hydrology-summary-response").textContent =
+      count(summary.terrainResponseSampleCount) + " samples · " +
+      count(summary.wetResponseSampleCount) + " wet";
+    $("hydrology-summary-reaches").textContent =
+      count(summary.reachCount) + " reaches · " + count(summary.reachPointCount) + " points";
+    $("hydrology-summary-water").textContent =
+      count(summary.waterSurfaceSampleCount) + " of " +
+      count(summary.terrainResponseSampleCount) + " response samples";
+    $("hydrology-summary-runoff").textContent = rangeText(summary.potentialRanges.runoffPotential);
+    $("hydrology-summary-retention").textContent = rangeText(summary.potentialRanges.retentionPotential);
+    $("hydrology-summary-drainage").textContent = rangeText(summary.potentialRanges.drainagePotential);
+    $("hydrology-summary-outflow").textContent = rangeText(summary.potentialRanges.outflowPotential);
+    const deltaRange = summary.terrainDeltaWorldRange;
+    $("hydrology-summary-delta").textContent = deltaRange
+      ? rangeText(deltaRange)
+      : "No recorded values";
+  }
+
   function setScene(nextScene, sourceArtifact = null, sourceTitle = "", sourceJson = null) {
     stopPlayback();
     scene = nextScene;
@@ -1957,6 +1998,7 @@
     $("overlay-status").textContent = "";
     $("comparison-status").textContent = "Attach a reference hydrology artifact first.";
     updateHydrologyControlVisibility();
+    renderHydrologyRunSummary();
 
     $("atmosphere-controls").hidden = !isAtmosphere();
     $("terrain-controls").hidden = !isTerrain();
@@ -2358,6 +2400,7 @@
     $("show-hydrology-delta").checked = false;
     selected = null;
     updateHydrologyControlVisibility();
+    renderHydrologyRunSummary();
     $("overlay-status").textContent =
       "Attached " +
       (overlay.source.artifactId || overlay.source.artifactTitle || "hydrology overlay") +
@@ -2492,6 +2535,7 @@
     $("comparison-status").textContent = "Attach a reference hydrology artifact first.";
     selected = null;
     updateHydrologyControlVisibility();
+    renderHydrologyRunSummary();
     $("overlay-status").textContent = "";
     updateBindingPill();
     renderInspector(null);

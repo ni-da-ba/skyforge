@@ -51,6 +51,9 @@ jobs:
       - name: Test desktop backup menu contract
         run: node scripts/ci/test_studio_desktop_menu.js
 
+      - name: Test hydrology run summary values
+        run: node scripts/ci/test_studio_hydrology_run_summary.js
+
       - name: Set up Java and Gradle
         uses: ./.github/actions/setup-java-gradle
 
