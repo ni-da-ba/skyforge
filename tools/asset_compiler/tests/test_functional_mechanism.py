@@ -24,9 +24,11 @@ class FunctionalMechanismCompilerTest(unittest.TestCase):
     def setUp(self) -> None:
         self.spec_path = ASSET_COMPILER / "specimens" / "mech_001_airflow_bench.json"
         self.mech002_spec_path = ASSET_COMPILER / "specimens" / "mech_002_waterwheel_airflow_bench.json"
+        self.mech003_spec_path = ASSET_COMPILER / "specimens" / "mech_003_portable_engine_workshop.json"
         self.ledger_path = ROOT / "docs" / "agent-state" / "COMPILER_INTEGRATION_CAPABILITIES.json"
         self.spec = json.loads(self.spec_path.read_text(encoding="utf-8"))
         self.mech002_spec = json.loads(self.mech002_spec_path.read_text(encoding="utf-8"))
+        self.mech003_spec = json.loads(self.mech003_spec_path.read_text(encoding="utf-8"))
         self.ledger = json.loads(self.ledger_path.read_text(encoding="utf-8"))
 
     def compile(self) -> dict:
@@ -35,11 +37,17 @@ class FunctionalMechanismCompilerTest(unittest.TestCase):
     def compile_mech002(self) -> dict:
         return compile_functional_mechanism(self.mech002_spec, self.ledger)
 
+    def compile_mech003(self) -> dict:
+        return compile_functional_mechanism(self.mech003_spec, self.ledger)
+
     def test_semantic_spec_contains_no_concrete_create_resource_ids(self) -> None:
         self.assertNotIn("create:", self.spec_path.read_text(encoding="utf-8"))
         mech002_text = self.mech002_spec_path.read_text(encoding="utf-8")
         self.assertNotIn("create:", mech002_text)
         self.assertNotIn("minecraft:water", mech002_text)
+        mech003_text = self.mech003_spec_path.read_text(encoding="utf-8")
+        self.assertNotIn("create:", mech003_text)
+        self.assertNotIn("simulated:", mech003_text)
 
     def test_compiler_emits_deterministic_bounded_plan(self) -> None:
         first = self.compile()
@@ -162,6 +170,80 @@ class FunctionalMechanismCompilerTest(unittest.TestCase):
         bad_control["environmentalEnvelope"]["disableCell"] = "relay_0"
         with self.assertRaisesRegex(SpecError, "disableCell must reference a required cell"):
             compiled_asset_for_mechanism_structure(bad_control)
+
+    def test_mech003_compiles_beltless_manual_processing_cell_exactly(self) -> None:
+        first = self.compile_mech003()
+        second = self.compile_mech003()
+        self.assertEqual(first, second)
+        self.assertEqual(
+            first["digestSha256"],
+            "8509f14ab82c4711ed381ad5f4b6dd57350f95886c6b6c44ef4e07717a89a4c7",
+        )
+        self.assertEqual(first["compilerVersion"], "mech-0.3-fixed-world")
+        self.assertEqual(first["envelope"]["size"], [7, 4, 5])
+        self.assertEqual(len(first["placements"]), 50)
+        self.assertEqual(first["requiredPlatformCapability"], "CREATE_WORLD_ITEM_CUT_PRESS_LIFECYCLE")
+        self.assertEqual(first["sourcePolicy"], "qualification_power_not_gameplay_canon")
+        by_id = {placement["id"]: placement for placement in first["placements"]}
+        self.assertEqual(
+            by_id["cut_station"]["blockState"],
+            {
+                "name": "create:mechanical_saw",
+                "properties": {"axis_along_first": "true", "facing": "up", "flipped": "false"},
+            },
+        )
+        self.assertEqual(
+            by_id["press_station"]["blockState"],
+            {"name": "create:mechanical_press", "properties": {"facing": "east"}},
+        )
+        self.assertEqual(by_id["press_world_surface"]["blockState"], {"name": "minecraft:stone_bricks"})
+        processing = first["processingEnvelope"]
+        self.assertEqual([station["role"] for station in processing["stations"]], ["cut", "press"])
+        self.assertEqual(processing["manualHandoff"]["mode"], "world_item_restage")
+        self.assertIn("create:belt", processing["forbiddenTransportBlocks"])
+        self.assertIn("create:depot", processing["forbiddenTransportBlocks"])
+        contract = first["productProcessingContract"]
+        self.assertEqual(contract["recipeAuthority"], "live_exact_stack_recipe_manager")
+        self.assertEqual(contract["expectedStepRoles"], ["cut", "press"])
+        self.assertEqual(contract["loopCountAuthority"], "live_recipe")
+        self.assertEqual(contract["terminalResultPolicy"], "live_weighted_result_pool")
+        self.assertFalse(contract["singleAttemptSuccessRequired"])
+
+    def test_mech003_structure_export_is_deterministic_and_transport_free(self) -> None:
+        plan = self.compile_mech003()
+        encoded = encode_mechanism_structure_nbt(plan)
+        self.assertEqual(
+            hashlib.sha256(encoded).hexdigest(),
+            "8de1dfbe91bd659321a2ca92fd7548441b93c3bf4d7bc1b67bc869c2b8778029",
+        )
+        raw = gzip.decompress(encoded)
+        self.assertIn(b"create:mechanical_saw", raw)
+        self.assertIn(b"create:mechanical_press", raw)
+        self.assertIn(b"create:creative_motor", raw)
+        self.assertIn(b"create:shaft", raw)
+        self.assertNotIn(b"create:depot", raw)
+        self.assertNotIn(b"create:mechanical_arm", raw)
+
+    def test_mech003_platform_authority_and_processing_contract_fail_closed(self) -> None:
+        ledger = copy.deepcopy(self.ledger)
+        ledger["capabilities"]["CREATE_WORLD_ITEM_CUT_PRESS_LIFECYCLE"]["production_authority_for_agents"]["C"] = False
+        with self.assertRaisesRegex(SpecError, "Agent C lacks platform authority"):
+            compile_functional_mechanism(self.mech003_spec, ledger)
+
+        spec = copy.deepcopy(self.mech003_spec)
+        spec["mechanism"]["stagingRole"] = "automatic_belt_handoff"
+        with self.assertRaisesRegex(SpecError, "world_item_manual_handoff"):
+            compile_functional_mechanism(spec, self.ledger)
+
+        bad_station = copy.deepcopy(self.compile_mech003())
+        bad_station["processingEnvelope"]["stations"][0]["placementId"] = "missing_station"
+        with self.assertRaisesRegex(SpecError, "processing station references unknown placement"):
+            compiled_asset_for_mechanism_structure(bad_station)
+
+        forbidden = copy.deepcopy(self.compile_mech003())
+        forbidden["placements"][0]["blockState"] = {"name": "create:depot"}
+        with self.assertRaisesRegex(SpecError, "forbidden transport blocks"):
+            compiled_asset_for_mechanism_structure(forbidden)
 
     def test_cli_derives_structure_name_from_spec_filename(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
