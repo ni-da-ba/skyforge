@@ -1,0 +1,60 @@
+diff --git a/src/main/java/dev/fallingcloud/windy/WindDirector.java b/src/main/java/dev/fallingcloud/windy/WindDirector.java
+--- a/src/main/java/dev/fallingcloud/windy/WindDirector.java
++++ b/src/main/java/dev/fallingcloud/windy/WindDirector.java
+@@ -222,7 +222,9 @@
+                 double y = py + (rng.nextDouble() * 14 - 4);
+                 BlockPos pos = BlockPos.containing(x, y, z);
+                 if (!level.isLoaded(pos) || !level.getBlockState(pos).isAir()) continue;
++                // Skyforge has airborne corridors beneath island overhangs; never require sky sight
++                // for physical wind cues. Keep the standalone Windy behavior unchanged.
++                if (!external && !level.canSeeSky(pos)) continue;
+-                if (!level.canSeeSky(pos)) continue;
+                 // Wisps are navigation cues: actual wind (m/s) / 20 ticks, not an artistic speed.
+                 Vec3 drift;
+                 if (external) {
+diff --git a/src/main/java/dev/fallingcloud/windy/WindRibbons.java b/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+--- a/src/main/java/dev/fallingcloud/windy/WindRibbons.java
++++ b/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+@@ -123,18 +123,26 @@
+                 int top = level.getHeight(Heightmap.Types.MOTION_BLOCKING, col.getX(), col.getZ());
+                 Ribbon r = new Ribbon();
+                 r.x = sx;
++                // In external mode sample the actual pilot's altitude, including *below*
++                // floating-island overhangs. Heightmap-only placement would hide that airflow.
++                r.y = WindDirector.hasExternalWind()
+-                // Keep airflow visible around craft high above floating islands.
+-                r.y = player.getY() > top + 18
+                         ? player.getY() + (rng.nextDouble() - 0.5) * 16
++                        : player.getY() > top + 18
++                                ? player.getY() + (rng.nextDouble() - 0.5) * 16
++                                : top + 1.2 + rng.nextDouble() * 4.5;
+-                        : top + 1.2 + rng.nextDouble() * 4.5;
+                 r.z = sz;
+                 r.age = 0;
+                 r.lifetime = 90 + rng.nextInt(80);
+                 r.width = 0.05f + rng.nextFloat() * 0.055f;
+                 r.phase = rng.nextFloat() * (float) Math.PI * 2;
+                 r.speedMul = 0.8f + rng.nextFloat() * 0.45f;
++                BlockPos atRibbon = BlockPos.containing(r.x, r.y, r.z);
++                // Do not spawn cosmetic wind inside Skyforge's suspended solid terrain.
++                if (!WindDirector.hasExternalWind()
++                        || (level.isLoaded(atRibbon) && level.getBlockState(atRibbon).isAir())) {
++                    r.points.add(new Vec3(r.x, r.y, r.z));
++                    ribbons.add(r);
++                }
+-                r.points.add(new Vec3(r.x, r.y, r.z));
+-                ribbons.add(r);
+             }
+         }
+ 
+@@ -145,7 +153,9 @@
+             Ribbon r = it.next();
+             r.age++;
+             double dx = r.x - px, dz = r.z - pz;
++            // Ribbons may rise/sink strongly; despawn outside the pilot's vertical view.
++            if (r.age > r.lifetime || dx * dx + dz * dz > 56 * 56
++                    || (WindDirector.hasExternalWind() && Math.abs(r.y - player.getY()) > 40)) {
+-            if (r.age > r.lifetime || dx * dx + dz * dz > 56 * 56) {
+                 it.remove();
+                 continue;
+             }

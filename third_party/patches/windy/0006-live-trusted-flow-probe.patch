@@ -1,0 +1,54 @@
+diff --git a/src/main/java/dev/fallingcloud/windy/A4mcWindStateProvider.java b/src/main/java/dev/fallingcloud/windy/A4mcWindStateProvider.java
+--- a/src/main/java/dev/fallingcloud/windy/A4mcWindStateProvider.java
++++ b/src/main/java/dev/fallingcloud/windy/A4mcWindStateProvider.java
+@@ -11,12 +11,19 @@
+ import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.world.phys.Vec3;
+ 
++import java.util.concurrent.atomic.AtomicBoolean;
++
+ /**
+  * Client presentation adapter for A4MC's replicated physical flow.
+  * This adapter cannot submit wind or change game physics. Local-only L2 is deliberately
+  * excluded, since that visualization could claim lift that server-side gliders do not get.
+  */
+ public final class A4mcWindStateProvider implements WindStateProvider {
++    // Opt-in CI diagnostic only. Never turn sampling or logging into an authority.
++    private static final boolean FLOW_PROBE = Boolean.getBoolean("skyforge.windy.flowProbe");
++    private static final AtomicBoolean LOGGED_TRUSTED = new AtomicBoolean(false);
++    private static final AtomicBoolean LOGGED_UNAVAILABLE = new AtomicBoolean(false);
++
+     @Override
+     public Sample sample(ClientLevel level, Vec3 point) {
+         if (!AeroClientWindApi.isAvailable()) return Sample.UNAVAILABLE;
+@@ -29,8 +36,17 @@
+                 SamplePolicy.SERVER_AGGREGATED_PREFERRED
+         );
+         if (!physical.hasFlow() || !physical.isServerTrusted()) {
++            if (FLOW_PROBE && LOGGED_UNAVAILABLE.compareAndSet(false, true)) {
++                Windy.LOGGER.info("SKYFORGE_WINDY_UNAVAILABLE_SAMPLE authority={} level={}",
++                        physical.authority(), physical.sourceLevel());
++            }
+             return Sample.UNAVAILABLE;
+         }
++        if (FLOW_PROBE && LOGGED_TRUSTED.compareAndSet(false, true)) {
++            Windy.LOGGER.info("SKYFORGE_WINDY_TRUSTED_SAMPLE authority={} level={} confidence={} effective_mps={}",
++                    physical.authority(), physical.sourceLevel(),
++                    physical.confidence(), physical.effectiveVelocityVector());
++        }
+         A4mcVec3 velocity = physical.effectiveVelocityVector();
+         A4mcVec3 gust = physical.gustVelocityVector();
+         double gustMagnitude = gust.length();
+diff --git a/src/main/java/dev/fallingcloud/windy/Windy.java b/src/main/java/dev/fallingcloud/windy/Windy.java
+--- a/src/main/java/dev/fallingcloud/windy/Windy.java
++++ b/src/main/java/dev/fallingcloud/windy/Windy.java
+@@ -49,6 +49,9 @@
+         // Missing A4MC flow is calm/unavailable, never synthetic fallback gusts.
+         if (ModList.get().isLoaded("aerodynamics4mc")) {
+             WindDirector.useExternalWind(new A4mcWindStateProvider());
++            if (Boolean.getBoolean("skyforge.windy.flowProbe")) {
++                LOGGER.info("SKYFORGE_WINDY_BOUND_A4MC");
++            }
+         }
+         NeoForge.EVENT_BUS.addListener(WindyCommands::onRegisterClientCommands);
+         LOGGER.info("[Windy] Initialised.");
