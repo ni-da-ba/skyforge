@@ -37,6 +37,7 @@ final class AircraftRudderYawAuthorityResourceTest {
         String build = Files.readString(PROJECT_DIRECTORY.resolve("build.gradle.kts"));
 
         assertTrue(observer.contains("static Observation observe"));
+        assertFalse(observer.contains("aggregate DRAG moment is zero"));
         assertTrue(yaw.contains("SkyforgeAerodynamicForceObservationAcceptance.observe"));
         assertTrue(yaw.contains("FORWARD_SPEED_MPS = 10.0"));
         assertTrue(yaw.contains("PHYSICAL_SETTLE_TICKS = 80"));

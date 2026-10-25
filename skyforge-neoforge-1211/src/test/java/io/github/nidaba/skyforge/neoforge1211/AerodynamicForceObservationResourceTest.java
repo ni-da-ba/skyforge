@@ -1,5 +1,6 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,6 +19,8 @@ class AerodynamicForceObservationResourceTest {
         assertTrue(source.contains("enableIndividualQueuedForcesTracking"));
         assertTrue(source.contains("forceTrackingReleased=true"));
         assertTrue(source.contains("aircraftSignConventionQualified=false"));
+        assertTrue(source.contains("aggregate DRAG moment is non-finite"));
+        assertFalse(source.contains("aggregate DRAG moment is zero"));
     }
     @Test void ledgerPublishesAcceptedL2Authority() throws Exception {
         String ledger = Files.readString(PROJECT_DIRECTORY.resolve(
