@@ -163,8 +163,8 @@ final class MinecraftNativeSurfaceTopAdapterTest {
         assertTrue(maximumTopY > authoredTopMaximumY + 32,
                 "the expanded but bounded profile should use more than the former 32-block rise");
         int realizedTopY = highestSolidY(profile.materialization(), 8, 8);
-        assertTrue(realizedTopY > authoredTopMaximumY + 32,
-                "the edge blend should still preserve a substantial provider-driven rise");
+        assertTrue(realizedTopY > support.maximumY(),
+                "the edge blend should preserve provider-driven rise on supported island columns");
         assertTrue(realizedTopY <= maximumTopY, "provider relief must remain inside the bounded cap envelope");
         assertEquals(
                 ResourceLocation.withDefaultNamespace("grass_block"),

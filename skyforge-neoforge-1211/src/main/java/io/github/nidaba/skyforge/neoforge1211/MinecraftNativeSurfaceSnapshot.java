@@ -12,6 +12,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.StructureManager;
 import net.minecraft.world.level.NoiseColumn;
 import net.minecraft.world.level.block.state.BlockState;
@@ -171,9 +172,15 @@ final class MinecraftNativeSurfaceSnapshot {
         int[] heightHalo = sampleProviderHeightHalo(
                 chunkPos,
                 (worldX, worldZ) -> {
-                    NoiseColumn column = generator.getBaseColumn(worldX, worldZ, level, randomState);
-                    return firstSolidSurfaceY(
-                            column, level.getMinBuildHeight(), level.getMaxBuildHeight());
+                    int surfaceHeight = generator.getBaseHeight(
+                            worldX,
+                            worldZ,
+                            Heightmap.Types.OCEAN_FLOOR_WG,
+                            level,
+                            randomState);
+                    return surfaceHeight > level.getMinBuildHeight()
+                            ? surfaceHeight - 1
+                            : Integer.MIN_VALUE;
                 });
         return new MinecraftNativeSurfaceSnapshot(
                 chunkPos, baselineY, worldYs, blockKeys, surfaceStrata, heightHalo);
