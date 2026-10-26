@@ -734,6 +734,16 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // Opens the exact saved provider-biome acceptance specimen for owner visual review.
+        create("moddedBiomePopulationReviewClient") {
+            client()
+            sourceSet.set(moddedBiomePopulationClientRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0054-modded-biome-review").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("acceptance")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         create("moddedBiomePopulationServer") {
             server()
             sourceSet.set(moddedBiomePopulationServerRuntime)
@@ -744,7 +754,8 @@ neoForge {
             programArgument("--world")
             programArgument("acceptance")
             systemProperty("skyforge.dev.biomePopulation", "true")
-            systemProperty("skyforge.dev.biomePopulation.upperBiome", "biomesoplenty:maple_woods")
+            systemProperty("skyforge.dev.biomePopulation.upperBiome", "biomesoplenty:rocky_shrubland")
+            systemProperty("skyforge.dev.biomePopulation.providerBiome", "true")
             systemProperty("skyforge.dev.biomePopulation.waitForRemoteClient", "true")
             systemProperty(
                 "skyforge.dev.biomePopulation.clientResultFile",
@@ -773,7 +784,8 @@ neoForge {
             programArgument("--world")
             programArgument("acceptance")
             systemProperty("skyforge.dev.biomePopulation", "true")
-            systemProperty("skyforge.dev.biomePopulation.upperBiome", "biomesoplenty:maple_woods")
+            systemProperty("skyforge.dev.biomePopulation.upperBiome", "biomesoplenty:rocky_shrubland")
+            systemProperty("skyforge.dev.biomePopulation.providerBiome", "true")
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0054-modded-biome-reopen")
