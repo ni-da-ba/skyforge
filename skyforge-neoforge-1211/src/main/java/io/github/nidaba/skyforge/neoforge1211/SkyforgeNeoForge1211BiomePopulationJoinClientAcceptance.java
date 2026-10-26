@@ -65,9 +65,9 @@ final class SkyforgeNeoForge1211BiomePopulationJoinClientAcceptance {
 
         if (System.nanoTime() - firstClientTickNanos > CLIENT_TIMEOUT_NANOS) {
             SkyforgeAutomatedAcceptanceHarness.failClientCase(
-                    "modded-biome client did not join the dedicated server within 360 seconds; "
+                    "modded-biome client did not reach safe-spawn acceptance within 360 seconds; "
                             + describeScreen(minecraft.screen)
-                            + "; connectionPresent=" + (minecraft.getConnection() != null));
+                            + "; " + describeClientState(minecraft));
             return;
         }
 
@@ -124,6 +124,37 @@ final class SkyforgeNeoForge1211BiomePopulationJoinClientAcceptance {
                         "spawnSupported", true,
                         "singleplayerServer", false));
         minecraft.stop();
+    }
+
+    private static String describeClientState(Minecraft minecraft) {
+        String level = minecraft.level == null
+                ? "level=none"
+                : "level=" + minecraft.level.dimension().location();
+        String player;
+        if (minecraft.player == null) {
+            player = "player=none";
+        } else {
+            BlockPos feet = minecraft.player.blockPosition();
+            BlockPos support = feet.below();
+            BlockState feetState = minecraft.level == null
+                    ? null
+                    : minecraft.level.getBlockState(feet);
+            BlockState supportState = minecraft.level == null
+                    ? null
+                    : minecraft.level.getBlockState(support);
+            player = "player=" + minecraft.player.getName().getString()
+                    + ", position=" + minecraft.player.position()
+                    + ", feet=" + feet
+                    + ", feetBlock=" + (feetState == null ? "unavailable" : feetState.getBlock())
+                    + ", supportBlock=" + (supportState == null ? "unavailable" : supportState.getBlock())
+                    + ", supportColliding=" + (supportState != null
+                            && !supportState.getCollisionShape(minecraft.level, support).isEmpty())
+                    + ", onGround=" + minecraft.player.onGround();
+        }
+        return level
+                + ", " + player
+                + ", singleplayerServer=" + (minecraft.getSingleplayerServer() != null)
+                + ", connectionPresent=" + (minecraft.getConnection() != null);
     }
 
     private static String describeScreen(Screen screen) {
