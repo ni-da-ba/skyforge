@@ -1,0 +1,64 @@
+name: SF-IMP-0054 Modded Biome Server Acceptance
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/sf-imp-0054-modded-biome.yml"
+      - "scripts/sf-imp-0054-modded-biome-acceptance.sh"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211BiomePopulationDevRuntime.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211BiomePopulationJoinClientAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAutomatedAcceptanceHarness.java"
+      - "skyforge-neoforge-1211/src/main/resources/**"
+      - "skyforge-neoforge-1211/src/development/**"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/sf-imp-0054-modded-biome.yml"
+      - "scripts/sf-imp-0054-modded-biome-acceptance.sh"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211BiomePopulationDevRuntime.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211BiomePopulationJoinClientAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAutomatedAcceptanceHarness.java"
+      - "skyforge-neoforge-1211/src/main/resources/**"
+      - "skyforge-neoforge-1211/src/development/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sf-imp-0054-modded-biome-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  dedicated-server-modded-biome:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Run dedicated-server and remote-client acceptance
+        shell: bash
+        run: bash scripts/sf-imp-0054-modded-biome-acceptance.sh
+
+      - name: Preserve server, client, and acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sf-imp-0054-modded-biome-server-client
+          path: |
+            sf-imp-0054-modded-biome-server-task.log
+            sf-imp-0054-modded-biome-client-task.log
+            skyforge-neoforge-1211/build/acceptance/sf-imp-0054-modded-biome/
+            skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-server/logs/
+            skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-join-client/logs/
+          if-no-files-found: warn
+          retention-days: 14
