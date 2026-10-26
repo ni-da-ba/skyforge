@@ -349,7 +349,7 @@ jobs:
 
       - name: Upload Dynamic FPS screen evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: wby-wave1b-dynamicfps-screen
           path: |
@@ -524,7 +524,7 @@ jobs:
 
       - name: Upload Wave 1 train-sanity evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: wby-wave1b-dynamicfps-train-admission
           path: |
@@ -682,7 +682,7 @@ jobs:
 
       - name: Upload Wave 1 save/reload evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: wby-wave1b-dynamicfps-save-reload-admission
           path: |
@@ -997,7 +997,7 @@ jobs:
 
       - name: Upload Wave 1 multiplayer evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: wby-wave1b-dynamicfps-multiplayer-admission
           path: |
