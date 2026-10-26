@@ -23,7 +23,10 @@ public final class MinecraftNativeSurfaceTopAdapter {
     private static final int CHUNK_WIDTH = 16;
     static final int MAX_PROVIDER_SURFACE_RISE_BLOCKS = 64;
     static final int PROVIDER_RELIEF_CURVE_REFERENCE_BLOCKS = 160;
-    static final int PROVIDER_RELIEF_EDGE_BLEND_RADIUS_BLOCKS = MAX_PROVIDER_SURFACE_RISE_BLOCKS;
+    // A 64-block fade consumed most of the provider relief in the treatment's 32-block
+    // interior band. Keep a broad two-and-a-half-chunk transition while allowing the selected
+    // island interior to retain the relief measured by the A/B acceptance.
+    static final int PROVIDER_RELIEF_EDGE_BLEND_RADIUS_BLOCKS = 40;
     private static final int MAX_FOOTPRINT_GRID_CELLS = 4_000_000;
     private final Map<SkyIslandWorldVolumeId, ProviderReliefFootprint> providerReliefFootprints =
             new ConcurrentHashMap<>();

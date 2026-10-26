@@ -127,6 +127,17 @@ final class MinecraftNativeSurfaceTopAdapterTest {
     }
 
     @Test
+    void providerReliefMeetsTheTreatmentMinimumInsideTheSelectedIslandInterior() {
+        int radius = MinecraftNativeSurfaceTopAdapter.PROVIDER_RELIEF_EDGE_BLEND_RADIUS_BLOCKS;
+        long treatmentRelief = MinecraftNativeSurfaceTopAdapter.blendProviderReliefAtFootprintEdge(
+                MinecraftNativeSurfaceTopAdapter.projectProviderRelief(160),
+                32,
+                radius);
+        assertTrue(treatmentRelief >= 48,
+                "the treatment's 32-block interior band must retain at least 48 blocks of a full provider ridge");
+    }
+
+    @Test
     void nativeReliefRaisesOnlyTheExactIslandTopCapAndClaimsAddedCells() {
         var catalog = SkyforgeNeoForge1211PopulationDevRuntime.catalog();
         var volume = catalog.volumes().getFirst();
