@@ -12,6 +12,8 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 
 /** Writes an accepted Skyforge materialization into one real Minecraft ChunkAccess. */
 public final class SkyforgeNeoForge1211ChunkWriter {
+    private static final java.util.logging.Logger LOGGER =
+            java.util.logging.Logger.getLogger(SkyforgeNeoForge1211ChunkWriter.class.getName());
     private static final int CHUNK_WIDTH = 16;
     private static final int CHUNK_AREA = CHUNK_WIDTH * CHUNK_WIDTH;
     private static final long SLOW_DEFERRED_PACKET_NANOS = 8_000_000L;
@@ -298,6 +300,10 @@ public final class SkyforgeNeoForge1211ChunkWriter {
         int minimumZ = materialization.chunkPos().getMinBlockZ();
         int assigned = 0;
         int solid = 0;
+        int providerClaimedPositions = 0;
+        int providerAdmissionRejected = 0;
+        int providerOccupiedPositions = 0;
+        int providerWrites = 0;
         var providerClaims = SkyforgeNativeTerrainWriteAuthority.currentClaims();
         BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos();
 
@@ -319,10 +325,16 @@ public final class SkyforgeNeoForge1211ChunkWriter {
                             worldX,
                             worldY,
                             worldZ);
+                    if (providerOwner.isPresent() && !expectedAir) {
+                        providerClaimedPositions++;
+                    }
                     if (!expectedAir
                             && enforcePhysicalAdmission
                             && !SkyforgePhysicalVolumeAdmissionStage.allowsWriteAt(
                                     worldX, worldY, worldZ, providerOwner)) {
+                        if (providerOwner.isPresent()) {
+                            providerAdmissionRejected++;
+                        }
                         continue;
                     }
 
@@ -335,6 +347,7 @@ public final class SkyforgeNeoForge1211ChunkWriter {
                     blockPos.set(worldX, worldY, worldZ);
                     BlockState previousState = chunk.getBlockState(blockPos);
                     if (providerOwner.isPresent() && !previousState.isAir()) {
+                        providerOccupiedPositions++;
                         continue;
                     }
                     chunk.setBlockState(blockPos, state, false);
@@ -346,11 +359,23 @@ public final class SkyforgeNeoForge1211ChunkWriter {
                     assigned++;
                     if (!state.isAir()) {
                         solid++;
+                        if (providerOwner.isPresent()) {
+                            providerWrites++;
+                        }
                     }
                 }
             }
         }
 
+        if (Boolean.getBoolean(SkyforgeTectonicTerrainAcceptance.ENABLE_PROPERTY)
+                && !providerClaims.isEmpty()) {
+            LOGGER.info("Tectonic provider write accounting: chunk="
+                    + materialization.chunkPos()
+                    + ", claimed=" + providerClaimedPositions
+                    + ", admissionRejected=" + providerAdmissionRejected
+                    + ", alreadyOccupied=" + providerOccupiedPositions
+                    + ", written=" + providerWrites);
+        }
         return new MinecraftChunkWriteResult(
                 assigned,
                 solid,

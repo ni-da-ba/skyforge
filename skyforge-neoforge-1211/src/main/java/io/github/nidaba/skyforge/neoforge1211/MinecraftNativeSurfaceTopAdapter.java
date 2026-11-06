@@ -2,9 +2,11 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import io.github.nidaba.skyforge.world.WorldBounds;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.FallingBlock;
@@ -19,6 +21,16 @@ import net.minecraft.world.level.chunk.ChunkAccess;
  */
 public final class MinecraftNativeSurfaceTopAdapter {
     private static final int CHUNK_WIDTH = 16;
+    static final int MAX_PROVIDER_SURFACE_RISE_BLOCKS = 64;
+    static final int PROVIDER_RELIEF_CURVE_REFERENCE_BLOCKS = 160;
+    // A 64-block fade consumed most of the provider relief in the treatment's 32-block
+    // interior band. Keep a two-chunk transition while allowing the selected
+    // island interior to retain the relief measured by the A/B acceptance.
+    static final int PROVIDER_RELIEF_EDGE_BLEND_RADIUS_BLOCKS = 32;
+    private static final int MAX_FOOTPRINT_GRID_CELLS = 4_000_000;
+    private final Map<SkyIslandWorldVolumeId, ProviderReliefFootprint> providerReliefFootprints =
+            new ConcurrentHashMap<>();
+    static final String PROVIDER_RELIEF_MAPPING = "bounded_signed_linear_160";
 
     /**
      * Compatibility overload for isolated tests and direct adapter usage.
@@ -36,9 +48,10 @@ public final class MinecraftNativeSurfaceTopAdapter {
     /**
      * Projects native provider relief onto the exposed top cap of composite Skyforge terrain.
      *
-     * <p>The provider's surface height is interpreted relative to its captured baseline (normally
-     * sea level), then added to the existing Skyforge surface. The result is clamped to the exact
-     * top volume's authored envelope. Only newly added positions receive provider claims; the
+     * <p>The provider's surface height is interpreted relative to its captured world-fixed
+     * baseline, then passed through a bounded linear relief curve onto the existing Skyforge
+     * surface. The result is clamped to the chunk build range and a bounded 64-block extension
+     * above the authored top-volume bound. Only newly added positions receive provider claims; the
      * compiled island footprint, lower body, and underside stay authoritative.
      */
     TerrainProfileAdaptation adaptTerrainProfile(
@@ -53,6 +66,12 @@ public final class MinecraftNativeSurfaceTopAdapter {
         }
 
         ResourceLocation[] blockKeys = materialization.blockKeys();
+        ResourceLocation dominantProviderSurfaceMaterial = dominantStableProviderSurfaceMaterial(snapshot);
+        ResourceLocation[] projectedSurfaceMaterials = new ResourceLocation[CHUNK_WIDTH * CHUNK_WIDTH];
+        int[] projectedSurfaceTopYs = new int[CHUNK_WIDTH * CHUNK_WIDTH];
+        int[] originalSurfaceTopYs = new int[CHUNK_WIDTH * CHUNK_WIDTH];
+        Arrays.fill(projectedSurfaceTopYs, Integer.MIN_VALUE);
+        Arrays.fill(originalSurfaceTopYs, Integer.MIN_VALUE);
         Map<Long, SkyIslandWorldVolumeId> providerWriteClaims = new HashMap<>();
         int maximumMaterializedY = materialization.minimumY() + materialization.height() - 1;
         for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
@@ -68,6 +87,8 @@ public final class MinecraftNativeSurfaceTopAdapter {
                     continue;
                 }
                 int originalTopY = materialization.minimumY() + topLocalY;
+                ResourceLocation authoredCapSurfaceMaterial =
+                        blockKeys[linearIndex(localX, topLocalY, localZ)];
                 var owners = adapter.claimingVolumeIds(worldX, originalTopY, worldZ);
                 if (owners.size() != 1) {
                     continue;
@@ -86,7 +107,9 @@ public final class MinecraftNativeSurfaceTopAdapter {
                     capBottomLocalY--;
                 }
                 int capBottomY = materialization.minimumY() + capBottomLocalY;
-                int maximumAllowedY = Math.min(maximumMaterializedY, floorToInt(volumeBounds.maximumY()));
+                int maximumAllowedY = Math.min(
+                        maximumMaterializedY,
+                        Math.addExact(floorToInt(volumeBounds.maximumY()), MAX_PROVIDER_SURFACE_RISE_BLOCKS));
                 int minimumAllowedY = Math.max(
                         materialization.minimumY(),
                         Math.max(capBottomY, ceilToInt(volumeBounds.minimumY())));
@@ -94,12 +117,43 @@ public final class MinecraftNativeSurfaceTopAdapter {
                     continue;
                 }
 
-                long desiredY = (long) originalTopY
-                        + nativeSurface.orElseThrow().worldY()
+                // Provider terrain is a local shape signal on a floating island, not
+                // an absolute elevation datum. The exact Skyforge footprint owns the blend mask:
+                // full provider relief is reached only inside the island, while relief fades to zero
+                // over a 64-block edge band. This joins the native profile to the authored cap rather
+                // than ending a full-height provider hill at the island silhouette.
+                ProviderReliefFootprint footprint = providerReliefFootprints.computeIfAbsent(
+                        ownerId,
+                        ignored -> ProviderReliefFootprint.capture(adapter, ownerId, volumeBounds));
+                int edgeDistance = footprint.interiorDistance(worldX, worldZ);
+                long providerRelief = (long) snapshot.smoothedProviderSurfaceY(localX, localZ)
                         - snapshot.baselineY();
+                long projectedProviderRelief = blendProviderReliefAtFootprintEdge(
+                        projectProviderRelief(providerRelief),
+                        edgeDistance,
+                        PROVIDER_RELIEF_EDGE_BLEND_RADIUS_BLOCKS);
+                long desiredY = (long) originalTopY + projectedProviderRelief;
                 int targetTopY = (int) Math.max(
                         (long) minimumAllowedY,
                         Math.min((long) maximumAllowedY, desiredY));
+                ResourceLocation nativeBlockKey = nativeSurface.orElseThrow().blockKey();
+                ResourceLocation selectedSurfaceMaterial;
+                if (dominantProviderSurfaceMaterial != null
+                        && ((SkyforgeMinecraftBlockPalette.STONE.equals(nativeBlockKey)
+                                        && !SkyforgeMinecraftBlockPalette.STONE.equals(dominantProviderSurfaceMaterial))
+                                || !stableTerrainProfileMaterial(nativeBlockKey))) {
+                    // A minority stone cap or a falling provider surface (for example gravel) must
+                    // inherit the stable regional surface. Falling blocks cannot be projected onto
+                    // an island top, and falling back to a local authored stone cap recreates the
+                    // isolated gray patch that the provider adaptation is meant to remove.
+                    selectedSurfaceMaterial = dominantProviderSurfaceMaterial;
+                } else if (stableTerrainProfileMaterial(nativeBlockKey)) {
+                    selectedSurfaceMaterial = nativeBlockKey;
+                } else if (stableTerrainProfileMaterial(authoredCapSurfaceMaterial)) {
+                    selectedSurfaceMaterial = authoredCapSurfaceMaterial;
+                } else {
+                    selectedSurfaceMaterial = SkyforgeMinecraftBlockPalette.STONE;
+                }
                 int targetLocalY = targetTopY - materialization.minimumY();
                 if (targetTopY > originalTopY) {
                     for (int worldY = originalTopY + 1; worldY <= targetTopY; worldY++) {
@@ -109,32 +163,137 @@ public final class MinecraftNativeSurfaceTopAdapter {
                                 net.minecraft.core.BlockPos.asLong(worldX, worldY, worldZ),
                                 ownerId);
                     }
+                    // The added island rise needs more than a one-voxel material cap. Copy a
+                    // bounded native near-surface profile into newly claimed cells so exposed
+                    // ledges retain the provider's grass/dirt/stone transition instead of becoming
+                    // an artificial stone shell. Falling materials are excluded at every depth.
+                    for (int depth = 1; depth < MinecraftNativeSurfaceSnapshot.SURFACE_STRATA_DEPTH; depth++) {
+                        int worldY = targetTopY - depth;
+                        if (worldY <= originalTopY) {
+                            break;
+                        }
+                        var stratum = snapshot.surfaceStratum(localX, localZ, depth);
+                        if (stratum.isPresent()) {
+                            ResourceLocation stratumMaterial = stratum.orElseThrow();
+                            if (!stableTerrainProfileMaterial(stratumMaterial)
+                                    || (SkyforgeMinecraftBlockPalette.STONE.equals(nativeBlockKey)
+                                            && dominantProviderSurfaceMaterial != null
+                                            && !SkyforgeMinecraftBlockPalette.STONE.equals(
+                                                    dominantProviderSurfaceMaterial)
+                                            && SkyforgeMinecraftBlockPalette.STONE.equals(stratumMaterial))) {
+                                // Do not leave stone filler where an unsupported provider layer was
+                                // rejected; that fallback recreates the same feature-shaped patch.
+                                stratumMaterial = selectedSurfaceMaterial;
+                            }
+                            if (stableTerrainProfileMaterial(stratumMaterial)) {
+                                int localY = worldY - materialization.minimumY();
+                                blockKeys[linearIndex(localX, localY, localZ)] = stratumMaterial;
+                            }
+                        }
+                    }
                 } else if (targetTopY < originalTopY) {
                     for (int worldY = targetTopY + 1; worldY <= originalTopY; worldY++) {
                         int localY = worldY - materialization.minimumY();
                         blockKeys[linearIndex(localX, localY, localZ)] = SkyforgeMinecraftBlockPalette.AIR;
                     }
+                    // Lowered columns expose the old Skyforge cap interior. Replacing only the
+                    // new top leaves a broad gray stone patch around the provider-cut basin.
+                    // Apply the same bounded provider strata to the newly exposed top layer.
+                    for (int depth = 1; depth < MinecraftNativeSurfaceSnapshot.SURFACE_STRATA_DEPTH; depth++) {
+                        int worldY = targetTopY - depth;
+                        if (worldY < minimumAllowedY) {
+                            break;
+                        }
+                        var stratum = snapshot.surfaceStratum(localX, localZ, depth);
+                        if (stratum.isPresent()) {
+                            ResourceLocation stratumMaterial = stratum.orElseThrow();
+                            if (!stableTerrainProfileMaterial(stratumMaterial)
+                                    || (SkyforgeMinecraftBlockPalette.STONE.equals(nativeBlockKey)
+                                            && dominantProviderSurfaceMaterial != null
+                                            && !SkyforgeMinecraftBlockPalette.STONE.equals(
+                                                    dominantProviderSurfaceMaterial)
+                                            && SkyforgeMinecraftBlockPalette.STONE.equals(stratumMaterial))) {
+                                stratumMaterial = selectedSurfaceMaterial;
+                            }
+                            if (stableTerrainProfileMaterial(stratumMaterial)) {
+                                int localY = worldY - materialization.minimumY();
+                                blockKeys[linearIndex(localX, localY, localZ)] = stratumMaterial;
+                            }
+                        }
+                    }
                 }
 
                 int targetIndex = linearIndex(localX, targetLocalY, localZ);
-                ResourceLocation nativeBlockKey = nativeSurface.orElseThrow().blockKey();
-                if (stableWhenAdapted(blockKeys, targetLocalY, localX, localZ, nativeBlockKey)) {
-                    blockKeys[targetIndex] = nativeBlockKey;
+                if (stableTerrainProfileMaterial(selectedSurfaceMaterial)) {
+                    blockKeys[targetIndex] = selectedSurfaceMaterial;
                 }
+                int surfaceIndex = localX + CHUNK_WIDTH * localZ;
+                projectedSurfaceMaterials[surfaceIndex] = blockKeys[targetIndex];
+                projectedSurfaceTopYs[surfaceIndex] = targetTopY;
+                originalSurfaceTopYs[surfaceIndex] = originalTopY;
             }
         }
 
+        // Newly raised cells deeper than the captured near-surface strata remain structural
+        // stone. Repainting the entire exposed rise with its top block creates tall, repeating
+        // grass/dirt walls; the cap and its first four native layers already form the visible skin.
+
+        // A provider cut can expose original Skyforge cap voxels on a neighboring, unlowered
+        // column. Re-skin only faces that were blocked before projection and became exposed
+        // because an adjacent column's projected top moved below this voxel. This leaves natural
+        // island cliffs and unrelated original faces untouched.
         for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
             for (int localX = 0; localX < CHUNK_WIDTH; localX++) {
-                var nativeSurface = snapshot.surface(localX, localZ);
-                if (nativeSurface.isPresent()) {
-                    adaptExposedTops(
-                            blockKeys,
-                            materialization.minimumY(),
-                            materialization.height(),
-                            localX,
-                            localZ,
-                            nativeSurface.orElseThrow());
+                int surfaceIndex = localX + CHUNK_WIDTH * localZ;
+                int projectedTopY = projectedSurfaceTopYs[surfaceIndex];
+                ResourceLocation selectedSurfaceMaterial = projectedSurfaceMaterials[surfaceIndex];
+                if (projectedTopY == Integer.MIN_VALUE
+                        || !stableTerrainProfileMaterial(selectedSurfaceMaterial)) {
+                    continue;
+                }
+
+                int sideSkinReferenceY = Math.min(projectedTopY, originalSurfaceTopYs[surfaceIndex]);
+                int lowestSkinnedY = Math.max(
+                        materialization.minimumY(),
+                        sideSkinReferenceY - MAX_PROVIDER_SURFACE_RISE_BLOCKS);
+                for (int worldY = projectedTopY; worldY >= lowestSkinnedY; worldY--) {
+                    int localY = worldY - materialization.minimumY();
+                    int index = linearIndex(localX, localY, localZ);
+                    if (SkyforgeMinecraftBlockPalette.AIR.equals(blockKeys[index])
+                            || !hasHorizontalAirExposure(blockKeys, localX, localY, localZ)
+                            || !exposedByProviderCut(
+                                    originalSurfaceTopYs,
+                                    projectedSurfaceTopYs,
+                                    localX,
+                                    localZ,
+                                    worldY)) {
+                        continue;
+                    }
+
+                    // Reskin only the captured native near-surface layers at the join.
+                    // Below that short transition, retain the island's authored block instead
+                    // of extending one provider surface block down a tall exposed wall.
+                    int depth = sideSkinReferenceY - worldY;
+                    if (depth < 0 || depth >= MinecraftNativeSurfaceSnapshot.SURFACE_STRATA_DEPTH) {
+                        continue;
+                    }
+                    ResourceLocation sideSurfaceMaterial = selectedSurfaceMaterial;
+                    var stratum = snapshot.surfaceStratum(localX, localZ, depth);
+                    if (stratum.isPresent()) {
+                        sideSurfaceMaterial = stratum.orElseThrow();
+                        var providerSurface = snapshot.surface(localX, localZ).orElseThrow();
+                        if (!stableTerrainProfileMaterial(sideSurfaceMaterial)
+                                || (SkyforgeMinecraftBlockPalette.STONE.equals(providerSurface.blockKey())
+                                        && dominantProviderSurfaceMaterial != null
+                                        && !SkyforgeMinecraftBlockPalette.STONE.equals(
+                                                dominantProviderSurfaceMaterial)
+                                        && SkyforgeMinecraftBlockPalette.STONE.equals(sideSurfaceMaterial))) {
+                            sideSurfaceMaterial = selectedSurfaceMaterial;
+                        }
+                    }
+                    if (stableTerrainProfileMaterial(sideSurfaceMaterial)) {
+                        blockKeys[index] = sideSurfaceMaterial;
+                    }
                 }
             }
         }
@@ -146,6 +305,198 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 blockKeys,
                 materialization.candidateVolumeReferences());
         return new TerrainProfileAdaptation(adapted, providerWriteClaims);
+    }
+
+    static long blendProviderReliefAtFootprintEdge(
+            long projectedRelief,
+            int interiorDistance,
+            int blendRadius) {
+        if (interiorDistance < 0 || blendRadius <= 0) {
+            throw new IllegalArgumentException("provider relief blend distance/radius is invalid");
+        }
+        double position = Math.min(1.0, interiorDistance / (double) blendRadius);
+        double smoothstep = position * position * (3.0 - 2.0 * position);
+        return Math.round(projectedRelief * smoothstep);
+    }
+
+    /**
+     * Exact horizontal distance-to-edge field for one Skyforge island. It is built once per
+     * runtime-bound volume so the broad transition band does not repeat support queries per chunk.
+     */
+    private static final class ProviderReliefFootprint {
+        private final int minimumX;
+        private final int minimumZ;
+        private final int width;
+        private final int height;
+        private final byte[] interiorDistances;
+
+        private ProviderReliefFootprint(
+                int minimumX,
+                int minimumZ,
+                int width,
+                int height,
+                byte[] interiorDistances) {
+            this.minimumX = minimumX;
+            this.minimumZ = minimumZ;
+            this.width = width;
+            this.height = height;
+            this.interiorDistances = interiorDistances;
+        }
+
+        static ProviderReliefFootprint capture(
+                SkyforgeNeoForge1211ChunkAdapter adapter,
+                SkyIslandWorldVolumeId volumeId,
+                WorldBounds bounds) {
+            int radius = PROVIDER_RELIEF_EDGE_BLEND_RADIUS_BLOCKS;
+            int supportMinimumX = ceilToInt(bounds.minimumX());
+            int supportMaximumX = floorToInt(bounds.maximumX());
+            int supportMinimumZ = ceilToInt(bounds.minimumZ());
+            int supportMaximumZ = floorToInt(bounds.maximumZ());
+            int minimumX = Math.subtractExact(supportMinimumX, radius);
+            int minimumZ = Math.subtractExact(supportMinimumZ, radius);
+            int width = Math.addExact(Math.addExact(
+                    Math.subtractExact(supportMaximumX, supportMinimumX), 1), radius * 2);
+            int height = Math.addExact(Math.addExact(
+                    Math.subtractExact(supportMaximumZ, supportMinimumZ), 1), radius * 2);
+            long cellCount = (long) width * height;
+            if (width <= 0 || height <= 0 || cellCount > MAX_FOOTPRINT_GRID_CELLS) {
+                throw new IllegalStateException(
+                        "Skyforge island footprint is too large for exact provider-relief edge blending");
+            }
+
+            byte[] distances = new byte[(int) cellCount];
+            Arrays.fill(distances, (byte) -1);
+            int[] frontier = new int[(int) cellCount];
+            int frontierSize = 0;
+            int supportWidth = supportMaximumX - supportMinimumX + 1;
+            int supportHeight = supportMaximumZ - supportMinimumZ + 1;
+            for (int gridZ = 0; gridZ < height; gridZ++) {
+                int worldZ = minimumZ + gridZ;
+                int supportZ = worldZ - supportMinimumZ;
+                for (int gridX = 0; gridX < width; gridX++) {
+                    int worldX = minimumX + gridX;
+                    int supportX = worldX - supportMinimumX;
+                    boolean insideBounds = supportX >= 0
+                            && supportX < supportWidth
+                            && supportZ >= 0
+                            && supportZ < supportHeight;
+                    boolean supported = insideBounds
+                            && adapter.integerSolidRange(volumeId, worldX, worldZ).isPresent();
+                    if (!supported) {
+                        int index = gridX + width * gridZ;
+                        distances[index] = 0;
+                        frontier[frontierSize++] = index;
+                    }
+                }
+            }
+
+            // An 8-neighbor breadth-first transform gives a deterministic Chebyshev interior
+            // distance. Values saturate at the transition radius, which is all the blend needs.
+            int frontierRead = 0;
+            while (frontierRead < frontierSize) {
+                int index = frontier[frontierRead++];
+                int nextDistance = (distances[index] & 0xff) + 1;
+                if (nextDistance > radius) {
+                    continue;
+                }
+                int gridX = index % width;
+                int gridZ = index / width;
+                for (int deltaZ = -1; deltaZ <= 1; deltaZ++) {
+                    int neighborZ = gridZ + deltaZ;
+                    if (neighborZ < 0 || neighborZ >= height) {
+                        continue;
+                    }
+                    for (int deltaX = -1; deltaX <= 1; deltaX++) {
+                        if (deltaX == 0 && deltaZ == 0) {
+                            continue;
+                        }
+                        int neighborX = gridX + deltaX;
+                        if (neighborX < 0 || neighborX >= width) {
+                            continue;
+                        }
+                        int neighborIndex = neighborX + width * neighborZ;
+                        if (distances[neighborIndex] != (byte) -1) {
+                            continue;
+                        }
+                        distances[neighborIndex] = (byte) nextDistance;
+                        frontier[frontierSize++] = neighborIndex;
+                    }
+                }
+            }
+
+            return new ProviderReliefFootprint(minimumX, minimumZ, width, height, distances);
+        }
+
+        int interiorDistance(int worldX, int worldZ) {
+            int gridX = worldX - minimumX;
+            int gridZ = worldZ - minimumZ;
+            if (gridX < 0 || gridX >= width || gridZ < 0 || gridZ >= height) {
+                return 0;
+            }
+            return interiorDistances[gridX + width * gridZ] & 0xff;
+        }
+    }
+
+    /**
+     * Transfers signed source relief through a bounded quadratic curve. Positive relief raises
+     * peaks and negative relief cuts valleys while the exact Skyforge top-volume envelope remains
+     * the final height authority.
+     */
+    static long projectProviderRelief(long providerRelief) {
+        long magnitude = Math.min(
+                providerRelief == Long.MIN_VALUE ? Long.MAX_VALUE : Math.abs(providerRelief),
+                PROVIDER_RELIEF_CURVE_REFERENCE_BLOCKS);
+        long numerator = (long) MAX_PROVIDER_SURFACE_RISE_BLOCKS * magnitude;
+        long projectedMagnitude =
+                (numerator + PROVIDER_RELIEF_CURVE_REFERENCE_BLOCKS / 2)
+                        / PROVIDER_RELIEF_CURVE_REFERENCE_BLOCKS;
+        return providerRelief < 0 ? -projectedMagnitude : projectedMagnitude;
+    }
+
+    private static boolean exposedByProviderCut(
+            int[] originalSurfaceTopYs,
+            int[] projectedSurfaceTopYs,
+            int localX,
+            int localZ,
+            int worldY) {
+        return cutExposesNeighbor(originalSurfaceTopYs, projectedSurfaceTopYs, localX - 1, localZ, worldY)
+                || cutExposesNeighbor(originalSurfaceTopYs, projectedSurfaceTopYs, localX + 1, localZ, worldY)
+                || cutExposesNeighbor(originalSurfaceTopYs, projectedSurfaceTopYs, localX, localZ - 1, worldY)
+                || cutExposesNeighbor(originalSurfaceTopYs, projectedSurfaceTopYs, localX, localZ + 1, worldY);
+    }
+
+    private static boolean cutExposesNeighbor(
+            int[] originalSurfaceTopYs,
+            int[] projectedSurfaceTopYs,
+            int localX,
+            int localZ,
+            int worldY) {
+        if (localX < 0 || localX >= CHUNK_WIDTH || localZ < 0 || localZ >= CHUNK_WIDTH) {
+            return false;
+        }
+        int surfaceIndex = localX + CHUNK_WIDTH * localZ;
+        int originalTopY = originalSurfaceTopYs[surfaceIndex];
+        int projectedTopY = projectedSurfaceTopYs[surfaceIndex];
+        return originalTopY >= worldY && projectedTopY < worldY;
+    }
+
+    private static boolean hasHorizontalAirExposure(
+            ResourceLocation[] blockKeys,
+            int localX,
+            int localY,
+            int localZ) {
+        return (localX > 0
+                        && SkyforgeMinecraftBlockPalette.AIR.equals(
+                                blockKeys[linearIndex(localX - 1, localY, localZ)]))
+                || (localX + 1 < CHUNK_WIDTH
+                        && SkyforgeMinecraftBlockPalette.AIR.equals(
+                                blockKeys[linearIndex(localX + 1, localY, localZ)]))
+                || (localZ > 0
+                        && SkyforgeMinecraftBlockPalette.AIR.equals(
+                                blockKeys[linearIndex(localX, localY, localZ - 1)]))
+                || (localZ + 1 < CHUNK_WIDTH
+                        && SkyforgeMinecraftBlockPalette.AIR.equals(
+                                blockKeys[linearIndex(localX, localY, localZ + 1)]));
     }
 
     private static int highestSolidLocalY(
@@ -185,6 +536,46 @@ public final class MinecraftNativeSurfaceTopAdapter {
             providerWriteClaims = Map.copyOf(
                     Objects.requireNonNull(providerWriteClaims, "providerWriteClaims"));
         }
+    }
+
+    private static ResourceLocation dominantStableProviderSurfaceMaterial(
+            MinecraftNativeSurfaceSnapshot snapshot) {
+        Map<ResourceLocation, Integer> counts = new HashMap<>();
+        for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
+            for (int localX = 0; localX < CHUNK_WIDTH; localX++) {
+                snapshot.surface(localX, localZ)
+                        .map(MinecraftNativeSurfaceSnapshot.NativeSurface::blockKey)
+                        .filter(MinecraftNativeSurfaceTopAdapter::stableTerrainProfileMaterial)
+                        .ifPresent(material -> counts.merge(material, 1, Integer::sum));
+            }
+        }
+
+        ResourceLocation dominant = null;
+        int dominantCount = 0;
+        for (var entry : counts.entrySet()) {
+            int count = entry.getValue();
+            if (count > dominantCount
+                    || (count == dominantCount
+                            && (dominant == null
+                                    || entry.getKey().toString().compareTo(dominant.toString()) < 0))) {
+                dominant = entry.getKey();
+                dominantCount = count;
+            }
+        }
+        return dominant;
+    }
+
+    /**
+     * Provider profile materials may replace the authored cap only when they preserve a stable,
+     * coherent island surface.
+     *
+     * <p>Falling blocks can settle through hollow seams. A minority provider-stone region follows
+     * the chunk's dominant stable provider surface material, preventing an isolated gray patch
+     * while retaining stone where it is the provider's dominant terrain surface.
+     */
+    private static boolean stableTerrainProfileMaterial(ResourceLocation materialKey) {
+        return !SkyforgeMinecraftBlockPalette.AIR.equals(materialKey)
+                && !(BuiltInRegistries.BLOCK.get(materialKey) instanceof FallingBlock);
     }
 
     /** Returns a materialization whose exposed Skyforge tops inherit the captured native surface. */
@@ -244,12 +635,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
 
             int worldY = minimumY + localY;
             if (nativeSurface.worldY() < worldY
-                    && stableWhenAdapted(
-                            blockKeys,
-                            localY,
-                            localX,
-                            localZ,
-                            nativeSurface.blockKey())) {
+                    && stableWhenAdapted(nativeSurface.blockKey())) {
                 blockKeys[index] = nativeSurface.blockKey();
             }
         }
@@ -258,27 +644,14 @@ public final class MinecraftNativeSurfaceTopAdapter {
     /**
      * Prevents concrete native representation from invalidating authoritative Skyforge occupancy.
      *
-     * <p>A gravity-affected native surface block may be copied onto an elevated Skyforge top only
-     * when the Skyforge materialization already contains a solid immediately below it. Otherwise a
-     * one-voxel fringe can fall after realization and disappear before/after save, violating the
-     * accepted ADR-0041 invariant that surface adaptation never removes a Skyforge solid.
-     * Non-falling native materials remain eligible exactly as before.
+     * <p>Gravity-affected native surface blocks are never copied onto floating Skyforge tops.
+     * Even when a sampled column has a local support block, the provider material can form a
+     * detached edge beside a hollow seam and fall after neighboring columns are realized. Keeping
+     * Skyforge's stable structural top at those columns prevents the native surface adapter from
+     * destabilizing island occupancy. Non-falling native materials remain eligible.
      */
-    private static boolean stableWhenAdapted(
-            ResourceLocation[] blockKeys,
-            int localY,
-            int localX,
-            int localZ,
-            ResourceLocation nativeBlockKey) {
-        var nativeBlock = BuiltInRegistries.BLOCK.get(nativeBlockKey);
-        if (!(nativeBlock instanceof FallingBlock)) {
-            return true;
-        }
-        if (localY == 0) {
-            return false;
-        }
-        return !SkyforgeMinecraftBlockPalette.AIR.equals(
-                blockKeys[linearIndex(localX, localY - 1, localZ)]);
+    private static boolean stableWhenAdapted(ResourceLocation nativeBlockKey) {
+        return !(BuiltInRegistries.BLOCK.get(nativeBlockKey) instanceof FallingBlock);
     }
 
     private static int linearIndex(int localX, int localY, int localZ) {
