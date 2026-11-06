@@ -127,6 +127,27 @@ final class MinecraftNativeSurfaceTopAdapterTest {
     }
 
     @Test
+    void providerSurfaceSkinSharesTheSameFootprintInfluenceAsTerrainRelief() {
+        int radius = MinecraftNativeSurfaceTopAdapter.PROVIDER_RELIEF_EDGE_BLEND_RADIUS_BLOCKS;
+        int maximumLayers = MinecraftNativeSurfaceSnapshot.SURFACE_STRATA_DEPTH;
+
+        assertEquals(
+                0,
+                MinecraftNativeSurfaceTopAdapter.providerSurfaceLayerCountAtFootprintEdge(0, radius, maximumLayers),
+                "the authored island cap owns the exact footprint rim");
+        assertEquals(
+                maximumLayers / 2,
+                MinecraftNativeSurfaceTopAdapter.providerSurfaceLayerCountAtFootprintEdge(
+                        radius / 2, radius, maximumLayers),
+                "the provider surface profile should transition with the same midpoint influence as relief");
+        assertEquals(
+                maximumLayers,
+                MinecraftNativeSurfaceTopAdapter.providerSurfaceLayerCountAtFootprintEdge(
+                        radius, radius, maximumLayers),
+                "the complete provider surface profile is admitted inside the blend band");
+    }
+
+    @Test
     void providerReliefMeetsTheTreatmentMinimumInsideTheSelectedIslandInterior() {
         int radius = MinecraftNativeSurfaceTopAdapter.PROVIDER_RELIEF_EDGE_BLEND_RADIUS_BLOCKS;
         long treatmentRelief = MinecraftNativeSurfaceTopAdapter.blendProviderReliefAtFootprintEdge(
