@@ -1028,7 +1028,7 @@ final class SkyforgeTectonicTerrainAcceptance {
         Map<String, Object> metrics = SkyforgeRuntimePerformanceMetrics.evidence();
         long haloCalls = metricValue(metrics, "perf.terrain.providerSnapshot.heightHalo.calls");
         long haloSamples = metricValue(metrics, "perf.terrain.providerSnapshot.providerSurfaceHeightSamples.total");
-        long cacheHits = metricValue(metrics, "perf.terrain.providerSnapshot.surfaceChunkCacheHits.total");
+        long cacheHits = metricValue(metrics, "perf.terrain.providerSnapshot.heightTileCacheHits.total");
         long haloNanos = metricValue(metrics, "perf.terrain.providerSnapshot.heightHalo.totalNanos");
         long expectedHaloSamples = Math.multiplyExact(
                 haloCalls, MinecraftNativeSurfaceSnapshot.PROVIDER_HEIGHT_HALO_SAMPLE_COUNT);
@@ -1037,7 +1037,7 @@ final class SkyforgeTectonicTerrainAcceptance {
                     + haloCalls + ", samples=" + haloSamples + ", expected=" + expectedHaloSamples);
         }
         if (cacheHits * 10 < haloSamples * 9) {
-            fail(server, "provider halo failed to reuse generated surface tiles: samples="
+            fail(server, "provider halo failed to reuse generated height tiles: samples="
                     + haloSamples + ", cacheHits=" + cacheHits);
         }
         if (treatment && haloNanos > MAX_TECTONIC_HEIGHT_HALO_NANOS) {
