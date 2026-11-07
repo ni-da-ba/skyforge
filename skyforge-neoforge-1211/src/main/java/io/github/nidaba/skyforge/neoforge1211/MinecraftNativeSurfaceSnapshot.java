@@ -48,6 +48,10 @@ final class MinecraftNativeSurfaceSnapshot {
     private static final ConcurrentHashMap<ProviderSurfaceChunkKey, MinecraftNativeSurfaceSnapshot>
             PROVIDER_SURFACE_CHUNKS = new ConcurrentHashMap<>();
     private static final AtomicBoolean TRIMMING_PROVIDER_SURFACE_CHUNKS = new AtomicBoolean();
+    private static final int MAX_CACHED_PROVIDER_HEIGHT_CHUNKS = 1_024;
+    private static final ConcurrentHashMap<ProviderSurfaceChunkKey, int[]>
+            PROVIDER_HEIGHT_CHUNKS = new ConcurrentHashMap<>();
+    private static final AtomicBoolean TRIMMING_PROVIDER_HEIGHT_CHUNKS = new AtomicBoolean();
 
     private final ChunkPos chunkPos;
     private final int baselineY;
@@ -323,13 +327,7 @@ final class MinecraftNativeSurfaceSnapshot {
             ChunkPos chunkPos,
             NoiseBasedChunkGenerator generator,
             RandomState randomState) {
-        ProviderSurfaceChunkKey key = new ProviderSurfaceChunkKey(
-                generator,
-                randomState,
-                level.getMinBuildHeight(),
-                level.getMaxBuildHeight(),
-                chunkPos.x,
-                chunkPos.z);
+        ProviderSurfaceChunkKey key = providerSurfaceChunkKey(level, chunkPos, generator, randomState);
         java.util.concurrent.atomic.AtomicBoolean created = new java.util.concurrent.atomic.AtomicBoolean();
         MinecraftNativeSurfaceSnapshot captured = PROVIDER_SURFACE_CHUNKS.computeIfAbsent(
                 key,
@@ -343,6 +341,7 @@ final class MinecraftNativeSurfaceSnapshot {
                         ? "terrain.providerSnapshot.surfaceChunkCacheMisses"
                         : "terrain.providerSnapshot.surfaceChunkCacheHits",
                 1);
+        PROVIDER_HEIGHT_CHUNKS.putIfAbsent(key, captured.copySurfaceHeights());
         if (created.get()) {
             trimProviderSurfaceChunks();
         }
@@ -385,9 +384,83 @@ final class MinecraftNativeSurfaceSnapshot {
                 "terrain.providerSnapshot.providerSurfaceHeightSamples",
                 1);
         ChunkPos sampleChunk = new ChunkPos(worldX >> 4, worldZ >> 4);
-        MinecraftNativeSurfaceSnapshot tile = cachedProviderSurfaceChunk(
-                level, structureManager, sampleChunk, generator, randomState);
-        return tile.surfaceY(worldX & 15, worldZ & 15);
+        ProviderSurfaceChunkKey key = providerSurfaceChunkKey(
+                level, sampleChunk, generator, randomState);
+        int[] heights = PROVIDER_HEIGHT_CHUNKS.get(key);
+        boolean created = false;
+        if (heights == null) {
+            AtomicBoolean generated = new AtomicBoolean();
+            heights = PROVIDER_HEIGHT_CHUNKS.computeIfAbsent(
+                    key,
+                    ignored -> {
+                        generated.set(true);
+                        return generateProviderHeightChunk(
+                                level, structureManager, sampleChunk, generator, randomState);
+                    });
+            created = generated.get();
+            if (created) {
+                trimProviderHeightChunks();
+            }
+        }
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                created
+                        ? "terrain.providerSnapshot.heightTileCacheMisses"
+                        : "terrain.providerSnapshot.heightTileCacheHits",
+                1);
+        return heights[(worldX & 15) + CHUNK_WIDTH * (worldZ & 15)];
+    }
+
+    private static int[] generateProviderHeightChunk(
+            WorldGenRegion level,
+            StructureManager structureManager,
+            ChunkPos chunkPos,
+            NoiseBasedChunkGenerator generator,
+            RandomState randomState) {
+        ProtoChunk providerChunk = detachedProviderChunk(level, chunkPos);
+        long stageStart = SkyforgeRuntimePerformanceMetrics.start();
+        generator.fillFromNoise(
+                        Blender.of(level), randomState, structureManager, providerChunk)
+                .join();
+        SkyforgeRuntimePerformanceMetrics.recordSince("terrain.providerSnapshot.fillFromNoise", stageStart);
+        stageStart = SkyforgeRuntimePerformanceMetrics.start();
+        int[] heights = captureProviderSurfaceHeights(providerChunk);
+        SkyforgeRuntimePerformanceMetrics.recordSince("terrain.providerSnapshot.captureHeightTile", stageStart);
+        return heights;
+    }
+
+    private static int[] captureProviderSurfaceHeights(ChunkAccess chunk) {
+        int[] heights = new int[SAMPLE_COUNT];
+        Arrays.fill(heights, Integer.MIN_VALUE);
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        int maximumY = chunk.getMinBuildHeight() + chunk.getHeight() - 1;
+        for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
+            int worldZ = chunk.getPos().getMinBlockZ() + localZ;
+            for (int localX = 0; localX < CHUNK_WIDTH; localX++) {
+                int worldX = chunk.getPos().getMinBlockX() + localX;
+                for (int worldY = maximumY; worldY >= chunk.getMinBuildHeight(); worldY--) {
+                    BlockState state = chunk.getBlockState(cursor.set(worldX, worldY, worldZ));
+                    if (!state.isAir() && state.getFluidState().isEmpty()) {
+                        heights[index(localX, localZ)] = worldY;
+                        break;
+                    }
+                }
+            }
+        }
+        return heights;
+    }
+
+    private static ProviderSurfaceChunkKey providerSurfaceChunkKey(
+            WorldGenRegion level,
+            ChunkPos chunkPos,
+            NoiseBasedChunkGenerator generator,
+            RandomState randomState) {
+        return new ProviderSurfaceChunkKey(
+                generator,
+                randomState,
+                level.getMinBuildHeight(),
+                level.getMaxBuildHeight(),
+                chunkPos.x,
+                chunkPos.z);
     }
 
     private static void trimProviderSurfaceChunks() {
@@ -403,6 +476,22 @@ final class MinecraftNativeSurfaceSnapshot {
             }
         } finally {
             TRIMMING_PROVIDER_SURFACE_CHUNKS.set(false);
+        }
+    }
+
+    private static void trimProviderHeightChunks() {
+        if (PROVIDER_HEIGHT_CHUNKS.size() <= MAX_CACHED_PROVIDER_HEIGHT_CHUNKS
+                || !TRIMMING_PROVIDER_HEIGHT_CHUNKS.compareAndSet(false, true)) {
+            return;
+        }
+        try {
+            int targetSize = MAX_CACHED_PROVIDER_HEIGHT_CHUNKS / 2;
+            var keys = PROVIDER_HEIGHT_CHUNKS.keySet().iterator();
+            while (PROVIDER_HEIGHT_CHUNKS.size() > targetSize && keys.hasNext()) {
+                PROVIDER_HEIGHT_CHUNKS.remove(keys.next());
+            }
+        } finally {
+            TRIMMING_PROVIDER_HEIGHT_CHUNKS.set(false);
         }
     }
 
@@ -536,6 +625,10 @@ final class MinecraftNativeSurfaceSnapshot {
             throw new IllegalArgumentException("local surface coordinate must be inside one chunk");
         }
         return worldYs[index(localX, localZ)];
+    }
+
+    private int[] copySurfaceHeights() {
+        return Arrays.copyOf(worldYs, worldYs.length);
     }
 
     Optional<ResourceLocation> surfaceStratum(int localX, int localZ, int depth) {
