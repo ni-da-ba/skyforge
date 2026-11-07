@@ -39,7 +39,7 @@ final class MinecraftNativeSurfaceSnapshot {
     private static final int PROFILE_FILTER_RADIUS = 5;
     private static final int PROFILE_SAMPLE_HALO_RADIUS = PROFILE_FILTER_RADIUS;
     private static final int PROFILE_FILTER_WIDTH = CHUNK_WIDTH + PROFILE_SAMPLE_HALO_RADIUS * 2;
-    private static final int PROFILE_FILTER_SAMPLE_COUNT = PROFILE_FILTER_WIDTH * PROFILE_FILTER_WIDTH;
+    static final int PROVIDER_HEIGHT_HALO_SAMPLE_COUNT = PROFILE_FILTER_WIDTH * PROFILE_FILTER_WIDTH;
     private static final Map<ProviderDatumKey, Integer> PROVIDER_TERRAIN_DATUMS = new ConcurrentHashMap<>();
     // The 11x11 smoothing kernel needs at most a one-chunk border. Cache immutable provider
     // surface tiles so neighboring halos reuse chunk-level generation instead of thousands of
@@ -80,7 +80,7 @@ final class MinecraftNativeSurfaceSnapshot {
         if (surfaceStrata.length != SAMPLE_COUNT) {
             throw new IllegalArgumentException("native surface strata must contain exactly 256 columns");
         }
-        if (providerHeightHalo.length != PROFILE_FILTER_SAMPLE_COUNT) {
+        if (providerHeightHalo.length != PROVIDER_HEIGHT_HALO_SAMPLE_COUNT) {
             throw new IllegalArgumentException("provider height halo must include the chunk and the profile-filter border");
         }
         this.worldYs = Arrays.copyOf(worldYs, worldYs.length);
@@ -192,7 +192,7 @@ final class MinecraftNativeSurfaceSnapshot {
             ProviderSurfaceHeightSampler sampler) {
         Objects.requireNonNull(chunkPos, "chunkPos");
         Objects.requireNonNull(sampler, "sampler");
-        int[] halo = new int[PROFILE_FILTER_SAMPLE_COUNT];
+        int[] halo = new int[PROVIDER_HEIGHT_HALO_SAMPLE_COUNT];
         Arrays.fill(halo, Integer.MIN_VALUE);
         for (int localZ = -PROFILE_SAMPLE_HALO_RADIUS; localZ < CHUNK_WIDTH + PROFILE_SAMPLE_HALO_RADIUS; localZ++) {
             for (int localX = -PROFILE_SAMPLE_HALO_RADIUS; localX < CHUNK_WIDTH + PROFILE_SAMPLE_HALO_RADIUS; localX++) {
@@ -213,7 +213,7 @@ final class MinecraftNativeSurfaceSnapshot {
         if (worldYs.length != SAMPLE_COUNT) {
             throw new IllegalArgumentException("provider profile must contain exactly 256 chunk columns");
         }
-        int[] halo = new int[PROFILE_FILTER_SAMPLE_COUNT];
+        int[] halo = new int[PROVIDER_HEIGHT_HALO_SAMPLE_COUNT];
         Arrays.fill(halo, Integer.MIN_VALUE);
         for (int localZ = -PROFILE_SAMPLE_HALO_RADIUS; localZ < CHUNK_WIDTH + PROFILE_SAMPLE_HALO_RADIUS; localZ++) {
             for (int localX = -PROFILE_SAMPLE_HALO_RADIUS; localX < CHUNK_WIDTH + PROFILE_SAMPLE_HALO_RADIUS; localX++) {
@@ -381,6 +381,9 @@ final class MinecraftNativeSurfaceSnapshot {
             RandomState randomState,
             int worldX,
             int worldZ) {
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "terrain.providerSnapshot.providerSurfaceHeightSamples",
+                1);
         ChunkPos sampleChunk = new ChunkPos(worldX >> 4, worldZ >> 4);
         MinecraftNativeSurfaceSnapshot tile = cachedProviderSurfaceChunk(
                 level, structureManager, sampleChunk, generator, randomState);
