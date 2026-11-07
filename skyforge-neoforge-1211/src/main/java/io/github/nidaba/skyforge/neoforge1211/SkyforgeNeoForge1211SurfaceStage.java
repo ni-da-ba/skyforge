@@ -109,9 +109,26 @@ public final class SkyforgeNeoForge1211SurfaceStage {
             }
         }
         SkyforgeRuntimePerformanceMetrics.recordSince("terrain.realize.adaptSurface", stageStart);
+        boolean exactAdmissionFastPath =
+                SkyforgePhysicalVolumeAdmissionStage.canUseExactDirectWriteFastPath(
+                        chunk,
+                        materialization.minimumY(),
+                        materialization.height(),
+                        providerWriteClaims);
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "terrain.realizeExactAdmissionFastPath",
+                exactAdmissionFastPath ? 1L : 0L);
         stageStart = SkyforgeRuntimePerformanceMetrics.start();
-        MinecraftChunkWriteResult result = binding.writer().writeProviderTerrainOverlay(
-                chunk, materialization, providerWriteClaims);
+        MinecraftChunkWriteResult result;
+        if (exactAdmissionFastPath && providerWriteClaims.isEmpty()) {
+            result = binding.writer().writeAdmittedExactSolidOverlay(chunk, materialization);
+        } else if (exactAdmissionFastPath) {
+            result = binding.writer().writeAdmittedProviderTerrainOverlay(
+                    chunk, materialization, providerWriteClaims);
+        } else {
+            result = binding.writer().writeProviderTerrainOverlay(
+                    chunk, materialization, providerWriteClaims);
+        }
         SkyforgeRuntimePerformanceMetrics.recordSince("terrain.realize.writeProviderOverlay", stageStart);
         applyHydrology(chunk, binding);
         SkyforgeNeoForge1211IsolationDevRuntime.verifyAfterSkyforge(chunk, isolationProof);
