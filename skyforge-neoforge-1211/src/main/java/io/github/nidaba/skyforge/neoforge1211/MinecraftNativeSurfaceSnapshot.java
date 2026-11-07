@@ -163,13 +163,24 @@ final class MinecraftNativeSurfaceSnapshot {
 
         ProtoChunk providerChunk = detachedProviderChunk(level, targetChunk.getPos());
         Blender blender = Blender.of(level);
+        long stageStart = SkyforgeRuntimePerformanceMetrics.start();
         generator.createBiomes(randomState, blender, structureManager, providerChunk).join();
+        SkyforgeRuntimePerformanceMetrics.recordSince("terrain.providerSnapshot.createBiomes", stageStart);
+        stageStart = SkyforgeRuntimePerformanceMetrics.start();
         generator.fillFromNoise(blender, randomState, structureManager, providerChunk).join();
+        SkyforgeRuntimePerformanceMetrics.recordSince("terrain.providerSnapshot.fillFromNoise", stageStart);
+        stageStart = SkyforgeRuntimePerformanceMetrics.start();
         generator.buildSurface(level, structureManager, randomState, providerChunk);
+        SkyforgeRuntimePerformanceMetrics.recordSince("terrain.providerSnapshot.buildSurface", stageStart);
+        stageStart = SkyforgeRuntimePerformanceMetrics.start();
         MinecraftNativeSurfaceSnapshot captured = capture(
                 providerChunk,
                 providerTerrainDatumY(generator, level, randomState));
-        return captured.withProviderHeightHalo(level, generator, randomState);
+        SkyforgeRuntimePerformanceMetrics.recordSince("terrain.providerSnapshot.captureSurface", stageStart);
+        stageStart = SkyforgeRuntimePerformanceMetrics.start();
+        MinecraftNativeSurfaceSnapshot withHalo = captured.withProviderHeightHalo(level, generator, randomState);
+        SkyforgeRuntimePerformanceMetrics.recordSince("terrain.providerSnapshot.heightHalo", stageStart);
+        return withHalo;
     }
 
     private MinecraftNativeSurfaceSnapshot withProviderHeightHalo(
