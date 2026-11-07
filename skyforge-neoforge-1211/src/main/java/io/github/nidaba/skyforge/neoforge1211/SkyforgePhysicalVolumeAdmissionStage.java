@@ -325,6 +325,47 @@ final class SkyforgePhysicalVolumeAdmissionStage {
     }
 
     /**
+     * Returns whether a direct chunk write can reuse the exact-volume admission proof.
+     *
+     * <p>This is deliberately limited to one already-admitted volume intersecting the entire
+     * materialization interval. Provider claims, when present, must name that same volume. Under
+     * these conditions pointwise catalog/support rediscovery cannot change the admission result;
+     * all mixed or overlapping cases retain the historical per-position gate.
+     */
+    static boolean canUseExactDirectWriteFastPath(
+            ChunkAccess chunk,
+            int minimumY,
+            int height,
+            Map<Long, SkyIslandWorldVolumeId> providerWriteClaims) {
+        Objects.requireNonNull(chunk, "chunk");
+        Objects.requireNonNull(providerWriteClaims, "providerWriteClaims");
+        if (height <= 0) {
+            throw new IllegalArgumentException("height must be positive");
+        }
+        Binding binding = ACTIVE.get();
+        if (binding == null) {
+            return false;
+        }
+        MinecraftChunkBounds chunkBounds = new MinecraftChunkBounds(chunk.getPos(), minimumY, height);
+        synchronized (binding) {
+            var candidates = binding.catalog().query(chunkBounds.worldBounds());
+            if (candidates.size() != 1) {
+                return false;
+            }
+            SkyIslandWorldVolumeId ownerId = candidates.getFirst().id();
+            if (!binding.ledger().admitted(ownerId)) {
+                return false;
+            }
+            for (SkyIslandWorldVolumeId claimOwner : providerWriteClaims.values()) {
+                if (!ownerId.equals(claimOwner)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
+
+    /**
      * Returns whether direct composite terrain realization can currently produce an authorized write.
      *
      * <p>When admission is absent, historical direct-realization behavior is preserved. With
