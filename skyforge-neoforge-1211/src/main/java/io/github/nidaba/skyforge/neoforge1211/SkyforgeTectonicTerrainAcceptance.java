@@ -233,8 +233,7 @@ final class SkyforgeTectonicTerrainAcceptance {
             if (treatment && realizedIslandRelief < MINIMUM_TECTONIC_ISLAND_RELIEF_BLOCKS) {
                 fail(server, "Tectonic provider profile did not create meaningful realized island relief: "
                         + realizedIslandRelief + " blocks (minimum "
-                        + MINIMUM_TECTONIC_ISLAND_RELIEF_BLOCKS + "), provider base-column source Y="
-                        + "captured provider surface="
+                        + MINIMUM_TECTONIC_ISLAND_RELIEF_BLOCKS + "), captured provider surface="
                         + capturedProviderSurfaceRange + ", datum Y="
                         + providerTerrainDatumY + ", realized island Y="
                         + realizedSurface.minimumY() + ".." + realizedSurface.maximumY()
@@ -249,8 +248,8 @@ final class SkyforgeTectonicTerrainAcceptance {
                 fail(server, "Tectonic treatment remains too plateau-like: "
                         + realizedIslandColumnsNearPeak + "/" + realizedSurface.samples()
                         + " island columns lie within 8 blocks of its highest peak (maximum "
-                        + MAXIMUM_TECTONIC_ISLAND_COLUMNS_NEAR_PEAK + "), provider source Y="
-                        + "captured provider surface=" + capturedProviderSurfaceRange + ", realized island Y="
+                        + MAXIMUM_TECTONIC_ISLAND_COLUMNS_NEAR_PEAK + "), captured provider surface="
+                        + capturedProviderSurfaceRange + ", realized island Y="
                         + realizedSurface.minimumY() + ".." + realizedSurface.maximumY());
                 return;
             }
