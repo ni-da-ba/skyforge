@@ -17,6 +17,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.ChunkAccess;
 
@@ -352,12 +353,35 @@ final class SkyforgePhysicalVolumeAdmissionStage {
             if (candidates.size() != 1) {
                 return false;
             }
-            SkyIslandWorldVolumeId ownerId = candidates.getFirst().id();
+            var owner = candidates.getFirst();
+            SkyIslandWorldVolumeId ownerId = owner.id();
             if (!binding.ledger().admitted(ownerId)) {
                 return false;
             }
-            for (SkyIslandWorldVolumeId claimOwner : providerWriteClaims.values()) {
-                if (!ownerId.equals(claimOwner)) {
+
+            // Validate the producer-issued claims once before taking the writer fast path. Support
+            // is column-invariant, so cache its exact interval across all provider skin blocks in
+            // that X/Z column instead of recomputing it for every claimed Y.
+            Map<Long, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> supportByColumn = new HashMap<>();
+            for (var claim : providerWriteClaims.entrySet()) {
+                if (!ownerId.equals(claim.getValue())) {
+                    return false;
+                }
+                BlockPos position = BlockPos.of(claim.getKey());
+                if (position.getY() < minimumY
+                        || position.getY() >= (long) minimumY + height
+                        || !(owner.bounds().contains(position.getX(), position.getY(), position.getZ())
+                                || withinProviderTerrainRiseEnvelope(
+                                        owner.bounds(), position.getX(), position.getY(), position.getZ()))) {
+                    return false;
+                }
+                long columnKey = BlockPos.asLong(position.getX(), 0, position.getZ());
+                Optional<SkyforgeExactVoxelSupportBounds.ColumnRange> support =
+                        supportByColumn.computeIfAbsent(
+                                columnKey,
+                                ignored -> SkyforgeNeoForge1211SurfaceStage.integerSolidRange(
+                                        ownerId, position.getX(), position.getZ()));
+                if (support.isEmpty() || position.getY() <= support.orElseThrow().maximumY()) {
                     return false;
                 }
             }
