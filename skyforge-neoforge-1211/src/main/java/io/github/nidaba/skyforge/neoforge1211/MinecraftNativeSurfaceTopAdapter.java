@@ -119,8 +119,11 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 // full provider relief is reached only inside the island, while relief fades to zero
                 // over a 64-block edge band. This joins the native profile to the authored cap rather
                 // than ending a full-height provider hill at the island silhouette.
+                long footprintStart = SkyforgeRuntimePerformanceMetrics.start();
                 ProviderReliefFootprint footprint = ProviderReliefFootprint.capture(
                         adapter, ownerId, volumeBounds, materialization.chunkPos());
+                SkyforgeRuntimePerformanceMetrics.recordSince(
+                        "terrain.providerSnapshot.reliefFootprint", footprintStart);
                 int edgeDistance = footprint.interiorDistance(worldX, worldZ);
                 double providerInfluence = providerReliefInfluenceAtFootprintEdge(
                         edgeDistance,
