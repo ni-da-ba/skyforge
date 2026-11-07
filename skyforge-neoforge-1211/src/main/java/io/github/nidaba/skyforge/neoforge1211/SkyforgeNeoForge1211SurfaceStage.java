@@ -80,8 +80,11 @@ public final class SkyforgeNeoForge1211SurfaceStage {
 
         SkyforgeNeoForge1211IsolationDevRuntime.Proof isolationProof =
                 SkyforgeNeoForge1211IsolationDevRuntime.captureBeforeSkyforge(chunk);
+        long stageStart = SkyforgeRuntimePerformanceMetrics.start();
         MinecraftChunkMaterialization materialization = materialize(binding, chunk);
+        SkyforgeRuntimePerformanceMetrics.recordSince("terrain.realize.materialize", stageStart);
         Map<Long, SkyIslandWorldVolumeId> providerWriteClaims = Map.of();
+        stageStart = SkyforgeRuntimePerformanceMetrics.start();
         if (binding.nativeSurfaceTopAdapter().isPresent()) {
             var adapter = binding.nativeSurfaceTopAdapter().orElseThrow();
             if (nativeSurfaceSnapshot.isPresent()) {
@@ -95,8 +98,11 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                 materialization = adapter.adapt(chunk, materialization);
             }
         }
+        SkyforgeRuntimePerformanceMetrics.recordSince("terrain.realize.adaptSurface", stageStart);
+        stageStart = SkyforgeRuntimePerformanceMetrics.start();
         MinecraftChunkWriteResult result = binding.writer().writeProviderTerrainOverlay(
                 chunk, materialization, providerWriteClaims);
+        SkyforgeRuntimePerformanceMetrics.recordSince("terrain.realize.writeProviderOverlay", stageStart);
         applyHydrology(chunk, binding);
         SkyforgeNeoForge1211IsolationDevRuntime.verifyAfterSkyforge(chunk, isolationProof);
         SkyforgeRuntimePerformanceMetrics.recordSince("terrain.realize", performanceStart);
