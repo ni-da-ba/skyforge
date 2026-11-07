@@ -165,7 +165,7 @@ final class MinecraftNativeSurfaceSnapshot {
         long stageStart = SkyforgeRuntimePerformanceMetrics.start();
         MinecraftNativeSurfaceSnapshot captured = cachedProviderSurfaceChunk(
                 level, structureManager, targetChunk.getPos(), generator, randomState);
-        SkyforgeRuntimePerformanceMetrics.recordSince("terrain.providerSnapshot.captureSurface", stageStart);
+        SkyforgeRuntimePerformanceMetrics.recordSince("terrain.providerSnapshot.surfaceChunkLookup", stageStart);
         stageStart = SkyforgeRuntimePerformanceMetrics.start();
         MinecraftNativeSurfaceSnapshot withHalo =
                 captured.withProviderHeightHalo(level, structureManager, generator, randomState);
