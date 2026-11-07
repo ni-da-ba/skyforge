@@ -348,45 +348,48 @@ final class SkyforgePhysicalVolumeAdmissionStage {
             return false;
         }
         MinecraftChunkBounds chunkBounds = new MinecraftChunkBounds(chunk.getPos(), minimumY, height);
+        SkyIslandWorldVolumeId ownerId;
+        WorldBounds ownerBounds;
         synchronized (binding) {
             var candidates = binding.catalog().query(chunkBounds.worldBounds());
             if (candidates.size() != 1) {
                 return false;
             }
             var owner = candidates.getFirst();
-            SkyIslandWorldVolumeId ownerId = owner.id();
-            if (!binding.ledger().admitted(ownerId)) {
+            if (!binding.ledger().admitted(owner.id())) {
                 return false;
             }
-
-            // Validate the producer-issued claims once before taking the writer fast path. Support
-            // is column-invariant, so cache its exact interval across all provider skin blocks in
-            // that X/Z column instead of recomputing it for every claimed Y.
-            Map<Long, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> supportByColumn = new HashMap<>();
-            for (var claim : providerWriteClaims.entrySet()) {
-                if (!ownerId.equals(claim.getValue())) {
-                    return false;
-                }
-                BlockPos position = BlockPos.of(claim.getKey());
-                if (position.getY() < minimumY
-                        || position.getY() >= (long) minimumY + height
-                        || !(owner.bounds().contains(position.getX(), position.getY(), position.getZ())
-                                || withinProviderTerrainRiseEnvelope(
-                                        owner.bounds(), position.getX(), position.getY(), position.getZ()))) {
-                    return false;
-                }
-                long columnKey = BlockPos.asLong(position.getX(), 0, position.getZ());
-                Optional<SkyforgeExactVoxelSupportBounds.ColumnRange> support =
-                        supportByColumn.computeIfAbsent(
-                                columnKey,
-                                ignored -> SkyforgeNeoForge1211SurfaceStage.integerSolidRange(
-                                        ownerId, position.getX(), position.getZ()));
-                if (support.isEmpty() || position.getY() <= support.orElseThrow().maximumY()) {
-                    return false;
-                }
-            }
-            return true;
+            ownerId = owner.id();
+            ownerBounds = owner.bounds();
         }
+
+        // Admission is terminal once granted. Validate producer-issued claims outside the admission
+        // lock, caching support by X/Z column so concurrent chunk admission is not serialized behind
+        // repeated support geometry queries.
+        Map<Long, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> supportByColumn = new HashMap<>();
+        for (var claim : providerWriteClaims.entrySet()) {
+            if (!ownerId.equals(claim.getValue())) {
+                return false;
+            }
+            BlockPos position = BlockPos.of(claim.getKey());
+            if (position.getY() < minimumY
+                    || position.getY() >= (long) minimumY + height
+                    || !(ownerBounds.contains(position.getX(), position.getY(), position.getZ())
+                            || withinProviderTerrainRiseEnvelope(
+                                    ownerBounds, position.getX(), position.getY(), position.getZ()))) {
+                return false;
+            }
+            long columnKey = BlockPos.asLong(position.getX(), 0, position.getZ());
+            Optional<SkyforgeExactVoxelSupportBounds.ColumnRange> support =
+                    supportByColumn.computeIfAbsent(
+                            columnKey,
+                            ignored -> SkyforgeNeoForge1211SurfaceStage.integerSolidRange(
+                                    ownerId, position.getX(), position.getZ()));
+            if (support.isEmpty() || position.getY() <= support.orElseThrow().maximumY()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
