@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -36,10 +37,16 @@ final class MinecraftNativeSurfaceSnapshot {
     private static final int SAMPLE_COUNT = CHUNK_WIDTH * CHUNK_WIDTH;
     static final int SURFACE_STRATA_DEPTH = 4;
     private static final int PROFILE_FILTER_RADIUS = 5;
-    private static final int PROFILE_SAMPLE_HALO_RADIUS = PROFILE_FILTER_RADIUS + 1;
+    private static final int PROFILE_SAMPLE_HALO_RADIUS = PROFILE_FILTER_RADIUS;
     private static final int PROFILE_FILTER_WIDTH = CHUNK_WIDTH + PROFILE_SAMPLE_HALO_RADIUS * 2;
     private static final int PROFILE_FILTER_SAMPLE_COUNT = PROFILE_FILTER_WIDTH * PROFILE_FILTER_WIDTH;
     private static final Map<ProviderDatumKey, Integer> PROVIDER_TERRAIN_DATUMS = new ConcurrentHashMap<>();
+    // Neighboring chunks' smoothing windows overlap heavily. Reuse deterministic provider heights
+    // across those windows, while bounding retained worldgen data for long-lived servers.
+    private static final int MAX_CACHED_PROVIDER_HEIGHT_SAMPLES = 32_768;
+    private static final ConcurrentHashMap<ProviderSurfaceHeightKey, Integer> PROVIDER_SURFACE_HEIGHT_SAMPLES =
+            new ConcurrentHashMap<>();
+    private static final AtomicBoolean TRIMMING_PROVIDER_SURFACE_HEIGHT_SAMPLES = new AtomicBoolean();
 
     private final ChunkPos chunkPos;
     private final int baselineY;
@@ -171,17 +178,8 @@ final class MinecraftNativeSurfaceSnapshot {
             RandomState randomState) {
         int[] heightHalo = sampleProviderHeightHalo(
                 chunkPos,
-                (worldX, worldZ) -> {
-                    int surfaceHeight = generator.getBaseHeight(
-                            worldX,
-                            worldZ,
-                            Heightmap.Types.OCEAN_FLOOR_WG,
-                            level,
-                            randomState);
-                    return surfaceHeight > level.getMinBuildHeight()
-                            ? surfaceHeight - 1
-                            : Integer.MIN_VALUE;
-                });
+                (worldX, worldZ) -> cachedProviderSurfaceHeight(
+                        generator, randomState, level, worldX, worldZ));
         return new MinecraftNativeSurfaceSnapshot(
                 chunkPos, baselineY, worldYs, blockKeys, surfaceStrata, heightHalo);
     }
@@ -316,6 +314,61 @@ final class MinecraftNativeSurfaceSnapshot {
         // adapter's 64-block rise limit.
         return originChunkSurfaceYs[0];
     }
+
+    private static int cachedProviderSurfaceHeight(
+            NoiseBasedChunkGenerator generator,
+            RandomState randomState,
+            net.minecraft.world.level.LevelHeightAccessor level,
+            int worldX,
+            int worldZ) {
+        ProviderSurfaceHeightKey key = new ProviderSurfaceHeightKey(
+                generator,
+                randomState,
+                level.getMinBuildHeight(),
+                level.getMaxBuildHeight(),
+                worldX,
+                worldZ);
+        Integer cached = PROVIDER_SURFACE_HEIGHT_SAMPLES.get(key);
+        if (cached != null) {
+            return cached;
+        }
+        int surfaceHeight = generator.getBaseHeight(
+                worldX,
+                worldZ,
+                Heightmap.Types.OCEAN_FLOOR_WG,
+                level,
+                randomState);
+        int sample = surfaceHeight > level.getMinBuildHeight()
+                ? surfaceHeight - 1
+                : Integer.MIN_VALUE;
+        Integer raced = PROVIDER_SURFACE_HEIGHT_SAMPLES.putIfAbsent(key, sample);
+        trimProviderSurfaceHeightSamples();
+        return raced == null ? sample : raced;
+    }
+
+    private static void trimProviderSurfaceHeightSamples() {
+        if (PROVIDER_SURFACE_HEIGHT_SAMPLES.size() <= MAX_CACHED_PROVIDER_HEIGHT_SAMPLES
+                || !TRIMMING_PROVIDER_SURFACE_HEIGHT_SAMPLES.compareAndSet(false, true)) {
+            return;
+        }
+        try {
+            int targetSize = MAX_CACHED_PROVIDER_HEIGHT_SAMPLES / 2;
+            var keys = PROVIDER_SURFACE_HEIGHT_SAMPLES.keySet().iterator();
+            while (PROVIDER_SURFACE_HEIGHT_SAMPLES.size() > targetSize && keys.hasNext()) {
+                PROVIDER_SURFACE_HEIGHT_SAMPLES.remove(keys.next());
+            }
+        } finally {
+            TRIMMING_PROVIDER_SURFACE_HEIGHT_SAMPLES.set(false);
+        }
+    }
+
+    private record ProviderSurfaceHeightKey(
+            NoiseBasedChunkGenerator generator,
+            RandomState randomState,
+            int minimumBuildHeight,
+            int maximumBuildHeight,
+            int worldX,
+            int worldZ) {}
 
     private record ProviderDatumKey(NoiseBasedChunkGenerator generator, RandomState randomState) {}
 
