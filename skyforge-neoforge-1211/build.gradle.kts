@@ -9433,9 +9433,7 @@ tasks.register("sfImp0054TectonicTerrainAcceptance") {
         val vanillaMaximumSurfaceY = vanilla.getProperty("realizedIslandSurfaceMaximumY").toInt()
         val treatmentMaximumSurfaceY = treatment.getProperty("realizedIslandSurfaceMaximumY").toInt()
         check(treatmentMaximumSurfaceY >= vanillaMaximumSurfaceY + sfImp0054MinimumRidgeClearanceBlocks) {
-            "SF-IMP-0054 Tectonic ridge did not exceed the same-seed vanilla island by "
-                + "$sfImp0054MinimumRidgeClearanceBlocks blocks: vanillaMaximumY=$vanillaMaximumSurfaceY, "
-                + "tectonicMaximumY=$treatmentMaximumSurfaceY"
+            "SF-IMP-0054 Tectonic ridge did not exceed the same-seed vanilla island by $sfImp0054MinimumRidgeClearanceBlocks blocks: vanillaMaximumY=$vanillaMaximumSurfaceY, tectonicMaximumY=$treatmentMaximumSurfaceY"
         }
         check(vanilla.getProperty("terrainProfileDigest") != treatment.getProperty("terrainProfileDigest")) {
             "SF-IMP-0054 Tectonic terrain profile did not differ from vanilla"
