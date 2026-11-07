@@ -56,7 +56,7 @@ final class SkyforgeAutomatedAcceptanceHarness {
     private static final String MODE_SERVER = "server";
     private static final String MODE_CLIENT = "client";
     private static final int DEFAULT_RADIUS = 2;
-    private static final int ACCEPTANCE_TICKET_DISTANCE = 3;
+    private static final int ACCEPTANCE_TICKET_DISTANCE = 0;
     private static final TicketType<ChunkPos> ACCEPTANCE_TICKET = TicketType.create(
             "skyforge_acceptance",
             Comparator.comparingLong(ChunkPos::toLong));
@@ -282,9 +282,9 @@ final class SkyforgeAutomatedAcceptanceHarness {
             net.minecraft.server.level.ServerChunkCache chunkSource,
             ChunkPos pos) {
         // The harness itself is the independent load reason for this finite proof corpus.
-        // A non-persistent development-only region ticket keeps each target stable between
-        // resumable production quanta without repeatedly synchronously loading hundreds of
-        // chunks on every server tick. Production code remains strictly getChunkNow-only.
+        // A zero-distance, non-persistent development-only ticket keeps only this target chunk
+        // stable while it is inspected. Do not expand an explicit one-chunk fixture into an
+        // unrelated neighboring region. Production code remains strictly getChunkNow-only.
         chunkSource.addRegionTicket(
                 ACCEPTANCE_TICKET,
                 pos,
