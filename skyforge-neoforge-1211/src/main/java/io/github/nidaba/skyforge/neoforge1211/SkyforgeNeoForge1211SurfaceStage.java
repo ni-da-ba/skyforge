@@ -109,12 +109,15 @@ public final class SkyforgeNeoForge1211SurfaceStage {
             }
         }
         SkyforgeRuntimePerformanceMetrics.recordSince("terrain.realize.adaptSurface", stageStart);
+        stageStart = SkyforgeRuntimePerformanceMetrics.start();
         boolean exactAdmissionFastPath =
                 SkyforgePhysicalVolumeAdmissionStage.canUseExactDirectWriteFastPath(
                         chunk,
                         materialization.minimumY(),
                         materialization.height(),
                         providerWriteClaims);
+        SkyforgeRuntimePerformanceMetrics.recordSince(
+                "terrain.realize.exactAdmissionProof", stageStart);
         SkyforgeRuntimePerformanceMetrics.recordSample(
                 "terrain.realizeExactAdmissionFastPath",
                 exactAdmissionFastPath ? 1L : 0L);
