@@ -474,19 +474,14 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
             int worldZ) {
         Objects.requireNonNull(volumeId, "volumeId");
         SupportColumnKey key = new SupportColumnKey(volumeId, worldX, worldZ);
-        Optional<SkyforgeExactVoxelSupportBounds.ColumnRange> cached = supportColumns.get(key);
-        if (cached != null) {
-            return cached;
-        }
-
-        Optional<SkyforgeExactVoxelSupportBounds.ColumnRange> computed =
-                SkyforgeExactVoxelSupportBounds.integerSolidRange(
+        Optional<SkyforgeExactVoxelSupportBounds.ColumnRange> cached = supportColumns.computeIfAbsent(
+                key,
+                ignored -> SkyforgeExactVoxelSupportBounds.integerSolidRange(
                         requireInterpreter(volumeId),
                         worldX,
-                        worldZ);
-        Optional<SkyforgeExactVoxelSupportBounds.ColumnRange> raced = supportColumns.putIfAbsent(key, computed);
+                        worldZ));
         trimSupportColumns();
-        return raced == null ? computed : raced;
+        return cached;
     }
 
     private void trimSupportColumns() {
