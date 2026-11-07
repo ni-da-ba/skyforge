@@ -6,7 +6,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.FallingBlock;
@@ -27,9 +26,6 @@ public final class MinecraftNativeSurfaceTopAdapter {
     // interior band. Keep a two-chunk transition while allowing the selected
     // island interior to retain the relief measured by the A/B acceptance.
     static final int PROVIDER_RELIEF_EDGE_BLEND_RADIUS_BLOCKS = 32;
-    private static final int MAX_FOOTPRINT_GRID_CELLS = 4_000_000;
-    private final Map<SkyIslandWorldVolumeId, ProviderReliefFootprint> providerReliefFootprints =
-            new ConcurrentHashMap<>();
     static final String PROVIDER_RELIEF_MAPPING = "bounded_signed_linear_160";
 
     /**
@@ -123,9 +119,8 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 // full provider relief is reached only inside the island, while relief fades to zero
                 // over a 64-block edge band. This joins the native profile to the authored cap rather
                 // than ending a full-height provider hill at the island silhouette.
-                ProviderReliefFootprint footprint = providerReliefFootprints.computeIfAbsent(
-                        ownerId,
-                        ignored -> ProviderReliefFootprint.capture(adapter, ownerId, volumeBounds));
+                ProviderReliefFootprint footprint = ProviderReliefFootprint.capture(
+                        adapter, ownerId, volumeBounds, materialization.chunkPos());
                 int edgeDistance = footprint.interiorDistance(worldX, worldZ);
                 double providerInfluence = providerReliefInfluenceAtFootprintEdge(
                         edgeDistance,
@@ -373,27 +368,24 @@ public final class MinecraftNativeSurfaceTopAdapter {
         static ProviderReliefFootprint capture(
                 SkyforgeNeoForge1211ChunkAdapter adapter,
                 SkyIslandWorldVolumeId volumeId,
-                WorldBounds bounds) {
+                WorldBounds bounds,
+                ChunkPos targetChunk) {
             int radius = PROVIDER_RELIEF_EDGE_BLEND_RADIUS_BLOCKS;
             int supportMinimumX = ceilToInt(bounds.minimumX());
             int supportMaximumX = floorToInt(bounds.maximumX());
             int supportMinimumZ = ceilToInt(bounds.minimumZ());
             int supportMaximumZ = floorToInt(bounds.maximumZ());
-            int minimumX = Math.subtractExact(supportMinimumX, radius);
-            int minimumZ = Math.subtractExact(supportMinimumZ, radius);
-            int width = Math.addExact(Math.addExact(
-                    Math.subtractExact(supportMaximumX, supportMinimumX), 1), radius * 2);
-            int height = Math.addExact(Math.addExact(
-                    Math.subtractExact(supportMaximumZ, supportMinimumZ), 1), radius * 2);
-            long cellCount = (long) width * height;
-            if (width <= 0 || height <= 0 || cellCount > MAX_FOOTPRINT_GRID_CELLS) {
-                throw new IllegalStateException(
-                        "Skyforge island footprint is too large for exact provider-relief edge blending");
-            }
-
-            byte[] distances = new byte[(int) cellCount];
+            // The influence saturates at radius, so a target chunk only needs an exact support
+            // window extending that far in each direction. Scanning the entire island bounds
+            // before its first visible chunk made startup cost grow with province-scale area.
+            int minimumX = Math.subtractExact(targetChunk.getMinBlockX(), radius);
+            int minimumZ = Math.subtractExact(targetChunk.getMinBlockZ(), radius);
+            int width = CHUNK_WIDTH + radius * 2;
+            int height = CHUNK_WIDTH + radius * 2;
+            int cellCount = Math.multiplyExact(width, height);
+            byte[] distances = new byte[cellCount];
             Arrays.fill(distances, (byte) -1);
-            int[] frontier = new int[(int) cellCount];
+            int[] frontier = new int[cellCount];
             int frontierSize = 0;
             int supportWidth = supportMaximumX - supportMinimumX + 1;
             int supportHeight = supportMaximumZ - supportMinimumZ + 1;
@@ -451,6 +443,13 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 }
             }
 
+            // Unsupported columns beyond this local grid cannot affect a target point beyond the
+            // radius. Treat every still-unreached interior sample as the saturated distance.
+            for (int index = 0; index < distances.length; index++) {
+                if (distances[index] < 0) {
+                    distances[index] = (byte) radius;
+                }
+            }
             return new ProviderReliefFootprint(minimumX, minimumZ, width, height, distances);
         }
 
