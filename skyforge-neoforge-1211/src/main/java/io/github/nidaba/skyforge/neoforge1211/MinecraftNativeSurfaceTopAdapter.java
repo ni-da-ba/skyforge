@@ -70,6 +70,8 @@ public final class MinecraftNativeSurfaceTopAdapter {
         Arrays.fill(projectedSurfaceTopYs, Integer.MIN_VALUE);
         Arrays.fill(originalSurfaceTopYs, Integer.MIN_VALUE);
         Map<Long, SkyIslandWorldVolumeId> providerWriteClaims = new HashMap<>();
+        Map<SkyIslandWorldVolumeId, ProviderReliefFootprint> providerReliefFootprintsForChunk =
+                new HashMap<>();
         int maximumMaterializedY = materialization.minimumY() + materialization.height() - 1;
         for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
             int worldZ = materialization.chunkPos().getMinBlockZ() + localZ;
@@ -119,11 +121,15 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 // full provider relief is reached only inside the island, while relief fades to zero
                 // over a 64-block edge band. This joins the native profile to the authored cap rather
                 // than ending a full-height provider hill at the island silhouette.
-                long footprintStart = SkyforgeRuntimePerformanceMetrics.start();
-                ProviderReliefFootprint footprint = ProviderReliefFootprint.capture(
-                        adapter, ownerId, volumeBounds, materialization.chunkPos());
-                SkyforgeRuntimePerformanceMetrics.recordSince(
-                        "terrain.providerSnapshot.reliefFootprint", footprintStart);
+                ProviderReliefFootprint footprint = providerReliefFootprintsForChunk.get(ownerId);
+                if (footprint == null) {
+                    long footprintStart = SkyforgeRuntimePerformanceMetrics.start();
+                    footprint = ProviderReliefFootprint.capture(
+                            adapter, ownerId, volumeBounds, materialization.chunkPos());
+                    SkyforgeRuntimePerformanceMetrics.recordSince(
+                            "terrain.providerSnapshot.reliefFootprint", footprintStart);
+                    providerReliefFootprintsForChunk.put(ownerId, footprint);
+                }
                 int edgeDistance = footprint.interiorDistance(worldX, worldZ);
                 double providerInfluence = providerReliefInfluenceAtFootprintEdge(
                         edgeDistance,
