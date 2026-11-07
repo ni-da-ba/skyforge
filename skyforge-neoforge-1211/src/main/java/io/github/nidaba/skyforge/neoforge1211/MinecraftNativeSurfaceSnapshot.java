@@ -339,22 +339,21 @@ final class MinecraftNativeSurfaceSnapshot {
                 level.getMaxBuildHeight(),
                 worldX,
                 worldZ);
-        Integer cached = PROVIDER_SURFACE_HEIGHT_SAMPLES.get(key);
-        if (cached != null) {
-            return cached;
-        }
-        int surfaceHeight = generator.getBaseHeight(
-                worldX,
-                worldZ,
-                Heightmap.Types.OCEAN_FLOOR_WG,
-                level,
-                randomState);
-        int sample = surfaceHeight > level.getMinBuildHeight()
-                ? surfaceHeight - 1
-                : Integer.MIN_VALUE;
-        Integer raced = PROVIDER_SURFACE_HEIGHT_SAMPLES.putIfAbsent(key, sample);
+        Integer cached = PROVIDER_SURFACE_HEIGHT_SAMPLES.computeIfAbsent(
+                key,
+                ignored -> {
+                    int surfaceHeight = generator.getBaseHeight(
+                            worldX,
+                            worldZ,
+                            Heightmap.Types.OCEAN_FLOOR_WG,
+                            level,
+                            randomState);
+                    return surfaceHeight > level.getMinBuildHeight()
+                            ? surfaceHeight - 1
+                            : Integer.MIN_VALUE;
+                });
         trimProviderSurfaceHeightSamples();
-        return raced == null ? sample : raced;
+        return cached;
     }
 
     private static void trimProviderSurfaceHeightSamples() {
