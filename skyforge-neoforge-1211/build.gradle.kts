@@ -9259,6 +9259,7 @@ tasks.register("f4kHydrologyReviewPrepareVerify") {
 
 
 val sfImp0054TectonicVerticalScale = 2.0
+val sfImp0054MinimumRidgeClearanceBlocks = 32
 val sfImp0054TectonicElevationBoost = 2.0
 // Higher horizontal noise frequency and thicker mountain ranges target island-scale relief.
 val sfImp0054TectonicContinentsScale = 0.5
@@ -9428,6 +9429,13 @@ tasks.register("sfImp0054TectonicTerrainAcceptance") {
                 && treatment.getProperty("providerSurfaceRuleMaterial").isNotBlank()
                 && treatmentSurfaceMaterialHandled) {
             "SF-IMP-0054 Tectonic treatment evidence is incomplete: $treatment"
+        }
+        val vanillaMaximumSurfaceY = vanilla.getProperty("realizedIslandSurfaceMaximumY").toInt()
+        val treatmentMaximumSurfaceY = treatment.getProperty("realizedIslandSurfaceMaximumY").toInt()
+        check(treatmentMaximumSurfaceY >= vanillaMaximumSurfaceY + sfImp0054MinimumRidgeClearanceBlocks) {
+            "SF-IMP-0054 Tectonic ridge did not exceed the same-seed vanilla island by "
+                + "$sfImp0054MinimumRidgeClearanceBlocks blocks: vanillaMaximumY=$vanillaMaximumSurfaceY, "
+                + "tectonicMaximumY=$treatmentMaximumSurfaceY"
         }
         check(vanilla.getProperty("terrainProfileDigest") != treatment.getProperty("terrainProfileDigest")) {
             "SF-IMP-0054 Tectonic terrain profile did not differ from vanilla"
