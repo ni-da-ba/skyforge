@@ -100,6 +100,26 @@ fun prepareTectonicReviewSave(
             "review artifact source $artifactSourceSha does not match checkout $checkedOutHead; use the exact source commit"
         }
     }
+    doLast {
+        // The CI artifact intentionally stores only the acceptance chunks. Generate a small
+        // neighboring window on the local client so the owner sees a connected island surface.
+        val optionsFile = targetGameDirectory.resolve("options.txt")
+        val existingOptions = if (optionsFile.isFile) optionsFile.readLines() else emptyList()
+        val desiredOptions = mapOf("renderDistance" to 2, "simulationDistance" to 2)
+        val foundOptions = mutableSetOf<String>()
+        val stagedOptions = existingOptions.map { line ->
+            val key = line.substringBefore(':')
+            val desiredValue = desiredOptions[key]
+            if (desiredValue == null) {
+                line
+            } else {
+                foundOptions.add(key)
+                "$key:$desiredValue"
+            }
+        } + desiredOptions.filterKeys { it !in foundOptions }.map { (key, value) -> "$key:$value" }
+        optionsFile.parentFile.mkdirs()
+        optionsFile.writeText(stagedOptions.joinToString(System.lineSeparator(), postfix = System.lineSeparator()))
+    }
 }
 
 val prepareTectonicVanillaReviewSave = prepareTectonicReviewSave(
@@ -800,6 +820,7 @@ neoForge {
             systemProperty("skyforge.dev.specimen", "true")
             systemProperty("skyforge.dev.tectonicTerrain", "true")
             systemProperty("skyforge.dev.tectonicTerrain.treatment", "false")
+            systemProperty("skyforge.dev.tectonicTerrainReviewIsland", "true")
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0054-tectonic-vanilla")
@@ -851,6 +872,7 @@ neoForge {
             systemProperty("skyforge.dev.specimen", "true")
             systemProperty("skyforge.dev.tectonicTerrain", "true")
             systemProperty("skyforge.dev.tectonicTerrain.treatment", "true")
+            systemProperty("skyforge.dev.tectonicTerrainReviewIsland", "true")
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0054-tectonic-treatment")
