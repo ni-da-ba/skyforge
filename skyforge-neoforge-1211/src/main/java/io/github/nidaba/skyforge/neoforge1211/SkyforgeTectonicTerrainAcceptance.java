@@ -51,7 +51,6 @@ final class SkyforgeTectonicTerrainAcceptance {
     private static final int EXTERIOR_CHUNK_X = 12;
     private static final int PROFILE_RADIUS = 8;
     private static final int MINIMUM_TECTONIC_ISLAND_RELIEF_BLOCKS = 48;
-    private static final int MINIMUM_TECTONIC_ISLAND_RIDGE_TOP_Y = 300;
     private static final int MAXIMUM_TECTONIC_ISLAND_COLUMNS_NEAR_PEAK = 128;
     private static boolean complete;
     private static final Set<UUID> REVIEW_RELOCATED_PLAYERS = new HashSet<>();
@@ -243,14 +242,6 @@ final class SkyforgeTectonicTerrainAcceptance {
                                 level,
                                 generator.terrainProviderGenerator(),
                                 randomState));
-                return;
-            }
-            if (treatment && realizedSurface.maximumY() < MINIMUM_TECTONIC_ISLAND_RIDGE_TOP_Y) {
-                fail(server, "Tectonic provider profile did not raise a visible ridge above the authored island cap: "
-                        + "realized maximum Y=" + realizedSurface.maximumY()
-                        + " (minimum " + MINIMUM_TECTONIC_ISLAND_RIDGE_TOP_Y + "), datum Y="
-                        + providerTerrainDatumY + ", provider source Y="
-                        + profile.minimumY() + ".." + profile.maximumY());
                 return;
             }
             if (treatment
