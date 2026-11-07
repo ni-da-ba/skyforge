@@ -84,9 +84,9 @@ final class SkyforgeTectonicTerrainAcceptance {
         int attempt = REVIEW_RELOCATION_ATTEMPTS.merge(playerId, 1, Math::addExact);
         BlockPos spawn = level.getSharedSpawnPos();
         boolean reviewCamera = Boolean.getBoolean(REVIEW_CAMERA_PROPERTY);
-        double targetX = reviewCamera ? 0.5 : spawn.getX() + 0.5;
+        double targetX = spawn.getX() + 0.5;
         int targetY = reviewCamera ? REVIEW_CAMERA_Y : spawn.getY();
-        double targetZ = reviewCamera ? 0.5 : spawn.getZ() + 0.5;
+        double targetZ = spawn.getZ() + 0.5;
         boolean teleported = player.teleportTo(
                 level,
                 targetX,
