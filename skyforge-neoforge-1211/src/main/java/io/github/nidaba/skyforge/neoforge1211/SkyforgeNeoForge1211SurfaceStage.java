@@ -80,8 +80,21 @@ public final class SkyforgeNeoForge1211SurfaceStage {
 
         SkyforgeNeoForge1211IsolationDevRuntime.Proof isolationProof =
                 SkyforgeNeoForge1211IsolationDevRuntime.captureBeforeSkyforge(chunk);
-        MinecraftChunkMaterialization materialization = materialize(binding, chunk);
+        long stageStart = SkyforgeRuntimePerformanceMetrics.start();
+        int providerRise = binding.nativeSurfaceTopAdapter().isPresent()
+                ? MinecraftNativeSurfaceTopAdapter.MAX_PROVIDER_SURFACE_RISE_BLOCKS
+                : 0;
+        VerticalRange materializationRange = boundedMaterializationRange(binding, chunk, providerRise);
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "terrain.realize.materializationVerticalSamples",
+                materializationRange.height());
+        MinecraftChunkMaterialization materialization = binding.adapter().materialize(
+                chunk.getPos(),
+                materializationRange.minimumY(),
+                materializationRange.height());
+        SkyforgeRuntimePerformanceMetrics.recordSince("terrain.realize.materialize", stageStart);
         Map<Long, SkyIslandWorldVolumeId> providerWriteClaims = Map.of();
+        stageStart = SkyforgeRuntimePerformanceMetrics.start();
         if (binding.nativeSurfaceTopAdapter().isPresent()) {
             var adapter = binding.nativeSurfaceTopAdapter().orElseThrow();
             if (nativeSurfaceSnapshot.isPresent()) {
@@ -95,8 +108,31 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                 materialization = adapter.adapt(chunk, materialization);
             }
         }
-        MinecraftChunkWriteResult result = binding.writer().writeProviderTerrainOverlay(
-                chunk, materialization, providerWriteClaims);
+        SkyforgeRuntimePerformanceMetrics.recordSince("terrain.realize.adaptSurface", stageStart);
+        stageStart = SkyforgeRuntimePerformanceMetrics.start();
+        boolean exactAdmissionFastPath =
+                SkyforgePhysicalVolumeAdmissionStage.canUseExactDirectWriteFastPath(
+                        chunk,
+                        materialization.minimumY(),
+                        materialization.height(),
+                        providerWriteClaims);
+        SkyforgeRuntimePerformanceMetrics.recordSince(
+                "terrain.realize.exactAdmissionProof", stageStart);
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "terrain.realizeExactAdmissionFastPath",
+                exactAdmissionFastPath ? 1L : 0L);
+        stageStart = SkyforgeRuntimePerformanceMetrics.start();
+        MinecraftChunkWriteResult result;
+        if (exactAdmissionFastPath && providerWriteClaims.isEmpty()) {
+            result = binding.writer().writeAdmittedExactSolidOverlay(chunk, materialization);
+        } else if (exactAdmissionFastPath) {
+            result = binding.writer().writeAdmittedProviderTerrainOverlay(
+                    chunk, materialization, providerWriteClaims);
+        } else {
+            result = binding.writer().writeProviderTerrainOverlay(
+                    chunk, materialization, providerWriteClaims);
+        }
+        SkyforgeRuntimePerformanceMetrics.recordSince("terrain.realize.writeProviderOverlay", stageStart);
         applyHydrology(chunk, binding);
         SkyforgeNeoForge1211IsolationDevRuntime.verifyAfterSkyforge(chunk, isolationProof);
         SkyforgeRuntimePerformanceMetrics.recordSince("terrain.realize", performanceStart);
@@ -851,6 +887,42 @@ public final class SkyforgeNeoForge1211SurfaceStage {
             boundedMaximumYExclusive = boundedMinimumY;
         }
         return new VerticalRange(boundedMinimumY, boundedMaximumYExclusive);
+    }
+
+    /**
+     * Bounds direct chunk materialization to the union of exact candidate volumes. Provider-driven
+     * top projection is the only operation allowed to extend above authored bounds, and its rise
+     * cap is included explicitly. This keeps the materializer and writer from scanning empty
+     * build-height ranges while preserving every authored voxel and every admissible provider lift.
+     */
+    private static VerticalRange boundedMaterializationRange(
+            RuntimeBinding binding,
+            ChunkAccess chunk,
+            int providerRise) {
+        if (providerRise < 0) {
+            throw new IllegalArgumentException("providerRise must be nonnegative");
+        }
+        int minimumY = chunk.getMaxBuildHeight();
+        int maximumYExclusive = chunk.getMinBuildHeight();
+        for (var volume : binding.adapter().candidateVolumes(chunk)) {
+            WorldBounds bounds = binding.adapter().volumeBounds(volume.id())
+                    .orElseThrow(() -> new IllegalStateException(
+                            "candidate terrain volume lost its runtime bounds"));
+            VerticalRange authoredRange = boundedVerticalRange(chunk, bounds);
+            minimumY = Math.min(minimumY, authoredRange.minimumY());
+            long projectedMaximumExclusive = Math.addExact(
+                    (long) floorToInt(bounds.maximumY()),
+                    Math.addExact((long) providerRise, 1L));
+            int boundedProjectedMaximumExclusive = (int) Math.min(
+                    (long) chunk.getMaxBuildHeight(),
+                    projectedMaximumExclusive);
+            maximumYExclusive = Math.max(maximumYExclusive, boundedProjectedMaximumExclusive);
+        }
+        if (minimumY == chunk.getMaxBuildHeight()) {
+            throw new IllegalStateException("candidate terrain chunk has no bounded materialization interval");
+        }
+        maximumYExclusive = Math.max(minimumY, maximumYExclusive);
+        return new VerticalRange(minimumY, maximumYExclusive);
     }
 
     private static int floorToInt(double value) {

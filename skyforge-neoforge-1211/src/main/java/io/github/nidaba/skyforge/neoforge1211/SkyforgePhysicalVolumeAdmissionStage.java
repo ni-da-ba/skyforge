@@ -17,6 +17,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.ChunkAccess;
 
@@ -322,6 +323,73 @@ final class SkyforgePhysicalVolumeAdmissionStage {
             return candidates.size() == 1
                     && candidates.getFirst().id().equals(pending.volumeId());
         }
+    }
+
+    /**
+     * Returns whether a direct chunk write can reuse the exact-volume admission proof.
+     *
+     * <p>This is deliberately limited to one already-admitted volume intersecting the entire
+     * materialization interval. Provider claims, when present, must name that same volume. Under
+     * these conditions pointwise catalog/support rediscovery cannot change the admission result;
+     * all mixed or overlapping cases retain the historical per-position gate.
+     */
+    static boolean canUseExactDirectWriteFastPath(
+            ChunkAccess chunk,
+            int minimumY,
+            int height,
+            Map<Long, SkyIslandWorldVolumeId> providerWriteClaims) {
+        Objects.requireNonNull(chunk, "chunk");
+        Objects.requireNonNull(providerWriteClaims, "providerWriteClaims");
+        if (height <= 0) {
+            throw new IllegalArgumentException("height must be positive");
+        }
+        Binding binding = ACTIVE.get();
+        if (binding == null) {
+            return false;
+        }
+        MinecraftChunkBounds chunkBounds = new MinecraftChunkBounds(chunk.getPos(), minimumY, height);
+        SkyIslandWorldVolumeId ownerId;
+        WorldBounds ownerBounds;
+        synchronized (binding) {
+            var candidates = binding.catalog().query(chunkBounds.worldBounds());
+            if (candidates.size() != 1) {
+                return false;
+            }
+            var owner = candidates.getFirst();
+            if (!binding.ledger().admitted(owner.id())) {
+                return false;
+            }
+            ownerId = owner.id();
+            ownerBounds = owner.bounds();
+        }
+
+        // Admission is terminal once granted. Validate producer-issued claims outside the admission
+        // lock, caching support by X/Z column so concurrent chunk admission is not serialized behind
+        // repeated support geometry queries.
+        Map<Long, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> supportByColumn = new HashMap<>();
+        for (var claim : providerWriteClaims.entrySet()) {
+            if (!ownerId.equals(claim.getValue())) {
+                return false;
+            }
+            BlockPos position = BlockPos.of(claim.getKey());
+            if (position.getY() < minimumY
+                    || position.getY() >= (long) minimumY + height
+                    || !(ownerBounds.contains(position.getX(), position.getY(), position.getZ())
+                            || withinProviderTerrainRiseEnvelope(
+                                    ownerBounds, position.getX(), position.getY(), position.getZ()))) {
+                return false;
+            }
+            long columnKey = BlockPos.asLong(position.getX(), 0, position.getZ());
+            Optional<SkyforgeExactVoxelSupportBounds.ColumnRange> support =
+                    supportByColumn.computeIfAbsent(
+                            columnKey,
+                            ignored -> SkyforgeNeoForge1211SurfaceStage.integerSolidRange(
+                                    ownerId, position.getX(), position.getZ()));
+            if (support.isEmpty() || position.getY() <= support.orElseThrow().maximumY()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

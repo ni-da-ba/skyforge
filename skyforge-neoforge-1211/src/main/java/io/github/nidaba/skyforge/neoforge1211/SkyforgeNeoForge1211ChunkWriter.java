@@ -88,6 +88,25 @@ public final class SkyforgeNeoForge1211ChunkWriter {
     }
 
     /**
+     * Writes a direct provider overlay after exact-volume admission has been proved once for the
+     * complete chunk interval. Provider claims still protect occupied native terrain positions.
+     */
+    MinecraftChunkWriteResult writeAdmittedProviderTerrainOverlay(
+            ChunkAccess chunk,
+            MinecraftChunkMaterialization materialization,
+            Map<Long, SkyIslandWorldVolumeId> providerWriteClaims) {
+        validateOwnership(chunk, materialization);
+        try (AutoCloseable scope = SkyforgeNativeTerrainWriteAuthority.open(providerWriteClaims)) {
+            Objects.requireNonNull(scope, "provider write-authority scope");
+            return writeInternal(chunk, materialization, true, false);
+        } catch (RuntimeException failure) {
+            throw failure;
+        } catch (Exception failure) {
+            throw new IllegalStateException("native terrain write-authority scope failed", failure);
+        }
+    }
+
+    /**
      * Writes one exact deferred materialization after the admission stage has proved that the entire
      * chunk/Y interval has no other catalog candidate.
      *

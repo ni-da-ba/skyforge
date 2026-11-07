@@ -55,6 +55,26 @@ final class SkyforgeTectonicTerrainAcceptance {
     private static final int PROFILE_RADIUS = 8;
     private static final int MINIMUM_TECTONIC_ISLAND_RELIEF_BLOCKS = 48;
     private static final int MAXIMUM_TECTONIC_ISLAND_COLUMNS_NEAR_PEAK = 128;
+    // Machine-only no-visual-change references from the accepted 7502d9b specimen.
+    private static final String VANILLA_PROVIDER_PROFILE_DIGEST =
+            "5943921b4706da8099ebf0ad86b097754bb225cd034f4139069272d139a0e621";
+    private static final String VANILLA_PROVIDER_HEIGHT_DIGEST =
+            "b526ee0ccb956d883b3299452b68c145e5f6af8e7ea898e2b9093e95376b6bbf";
+    private static final String VANILLA_REALIZED_SURFACE_DIGEST =
+            "c6508e60b5e02342e1b7b617339bd37cb98994d15a1093ac8a5597661f511130";
+    private static final String VANILLA_REALIZED_HEIGHT_DIGEST =
+            "dfd0a4b20f4fdf37c8075176cfeefa0277a7f4528030178b3a29fb5dd99fe3bb";
+    private static final String TECTONIC_PROVIDER_PROFILE_DIGEST =
+            "3ef91a1f90dca06cb69cf2f471be826cc7e1d78936df1bbae4a61f228c3bbf1a";
+    private static final String TECTONIC_PROVIDER_HEIGHT_DIGEST =
+            "26af221f1b123863dc2f512b01b7fe5a58795c16ce5dd57295c90bc724ffd06e";
+    private static final String TECTONIC_REALIZED_SURFACE_DIGEST =
+            "17e36fcb17850837c964b6d1ba2c1a1bd515f3940dfa74f27d33226be0c161c7";
+    private static final String TECTONIC_REALIZED_HEIGHT_DIGEST =
+            "e7f52392f2d3cdb60fa4e63e4dd3ea8c7f9eb0e777d5da459afbefbede5847f6";
+    // The previous accepted treatment spent 527s of 563s in the halo. This gate requires
+    // at least a 2x reduction while leaving substantial allowance for hosted-runner variance.
+    private static final long MAX_TECTONIC_HEIGHT_HALO_NANOS = 240_000_000_000L;
     private static boolean complete;
     private static final Set<UUID> REVIEW_RELOCATED_PLAYERS = new HashSet<>();
     private static final Map<UUID, Integer> REVIEW_RELOCATION_ATTEMPTS = new HashMap<>();
@@ -225,6 +245,10 @@ final class SkyforgeTectonicTerrainAcceptance {
                 return;
             }
             ProfileEvidence realizedSurface = captureRealizedIslandSurface(islandChunk);
+            if (!reopening) {
+                verifyNoVisualChangeBaseline(server, treatment, profile, realizedSurface);
+                verifyProviderHaloPerformance(server, treatment);
+            }
             if (realizedSurface.samples() == 0) {
                 fail(server, "Skyforge island has no realized top-surface columns in the origin chunk");
                 return;
@@ -969,6 +993,62 @@ final class SkyforgeTectonicTerrainAcceptance {
         } catch (NoSuchAlgorithmException impossible) {
             throw new AssertionError(impossible);
         }
+    }
+
+    private static void verifyNoVisualChangeBaseline(
+            MinecraftServer server,
+            boolean treatment,
+            ProfileEvidence provider,
+            ProfileEvidence realized) {
+        String expectedProvider = treatment
+                ? TECTONIC_PROVIDER_PROFILE_DIGEST
+                : VANILLA_PROVIDER_PROFILE_DIGEST;
+        String expectedProviderHeight = treatment
+                ? TECTONIC_PROVIDER_HEIGHT_DIGEST
+                : VANILLA_PROVIDER_HEIGHT_DIGEST;
+        String expectedRealized = treatment
+                ? TECTONIC_REALIZED_SURFACE_DIGEST
+                : VANILLA_REALIZED_SURFACE_DIGEST;
+        String expectedRealizedHeight = treatment
+                ? TECTONIC_REALIZED_HEIGHT_DIGEST
+                : VANILLA_REALIZED_HEIGHT_DIGEST;
+        if (!expectedProvider.equals(provider.digest())
+                || !expectedProviderHeight.equals(provider.heightDigest())
+                || !expectedRealized.equals(realized.digest())
+                || !expectedRealizedHeight.equals(realized.heightDigest())) {
+            fail(server, "provider cache changed the deterministic terrain output; "
+                    + "providerDigest=" + provider.digest()
+                    + ", providerHeightDigest=" + provider.heightDigest()
+                    + ", realizedDigest=" + realized.digest()
+                    + ", realizedHeightDigest=" + realized.heightDigest());
+        }
+    }
+
+    private static void verifyProviderHaloPerformance(MinecraftServer server, boolean treatment) {
+        Map<String, Object> metrics = SkyforgeRuntimePerformanceMetrics.evidence();
+        long haloCalls = metricValue(metrics, "perf.terrain.providerSnapshot.heightHalo.calls");
+        long haloSamples = metricValue(metrics, "perf.terrain.providerSnapshot.providerSurfaceHeightSamples.total");
+        long cacheHits = metricValue(metrics, "perf.terrain.providerSnapshot.heightTileCacheHits.total");
+        long haloNanos = metricValue(metrics, "perf.terrain.providerSnapshot.heightHalo.totalNanos");
+        long expectedHaloSamples = Math.multiplyExact(
+                haloCalls, MinecraftNativeSurfaceSnapshot.PROVIDER_HEIGHT_HALO_SAMPLE_COUNT);
+        if (haloCalls <= 0 || haloSamples != expectedHaloSamples) {
+            fail(server, "provider halo did not report its complete deterministic sample work: calls="
+                    + haloCalls + ", samples=" + haloSamples + ", expected=" + expectedHaloSamples);
+        }
+        if (cacheHits * 10 < haloSamples * 9) {
+            fail(server, "provider halo failed to reuse generated height tiles: samples="
+                    + haloSamples + ", cacheHits=" + cacheHits);
+        }
+        if (treatment && haloNanos > MAX_TECTONIC_HEIGHT_HALO_NANOS) {
+            fail(server, "Tectonic provider halo exceeded the machine performance budget: "
+                    + haloNanos + "ns > " + MAX_TECTONIC_HEIGHT_HALO_NANOS + "ns");
+        }
+    }
+
+    private static long metricValue(Map<String, Object> metrics, String key) {
+        Object value = metrics.get(key);
+        return value instanceof Number number ? number.longValue() : 0L;
     }
 
     private static void fail(MinecraftServer server, String reason) {

@@ -821,6 +821,7 @@ neoForge {
             systemProperty("skyforge.dev.tectonicTerrain", "true")
             systemProperty("skyforge.dev.tectonicTerrain.treatment", "false")
             systemProperty("skyforge.dev.tectonicTerrainReviewIsland", "true")
+            systemProperty("skyforge.dev.performanceMetrics", "true")
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0054-tectonic-vanilla")
@@ -873,6 +874,7 @@ neoForge {
             systemProperty("skyforge.dev.tectonicTerrain", "true")
             systemProperty("skyforge.dev.tectonicTerrain.treatment", "true")
             systemProperty("skyforge.dev.tectonicTerrainReviewIsland", "true")
+            systemProperty("skyforge.dev.performanceMetrics", "true")
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0054-tectonic-treatment")
@@ -923,6 +925,7 @@ neoForge {
             systemProperty("skyforge.dev.tectonicTerrain", "true")
             systemProperty("skyforge.dev.tectonicTerrain.treatment", "false")
             systemProperty("skyforge.dev.tectonicTerrainReviewIsland", "true")
+            systemProperty("skyforge.dev.performanceMetrics", "true")
             systemProperty("skyforge.dev.tectonicTerrain.reviewCamera", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
@@ -937,6 +940,7 @@ neoForge {
             systemProperty("skyforge.dev.tectonicTerrain", "true")
             systemProperty("skyforge.dev.tectonicTerrain.treatment", "true")
             systemProperty("skyforge.dev.tectonicTerrainReviewIsland", "true")
+            systemProperty("skyforge.dev.performanceMetrics", "true")
             systemProperty("skyforge.dev.tectonicTerrain.reviewCamera", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }

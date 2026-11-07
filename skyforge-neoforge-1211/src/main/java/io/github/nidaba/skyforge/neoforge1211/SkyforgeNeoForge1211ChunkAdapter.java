@@ -26,6 +26,7 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
@@ -42,7 +43,11 @@ import net.minecraft.world.level.ChunkPos;
 public final class SkyforgeNeoForge1211ChunkAdapter {
     private static final int CHUNK_WIDTH = 16;
     private static final int CHUNK_AREA = CHUNK_WIDTH * CHUNK_WIDTH;
+    private static final int MAX_CACHED_SUPPORT_COLUMNS = 32_768;
 
+    private final ConcurrentHashMap<SupportColumnKey, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>>
+            supportColumns = new ConcurrentHashMap<>();
+    private final AtomicBoolean trimmingSupportColumns = new AtomicBoolean();
     private final SkyIslandWorldCatalog catalog;
     private final SkyIslandTerrainProfile terrainProfile;
     private final SkyforgeMinecraftBlockPalette palette;
@@ -269,7 +274,7 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
             int worldZ = Math.addExact(minimumZ, localZ);
             int worldX = Math.addExact(minimumX, localX);
             Optional<SkyforgeExactVoxelSupportBounds.ColumnRange> range =
-                    SkyforgeExactVoxelSupportBounds.integerSolidRange(interpreter, worldX, worldZ);
+                    integerSolidRange(volumeId, worldX, worldZ);
             if (range.isEmpty()) {
                 provenAirSkippedVoxels = Math.addExact(provenAirSkippedVoxels, height);
                 continue;
@@ -468,10 +473,37 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
             int worldX,
             int worldZ) {
         Objects.requireNonNull(volumeId, "volumeId");
-        return SkyforgeExactVoxelSupportBounds.integerSolidRange(
-                requireInterpreter(volumeId),
-                worldX,
-                worldZ);
+        SupportColumnKey key = new SupportColumnKey(volumeId, worldX, worldZ);
+        Optional<SkyforgeExactVoxelSupportBounds.ColumnRange> cached = supportColumns.computeIfAbsent(
+                key,
+                ignored -> SkyforgeExactVoxelSupportBounds.integerSolidRange(
+                        requireInterpreter(volumeId),
+                        worldX,
+                        worldZ));
+        trimSupportColumns();
+        return cached;
+    }
+
+    private void trimSupportColumns() {
+        if (supportColumns.size() <= MAX_CACHED_SUPPORT_COLUMNS
+                || !trimmingSupportColumns.compareAndSet(false, true)) {
+            return;
+        }
+        try {
+            int targetSize = MAX_CACHED_SUPPORT_COLUMNS / 2;
+            var keys = supportColumns.keySet().iterator();
+            while (supportColumns.size() > targetSize && keys.hasNext()) {
+                supportColumns.remove(keys.next());
+            }
+        } finally {
+            trimmingSupportColumns.set(false);
+        }
+    }
+
+    private record SupportColumnKey(SkyIslandWorldVolumeId volumeId, int worldX, int worldZ) {
+        private SupportColumnKey {
+            Objects.requireNonNull(volumeId, "volumeId");
+        }
     }
 
     /**
