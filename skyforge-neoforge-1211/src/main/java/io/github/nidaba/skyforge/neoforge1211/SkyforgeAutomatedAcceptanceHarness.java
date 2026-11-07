@@ -22,6 +22,7 @@ import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.level.LevelEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 /**
@@ -90,6 +91,27 @@ final class SkyforgeAutomatedAcceptanceHarness {
 
     static String caseId() {
         return System.getProperty(CASE_PROPERTY, "unspecified");
+    }
+
+    @SubscribeEvent
+    static void disableVanillaSpawnChunkPregeneration(LevelEvent.Load event) {
+        if (!enabled()
+                || !(event.getLevel() instanceof ServerLevel level)
+                || !level.dimension().equals(Level.OVERWORLD)) {
+            return;
+        }
+
+        // This fixture proves one explicit finite footprint. Do not let vanilla's independent
+        // spawn-chunk ticket pregenerate a much larger area before the harness can warm that
+        // footprint; that startup work is unrelated to the acceptance claim and can dominate
+        // modded-provider A/B runtime.
+        level.getGameRules()
+                .getRule(GameRules.RULE_SPAWN_CHUNK_RADIUS)
+                .set(0, level.getServer());
+        LOGGER.log(
+                System.Logger.Level.INFO,
+                "SKYFORGE AUTOMATED ACCEPTANCE SPAWN CHUNKS: case="
+                        + caseId() + ", spawnChunkRadius=0");
     }
 
     @SubscribeEvent
