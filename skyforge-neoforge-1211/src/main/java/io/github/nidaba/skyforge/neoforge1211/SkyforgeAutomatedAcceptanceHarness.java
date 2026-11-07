@@ -22,6 +22,7 @@ import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.level.LevelEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 /**
@@ -55,7 +56,7 @@ final class SkyforgeAutomatedAcceptanceHarness {
     private static final String MODE_SERVER = "server";
     private static final String MODE_CLIENT = "client";
     private static final int DEFAULT_RADIUS = 2;
-    private static final int ACCEPTANCE_TICKET_DISTANCE = 3;
+    private static final int ACCEPTANCE_TICKET_DISTANCE = 0;
     private static final TicketType<ChunkPos> ACCEPTANCE_TICKET = TicketType.create(
             "skyforge_acceptance",
             Comparator.comparingLong(ChunkPos::toLong));
@@ -90,6 +91,27 @@ final class SkyforgeAutomatedAcceptanceHarness {
 
     static String caseId() {
         return System.getProperty(CASE_PROPERTY, "unspecified");
+    }
+
+    @SubscribeEvent
+    static void disableVanillaSpawnChunkPregeneration(LevelEvent.Load event) {
+        if (!enabled()
+                || !(event.getLevel() instanceof ServerLevel level)
+                || !level.dimension().equals(Level.OVERWORLD)) {
+            return;
+        }
+
+        // This fixture proves one explicit finite footprint. Do not let vanilla's independent
+        // spawn-chunk ticket pregenerate a much larger area before the harness can warm that
+        // footprint; that startup work is unrelated to the acceptance claim and can dominate
+        // modded-provider A/B runtime.
+        level.getGameRules()
+                .getRule(GameRules.RULE_SPAWN_CHUNK_RADIUS)
+                .set(0, level.getServer());
+        LOGGER.log(
+                System.Logger.Level.INFO,
+                "SKYFORGE AUTOMATED ACCEPTANCE SPAWN CHUNKS: case="
+                        + caseId() + ", spawnChunkRadius=0");
     }
 
     @SubscribeEvent
@@ -260,9 +282,9 @@ final class SkyforgeAutomatedAcceptanceHarness {
             net.minecraft.server.level.ServerChunkCache chunkSource,
             ChunkPos pos) {
         // The harness itself is the independent load reason for this finite proof corpus.
-        // A non-persistent development-only region ticket keeps each target stable between
-        // resumable production quanta without repeatedly synchronously loading hundreds of
-        // chunks on every server tick. Production code remains strictly getChunkNow-only.
+        // A zero-distance, non-persistent development-only ticket keeps only this target chunk
+        // stable while it is inspected. Do not expand an explicit one-chunk fixture into an
+        // unrelated neighboring region. Production code remains strictly getChunkNow-only.
         chunkSource.addRegionTicket(
                 ACCEPTANCE_TICKET,
                 pos,

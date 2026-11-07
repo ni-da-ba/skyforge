@@ -70,6 +70,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
         ResourceLocation[] projectedSurfaceMaterials = new ResourceLocation[CHUNK_WIDTH * CHUNK_WIDTH];
         int[] projectedSurfaceTopYs = new int[CHUNK_WIDTH * CHUNK_WIDTH];
         int[] originalSurfaceTopYs = new int[CHUNK_WIDTH * CHUNK_WIDTH];
+        int[] projectedSurfaceLayerCounts = new int[CHUNK_WIDTH * CHUNK_WIDTH];
         Arrays.fill(projectedSurfaceTopYs, Integer.MIN_VALUE);
         Arrays.fill(originalSurfaceTopYs, Integer.MIN_VALUE);
         Map<Long, SkyIslandWorldVolumeId> providerWriteClaims = new HashMap<>();
@@ -126,18 +127,18 @@ public final class MinecraftNativeSurfaceTopAdapter {
                         ownerId,
                         ignored -> ProviderReliefFootprint.capture(adapter, ownerId, volumeBounds));
                 int edgeDistance = footprint.interiorDistance(worldX, worldZ);
-                long providerRelief = (long) snapshot.smoothedProviderSurfaceY(localX, localZ)
-                        - snapshot.baselineY();
-                long projectedProviderRelief = blendProviderReliefAtFootprintEdge(
-                        projectProviderRelief(providerRelief),
+                double providerInfluence = providerReliefInfluenceAtFootprintEdge(
                         edgeDistance,
                         PROVIDER_RELIEF_EDGE_BLEND_RADIUS_BLOCKS);
+                long providerRelief = (long) snapshot.smoothedProviderSurfaceY(localX, localZ)
+                        - snapshot.baselineY();
+                long projectedProviderRelief = Math.round(projectProviderRelief(providerRelief) * providerInfluence);
                 long desiredY = (long) originalTopY + projectedProviderRelief;
                 int targetTopY = (int) Math.max(
                         (long) minimumAllowedY,
                         Math.min((long) maximumAllowedY, desiredY));
                 ResourceLocation nativeBlockKey = nativeSurface.orElseThrow().blockKey();
-                ResourceLocation selectedSurfaceMaterial;
+                ResourceLocation providerSurfaceMaterial;
                 if (dominantProviderSurfaceMaterial != null
                         && ((SkyforgeMinecraftBlockPalette.STONE.equals(nativeBlockKey)
                                         && !SkyforgeMinecraftBlockPalette.STONE.equals(dominantProviderSurfaceMaterial))
@@ -146,14 +147,24 @@ public final class MinecraftNativeSurfaceTopAdapter {
                     // inherit the stable regional surface. Falling blocks cannot be projected onto
                     // an island top, and falling back to a local authored stone cap recreates the
                     // isolated gray patch that the provider adaptation is meant to remove.
-                    selectedSurfaceMaterial = dominantProviderSurfaceMaterial;
+                    providerSurfaceMaterial = dominantProviderSurfaceMaterial;
                 } else if (stableTerrainProfileMaterial(nativeBlockKey)) {
-                    selectedSurfaceMaterial = nativeBlockKey;
+                    providerSurfaceMaterial = nativeBlockKey;
                 } else if (stableTerrainProfileMaterial(authoredCapSurfaceMaterial)) {
-                    selectedSurfaceMaterial = authoredCapSurfaceMaterial;
+                    providerSurfaceMaterial = authoredCapSurfaceMaterial;
                 } else {
-                    selectedSurfaceMaterial = SkyforgeMinecraftBlockPalette.STONE;
+                    providerSurfaceMaterial = SkyforgeMinecraftBlockPalette.STONE;
                 }
+                int providerLayerCount = providerSurfaceLayerCountAtFootprintEdge(
+                        edgeDistance,
+                        PROVIDER_RELIEF_EDGE_BLEND_RADIUS_BLOCKS,
+                        MinecraftNativeSurfaceSnapshot.SURFACE_STRATA_DEPTH);
+                // Use the same footprint influence for shape and representation: the authored cap
+                // owns the rim, then progressively more provider strata enter toward the interior.
+                ResourceLocation selectedSurfaceMaterial = providerLayerCount == 0
+                                && stableTerrainProfileMaterial(authoredCapSurfaceMaterial)
+                        ? authoredCapSurfaceMaterial
+                        : providerSurfaceMaterial;
                 int targetLocalY = targetTopY - materialization.minimumY();
                 if (targetTopY > originalTopY) {
                     for (int worldY = originalTopY + 1; worldY <= targetTopY; worldY++) {
@@ -167,7 +178,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
                     // bounded native near-surface profile into newly claimed cells so exposed
                     // ledges retain the provider's grass/dirt/stone transition instead of becoming
                     // an artificial stone shell. Falling materials are excluded at every depth.
-                    for (int depth = 1; depth < MinecraftNativeSurfaceSnapshot.SURFACE_STRATA_DEPTH; depth++) {
+                    for (int depth = 1; depth < providerLayerCount; depth++) {
                         int worldY = targetTopY - depth;
                         if (worldY <= originalTopY) {
                             break;
@@ -199,7 +210,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
                     // Lowered columns expose the old Skyforge cap interior. Replacing only the
                     // new top leaves a broad gray stone patch around the provider-cut basin.
                     // Apply the same bounded provider strata to the newly exposed top layer.
-                    for (int depth = 1; depth < MinecraftNativeSurfaceSnapshot.SURFACE_STRATA_DEPTH; depth++) {
+                    for (int depth = 1; depth < providerLayerCount; depth++) {
                         int worldY = targetTopY - depth;
                         if (worldY < minimumAllowedY) {
                             break;
@@ -229,6 +240,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 }
                 int surfaceIndex = localX + CHUNK_WIDTH * localZ;
                 projectedSurfaceMaterials[surfaceIndex] = blockKeys[targetIndex];
+                projectedSurfaceLayerCounts[surfaceIndex] = providerLayerCount;
                 projectedSurfaceTopYs[surfaceIndex] = targetTopY;
                 originalSurfaceTopYs[surfaceIndex] = originalTopY;
             }
@@ -274,7 +286,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
                     // Below that short transition, retain the island's authored block instead
                     // of extending one provider surface block down a tall exposed wall.
                     int depth = sideSkinReferenceY - worldY;
-                    if (depth < 0 || depth >= MinecraftNativeSurfaceSnapshot.SURFACE_STRATA_DEPTH) {
+                    if (depth < 0 || depth >= projectedSurfaceLayerCounts[surfaceIndex]) {
                         continue;
                     }
                     ResourceLocation sideSurfaceMaterial = selectedSurfaceMaterial;
@@ -307,16 +319,31 @@ public final class MinecraftNativeSurfaceTopAdapter {
         return new TerrainProfileAdaptation(adapted, providerWriteClaims);
     }
 
-    static long blendProviderReliefAtFootprintEdge(
-            long projectedRelief,
-            int interiorDistance,
-            int blendRadius) {
+    static double providerReliefInfluenceAtFootprintEdge(int interiorDistance, int blendRadius) {
         if (interiorDistance < 0 || blendRadius <= 0) {
             throw new IllegalArgumentException("provider relief blend distance/radius is invalid");
         }
         double position = Math.min(1.0, interiorDistance / (double) blendRadius);
-        double smoothstep = position * position * (3.0 - 2.0 * position);
-        return Math.round(projectedRelief * smoothstep);
+        return position * position * (3.0 - 2.0 * position);
+    }
+
+    static long blendProviderReliefAtFootprintEdge(
+            long projectedRelief,
+            int interiorDistance,
+            int blendRadius) {
+        return Math.round(projectedRelief
+                * providerReliefInfluenceAtFootprintEdge(interiorDistance, blendRadius));
+    }
+
+    static int providerSurfaceLayerCountAtFootprintEdge(
+            int interiorDistance,
+            int blendRadius,
+            int maximumLayerCount) {
+        if (maximumLayerCount <= 0) {
+            throw new IllegalArgumentException("provider surface layer count must be positive");
+        }
+        return (int) Math.round(
+                maximumLayerCount * providerReliefInfluenceAtFootprintEdge(interiorDistance, blendRadius));
     }
 
     /**

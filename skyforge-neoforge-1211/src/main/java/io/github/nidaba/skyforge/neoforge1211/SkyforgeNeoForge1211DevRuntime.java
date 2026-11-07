@@ -25,6 +25,7 @@ import java.util.List;
  */
 final class SkyforgeNeoForge1211DevRuntime {
     static final String ENABLE_PROPERTY = "skyforge.dev.specimen";
+    static final String TECTONIC_REVIEW_ENABLE_PROPERTY = "skyforge.dev.tectonicTerrainReviewIsland";
     static final long ROOT_SEED = 0x534b59464f524745L;
     static final int INSPECTION_X = 0;
     static final int INSPECTION_Y = 300;
@@ -36,9 +37,11 @@ final class SkyforgeNeoForge1211DevRuntime {
 
     private SkyforgeNeoForge1211DevRuntime() {}
 
-    /** Installs the specimen only when the development JVM property is enabled. */
+    /** Installs the development specimen or the Tectonic review island when explicitly enabled. */
     static synchronized void installFromSystemProperty() {
-        if (!Boolean.getBoolean(ENABLE_PROPERTY) || persistentBinding != null) {
+        boolean structureSpecimen = Boolean.getBoolean(ENABLE_PROPERTY);
+        boolean tectonicReviewIsland = Boolean.getBoolean(TECTONIC_REVIEW_ENABLE_PROPERTY);
+        if ((!structureSpecimen && !tectonicReviewIsland) || persistentBinding != null) {
             return;
         }
         if (SkyforgeNeoForge1211SurfaceStage.hasActiveBinding()) {
@@ -47,16 +50,23 @@ final class SkyforgeNeoForge1211DevRuntime {
         }
 
         persistentBinding = installSpecimen();
-        LOGGER.log(
-                System.Logger.Level.INFO,
-                "Skyforge SF-IMP-0043 development specimen enabled for native structure-start visibility. "
-                        + "Create a NEW disposable world using the Skyforge Development world type and inspect near "
-                        + "x=" + INSPECTION_X
-                        + ", y=" + INSPECTION_Y
-                        + ", z=" + INSPECTION_Z
-                        + ". Development data forces minecraft:desert_pyramid candidates with a guaranteed origin "
-                        + "candidate and temporarily permits desert pyramids in Overworld biomes. The expected proof "
-                        + "is a vanilla pyramid whose start follows the elevated Massif rather than the lower native ground.");
+        if (structureSpecimen) {
+            LOGGER.log(
+                    System.Logger.Level.INFO,
+                    "Skyforge SF-IMP-0043 development specimen enabled for native structure-start visibility. "
+                            + "Create a NEW disposable world using the Skyforge Development world type and inspect near "
+                            + "x=" + INSPECTION_X
+                            + ", y=" + INSPECTION_Y
+                            + ", z=" + INSPECTION_Z
+                            + ". Development data forces minecraft:desert_pyramid candidates with a guaranteed origin "
+                            + "candidate and temporarily permits desert pyramids in Overworld biomes. The expected proof "
+                            + "is a vanilla pyramid whose start follows the elevated Massif rather than the lower native ground.");
+        } else {
+            LOGGER.log(
+                    System.Logger.Level.INFO,
+                    "Skyforge Tectonic review island binding enabled. Nearby missing chunks will generate the same "
+                            + "persisted island footprint without enabling the SF-IMP-0043 structure-start review hook.");
+        }
     }
 
     /** Installs one disposable post-surface specimen binding and returns its cleanup handle. */

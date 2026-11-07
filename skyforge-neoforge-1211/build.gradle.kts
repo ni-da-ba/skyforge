@@ -100,6 +100,26 @@ fun prepareTectonicReviewSave(
             "review artifact source $artifactSourceSha does not match checkout $checkedOutHead; use the exact source commit"
         }
     }
+    doLast {
+        // The CI artifact intentionally stores only the acceptance chunks. Generate a small
+        // neighboring window on the local client so the owner sees a connected island surface.
+        val optionsFile = targetGameDirectory.resolve("options.txt")
+        val existingOptions = if (optionsFile.isFile) optionsFile.readLines() else emptyList()
+        val desiredOptions = mapOf("renderDistance" to 2, "simulationDistance" to 5)
+        val foundOptions = mutableSetOf<String>()
+        val stagedOptions = existingOptions.map { line ->
+            val key = line.substringBefore(':')
+            val desiredValue = desiredOptions[key]
+            if (desiredValue == null) {
+                line
+            } else {
+                foundOptions.add(key)
+                "$key:$desiredValue"
+            }
+        } + desiredOptions.filterKeys { it !in foundOptions }.map { (key, value) -> "$key:$value" }
+        optionsFile.parentFile.mkdirs()
+        optionsFile.writeText(stagedOptions.joinToString(System.lineSeparator(), postfix = System.lineSeparator()))
+    }
 }
 
 val prepareTectonicVanillaReviewSave = prepareTectonicReviewSave(
@@ -800,6 +820,7 @@ neoForge {
             systemProperty("skyforge.dev.specimen", "true")
             systemProperty("skyforge.dev.tectonicTerrain", "true")
             systemProperty("skyforge.dev.tectonicTerrain.treatment", "false")
+            systemProperty("skyforge.dev.tectonicTerrainReviewIsland", "true")
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0054-tectonic-vanilla")
@@ -851,6 +872,7 @@ neoForge {
             systemProperty("skyforge.dev.specimen", "true")
             systemProperty("skyforge.dev.tectonicTerrain", "true")
             systemProperty("skyforge.dev.tectonicTerrain.treatment", "true")
+            systemProperty("skyforge.dev.tectonicTerrainReviewIsland", "true")
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0054-tectonic-treatment")
@@ -898,9 +920,10 @@ neoForge {
             taskBefore(prepareTectonicVanillaReviewSave)
             programArgument("--quickPlaySingleplayer")
             programArgument("acceptance")
-            systemProperty("skyforge.dev.specimen", "true")
             systemProperty("skyforge.dev.tectonicTerrain", "true")
             systemProperty("skyforge.dev.tectonicTerrain.treatment", "false")
+            systemProperty("skyforge.dev.tectonicTerrainReviewIsland", "true")
+            systemProperty("skyforge.dev.tectonicTerrain.reviewCamera", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
@@ -911,9 +934,10 @@ neoForge {
             taskBefore(prepareTectonicTreatmentReviewSave)
             programArgument("--quickPlaySingleplayer")
             programArgument("acceptance")
-            systemProperty("skyforge.dev.specimen", "true")
             systemProperty("skyforge.dev.tectonicTerrain", "true")
             systemProperty("skyforge.dev.tectonicTerrain.treatment", "true")
+            systemProperty("skyforge.dev.tectonicTerrainReviewIsland", "true")
+            systemProperty("skyforge.dev.tectonicTerrain.reviewCamera", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
@@ -9259,6 +9283,7 @@ tasks.register("f4kHydrologyReviewPrepareVerify") {
 
 
 val sfImp0054TectonicVerticalScale = 2.0
+val sfImp0054MinimumRidgeClearanceBlocks = 32
 val sfImp0054TectonicElevationBoost = 2.0
 // Higher horizontal noise frequency and thicker mountain ranges target island-scale relief.
 val sfImp0054TectonicContinentsScale = 0.5
@@ -9428,6 +9453,11 @@ tasks.register("sfImp0054TectonicTerrainAcceptance") {
                 && treatment.getProperty("providerSurfaceRuleMaterial").isNotBlank()
                 && treatmentSurfaceMaterialHandled) {
             "SF-IMP-0054 Tectonic treatment evidence is incomplete: $treatment"
+        }
+        val vanillaMaximumSurfaceY = vanilla.getProperty("realizedIslandSurfaceMaximumY").toInt()
+        val treatmentMaximumSurfaceY = treatment.getProperty("realizedIslandSurfaceMaximumY").toInt()
+        check(treatmentMaximumSurfaceY >= vanillaMaximumSurfaceY + sfImp0054MinimumRidgeClearanceBlocks) {
+            "SF-IMP-0054 Tectonic ridge did not exceed the same-seed vanilla island by $sfImp0054MinimumRidgeClearanceBlocks blocks: vanillaMaximumY=$vanillaMaximumSurfaceY, tectonicMaximumY=$treatmentMaximumSurfaceY"
         }
         check(vanilla.getProperty("terrainProfileDigest") != treatment.getProperty("terrainProfileDigest")) {
             "SF-IMP-0054 Tectonic terrain profile did not differ from vanilla"
