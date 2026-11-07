@@ -342,6 +342,7 @@ final class MinecraftNativeSurfaceSnapshot {
                         : "terrain.providerSnapshot.surfaceChunkCacheHits",
                 1);
         PROVIDER_HEIGHT_CHUNKS.putIfAbsent(key, captured.copySurfaceHeights());
+        trimProviderHeightChunks();
         if (created.get()) {
             trimProviderSurfaceChunks();
         }
