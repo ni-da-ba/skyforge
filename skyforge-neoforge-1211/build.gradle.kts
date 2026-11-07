@@ -105,7 +105,7 @@ fun prepareTectonicReviewSave(
         // neighboring window on the local client so the owner sees a connected island surface.
         val optionsFile = targetGameDirectory.resolve("options.txt")
         val existingOptions = if (optionsFile.isFile) optionsFile.readLines() else emptyList()
-        val desiredOptions = mapOf("renderDistance" to 10, "simulationDistance" to 5)
+        val desiredOptions = mapOf("renderDistance" to 2, "simulationDistance" to 5)
         val foundOptions = mutableSetOf<String>()
         val stagedOptions = existingOptions.map { line ->
             val key = line.substringBefore(':')
