@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Objects;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.FallingBlock;
 import net.minecraft.world.level.chunk.ChunkAccess;
 
