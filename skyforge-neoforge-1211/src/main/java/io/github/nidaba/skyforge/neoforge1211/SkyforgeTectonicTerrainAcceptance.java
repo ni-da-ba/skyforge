@@ -40,6 +40,9 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 final class SkyforgeTectonicTerrainAcceptance {
     static final String ENABLE_PROPERTY = "skyforge.dev.tectonicTerrain";
     static final String TREATMENT_PROPERTY = ENABLE_PROPERTY + ".treatment";
+    static final String REVIEW_CAMERA_PROPERTY = ENABLE_PROPERTY + ".reviewCamera";
+    private static final int REVIEW_CAMERA_Y = 316;
+    private static final float REVIEW_CAMERA_PITCH = 35.0F;
     private static final double EXPECTED_TECTONIC_VERTICAL_SCALE = 2.0;
     private static final double EXPECTED_TECTONIC_ELEVATION_BOOST = 2.0;
     private static final double EXPECTED_TECTONIC_CONTINENTS_SCALE = 0.5;
@@ -80,14 +83,18 @@ final class SkyforgeTectonicTerrainAcceptance {
         }
         int attempt = REVIEW_RELOCATION_ATTEMPTS.merge(playerId, 1, Math::addExact);
         BlockPos spawn = level.getSharedSpawnPos();
+        boolean reviewCamera = Boolean.getBoolean(REVIEW_CAMERA_PROPERTY);
+        double targetX = reviewCamera ? 0.5 : spawn.getX() + 0.5;
+        int targetY = reviewCamera ? REVIEW_CAMERA_Y : spawn.getY();
+        double targetZ = reviewCamera ? 0.5 : spawn.getZ() + 0.5;
         boolean teleported = player.teleportTo(
                 level,
-                spawn.getX() + 0.5,
-                spawn.getY(),
-                spawn.getZ() + 0.5,
+                targetX,
+                targetY,
+                targetZ,
                 java.util.Set.of(),
-                player.getYRot(),
-                player.getXRot());
+                reviewCamera ? 0.0F : player.getYRot(),
+                reviewCamera ? REVIEW_CAMERA_PITCH : player.getXRot());
         if (teleported || attempt >= 20) {
             java.util.logging.Logger.getLogger(SkyforgeTectonicTerrainAcceptance.class.getName())
                     .info("Tectonic terrain review spawn relocation: trigger="
@@ -96,8 +103,10 @@ final class SkyforgeTectonicTerrainAcceptance {
                             + attempt
                             + ", success="
                             + teleported
+                            + ", reviewCamera="
+                            + reviewCamera
                             + ", target="
-                            + spawn.toShortString()
+                            + targetX + ", " + targetY + ", " + targetZ
                             + ", player="
                             + player.blockPosition().toShortString());
         }
