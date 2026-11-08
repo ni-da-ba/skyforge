@@ -39,14 +39,14 @@ final class MinecraftNativeSurfaceSnapshot {
     private static final int CHUNK_WIDTH = 16;
     private static final int SAMPLE_COUNT = CHUNK_WIDTH * CHUNK_WIDTH;
     static final int SURFACE_STRATA_DEPTH = 4;
-    private static final int PROFILE_FILTER_RADIUS = 5;
+    private static final int PROFILE_FILTER_RADIUS = 7;
     private static final int PROFILE_SAMPLE_HALO_RADIUS = PROFILE_FILTER_RADIUS;
     private static final int PROFILE_FILTER_WIDTH = CHUNK_WIDTH + PROFILE_SAMPLE_HALO_RADIUS * 2;
     static final int PROVIDER_HEIGHT_HALO_SAMPLE_COUNT = PROFILE_FILTER_WIDTH * PROFILE_FILTER_WIDTH;
     private static final Map<ProviderDatumKey, Integer> PROVIDER_TERRAIN_DATUMS = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<ProviderIslandDatumKey, Integer> PROVIDER_ISLAND_TERRAIN_DATUMS =
             new ConcurrentHashMap<>();
-    // The 11x11 smoothing kernel needs at most a one-chunk border. Cache immutable provider
+    // The 15x15 smoothing kernel needs at most a one-chunk border. Cache immutable provider
     // surface tiles so neighboring halos reuse chunk-level generation instead of thousands of
     // expensive per-column NoiseBasedChunkGenerator.getBaseHeight calls.
     private static final int MAX_CACHED_PROVIDER_SURFACE_CHUNKS = 512;
