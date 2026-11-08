@@ -68,8 +68,19 @@ public final class MinecraftNativeSurfaceTopAdapter {
         int[] projectedSurfaceTopYs = new int[CHUNK_WIDTH * CHUNK_WIDTH];
         int[] originalSurfaceTopYs = new int[CHUNK_WIDTH * CHUNK_WIDTH];
         int[] projectedSurfaceLayerCounts = new int[CHUNK_WIDTH * CHUNK_WIDTH];
+        int[] diagnosticFilteredProviderY = new int[CHUNK_WIDTH * CHUNK_WIDTH];
+        int[] diagnosticProviderDatumY = new int[CHUNK_WIDTH * CHUNK_WIDTH];
+        int[] diagnosticAppliedReliefY = new int[CHUNK_WIDTH * CHUNK_WIDTH];
+        int[] diagnosticEdgeInfluencePermille = new int[CHUNK_WIDTH * CHUNK_WIDTH];
+        ResourceLocation[] diagnosticAuthoredMaterials = new ResourceLocation[CHUNK_WIDTH * CHUNK_WIDTH];
+        ResourceLocation[] diagnosticProviderMaterials = new ResourceLocation[CHUNK_WIDTH * CHUNK_WIDTH];
+        ResourceLocation[] diagnosticRealizedMaterials = new ResourceLocation[CHUNK_WIDTH * CHUNK_WIDTH];
         Arrays.fill(projectedSurfaceTopYs, Integer.MIN_VALUE);
         Arrays.fill(originalSurfaceTopYs, Integer.MIN_VALUE);
+        Arrays.fill(diagnosticFilteredProviderY, Integer.MIN_VALUE);
+        Arrays.fill(diagnosticProviderDatumY, Integer.MIN_VALUE);
+        Arrays.fill(diagnosticAppliedReliefY, Integer.MIN_VALUE);
+        Arrays.fill(diagnosticEdgeInfluencePermille, Integer.MIN_VALUE);
         Map<Long, SkyIslandWorldVolumeId> providerWriteClaims = new HashMap<>();
         Map<SkyIslandWorldVolumeId, ProviderReliefFootprint> providerReliefFootprintsForChunk =
                 new HashMap<>();
@@ -87,6 +98,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
                     continue;
                 }
                 int originalTopY = materialization.minimumY() + topLocalY;
+                int surfaceIndex = localX + CHUNK_WIDTH * localZ;
                 ResourceLocation authoredCapSurfaceMaterial =
                         blockKeys[linearIndex(localX, topLocalY, localZ)];
                 var owners = adapter.claimingVolumeIds(worldX, originalTopY, worldZ);
@@ -135,13 +147,20 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 double providerInfluence = providerReliefInfluenceAtFootprintEdge(
                         edgeDistance,
                         PROVIDER_RELIEF_EDGE_BLEND_RADIUS_BLOCKS);
-                long providerRelief = (long) snapshot.smoothedProviderSurfaceY(localX, localZ)
-                        - snapshot.providerReliefDatumY(ownerId);
+                int filteredProviderY = snapshot.smoothedProviderSurfaceY(localX, localZ);
+                int providerDatumY = snapshot.providerReliefDatumY(ownerId);
+                long providerRelief = (long) filteredProviderY - providerDatumY;
                 long projectedProviderRelief = Math.round(projectProviderRelief(providerRelief) * providerInfluence);
                 long desiredY = (long) originalTopY + projectedProviderRelief;
                 int targetTopY = (int) Math.max(
                         (long) minimumAllowedY,
                         Math.min((long) maximumAllowedY, desiredY));
+                diagnosticFilteredProviderY[surfaceIndex] = filteredProviderY;
+                diagnosticProviderDatumY[surfaceIndex] = providerDatumY;
+                diagnosticAppliedReliefY[surfaceIndex] = (int) projectedProviderRelief;
+                diagnosticEdgeInfluencePermille[surfaceIndex] =
+                        (int) Math.round(providerInfluence * 1000.0d);
+                diagnosticAuthoredMaterials[surfaceIndex] = authoredCapSurfaceMaterial;
                 ResourceLocation nativeBlockKey = nativeSurface.orElseThrow().blockKey();
                 ResourceLocation providerSurfaceMaterial;
                 if (dominantProviderSurfaceMaterial != null
@@ -243,7 +262,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 if (stableTerrainProfileMaterial(selectedSurfaceMaterial)) {
                     blockKeys[targetIndex] = selectedSurfaceMaterial;
                 }
-                int surfaceIndex = localX + CHUNK_WIDTH * localZ;
+                diagnosticProviderMaterials[surfaceIndex] = providerSurfaceMaterial;
                 projectedSurfaceMaterials[surfaceIndex] = blockKeys[targetIndex];
                 projectedSurfaceLayerCounts[surfaceIndex] = providerLayerCount;
                 projectedSurfaceTopYs[surfaceIndex] = targetTopY;
@@ -315,6 +334,27 @@ public final class MinecraftNativeSurfaceTopAdapter {
             }
         }
 
+        for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
+            for (int localX = 0; localX < CHUNK_WIDTH; localX++) {
+                int surfaceIndex = localX + CHUNK_WIDTH * localZ;
+                int targetTopY = projectedSurfaceTopYs[surfaceIndex];
+                if (targetTopY == Integer.MIN_VALUE) continue;
+                int localY = targetTopY - materialization.minimumY();
+                diagnosticRealizedMaterials[surfaceIndex] =
+                        blockKeys[linearIndex(localX, localY, localZ)];
+            }
+        }
+        SkyforgeTectonicTerrainAcceptance.recordSurfaceCompositionEvidence(
+                materialization.chunkPos(),
+                originalSurfaceTopYs,
+                diagnosticFilteredProviderY,
+                diagnosticProviderDatumY,
+                projectedSurfaceTopYs,
+                diagnosticAppliedReliefY,
+                diagnosticEdgeInfluencePermille,
+                diagnosticAuthoredMaterials,
+                diagnosticProviderMaterials,
+                diagnosticRealizedMaterials);
         MinecraftChunkMaterialization adapted = new MinecraftChunkMaterialization(
                 materialization.chunkPos(),
                 materialization.minimumY(),
