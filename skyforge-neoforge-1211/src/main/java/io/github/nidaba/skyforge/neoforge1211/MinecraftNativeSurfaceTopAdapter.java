@@ -447,12 +447,14 @@ public final class MinecraftNativeSurfaceTopAdapter {
         int[] horizontal = new int[unsupported.length];
         int[] input = new int[Math.max(width, height)];
         int[] output = new int[input.length];
+        int[] envelope = new int[input.length];
+        double[] boundaries = new double[input.length + 1];
         for (int z = 0; z < height; z++) {
             int row = z * width;
             for (int x = 0; x < width; x++) {
                 input[x] = unsupported[row + x] ? 0 : infinity;
             }
-            squaredDistanceTransform1d(input, output, width);
+            squaredDistanceTransform1d(input, output, width, envelope, boundaries);
             System.arraycopy(output, 0, horizontal, row, width);
         }
 
@@ -462,7 +464,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
             for (int z = 0; z < height; z++) {
                 input[z] = horizontal[x + z * width];
             }
-            squaredDistanceTransform1d(input, output, height);
+            squaredDistanceTransform1d(input, output, height, envelope, boundaries);
             for (int z = 0; z < height; z++) {
                 int index = x + z * width;
                 int squaredDistance = Math.min(radiusSquared, output[z]);
@@ -472,9 +474,12 @@ public final class MinecraftNativeSurfaceTopAdapter {
         return distances;
     }
 
-    private static void squaredDistanceTransform1d(int[] input, int[] output, int length) {
-        int[] envelope = new int[length];
-        double[] boundaries = new double[length + 1];
+    private static void squaredDistanceTransform1d(
+            int[] input,
+            int[] output,
+            int length,
+            int[] envelope,
+            double[] boundaries) {
         int last = 0;
         envelope[0] = 0;
         boundaries[0] = Double.NEGATIVE_INFINITY;
