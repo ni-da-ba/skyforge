@@ -265,6 +265,10 @@ final class SkyforgeTectonicTerrainAcceptance {
                 return;
             }
             ProfileEvidence realizedSurface = captureRealizedIslandSurface(islandChunk);
+            Map<String, Object> surfaceSourceRoughnessEvidence =
+                    !reopening && multiIslandReview && providerSurfaceSnapshot != null
+                            ? captureSurfaceSourceRoughness(islandChunk, providerSurfaceSnapshot)
+                            : Map.of();
             ProfileEvidence tablelandRealizedSurface = tablelandIslandChunk == null
                     ? null
                     : captureRealizedIslandSurface(tablelandIslandChunk);
@@ -454,6 +458,7 @@ final class SkyforgeTectonicTerrainAcceptance {
             }
 
             Map<String, Object> evidence = new LinkedHashMap<>();
+            evidence.putAll(surfaceSourceRoughnessEvidence);
             evidence.put(
                     "runtimeModSet",
                     ModList.get().getMods().stream()
@@ -968,6 +973,107 @@ final class SkyforgeTectonicTerrainAcceptance {
         }
         return matches;
     }
+
+    /**
+     * Separates high-frequency variation in the authored cap, raw provider profile, filtered provider
+     * profile, and realized composite surface. These diagnostics quantify the surface-source
+     * composition that a broad relief range and whole-profile digest cannot distinguish.
+     */
+    private static Map<String, Object> captureSurfaceSourceRoughness(
+            ChunkAccess chunk, MinecraftNativeSurfaceSnapshot providerSnapshot) {
+        ChunkPos chunkPos = chunk.getPos();
+        var reviewVolumes = SkyforgeNeoForge1211DevRuntime.catalog().volumes();
+        if (reviewVolumes.size() != 5) {
+            throw new IllegalStateException("roughness diagnostic requires the five-island review fixture");
+        }
+        var islandVolumeId = reviewVolumes.get(2).id();
+        var islandAdapter = SkyforgeNeoForge1211DevRuntime.adapter();
+        int[] authored = new int[16 * 16];
+        int[] provider = new int[16 * 16];
+        int[] filteredProvider = new int[16 * 16];
+        int[] realized = new int[16 * 16];
+        java.util.Arrays.fill(authored, Integer.MIN_VALUE);
+        java.util.Arrays.fill(provider, Integer.MIN_VALUE);
+        java.util.Arrays.fill(filteredProvider, Integer.MIN_VALUE);
+        java.util.Arrays.fill(realized, Integer.MIN_VALUE);
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int localZ = 0; localZ < 16; localZ++) {
+            int worldZ = chunkPos.getMinBlockZ() + localZ;
+            for (int localX = 0; localX < 16; localX++) {
+                int worldX = chunkPos.getMinBlockX() + localX;
+                int index = localX + 16 * localZ;
+                islandAdapter.integerSolidRange(islandVolumeId, worldX, worldZ)
+                        .ifPresent(range -> authored[index] = range.maximumY());
+                providerSnapshot.surface(localX, localZ)
+                        .ifPresent(surface -> provider[index] = surface.worldY());
+                filteredProvider[index] = providerSnapshot.smoothedProviderSurfaceY(localX, localZ);
+                for (int worldY = chunk.getMaxBuildHeight() - 1;
+                        worldY >= chunk.getMinBuildHeight();
+                        worldY--) {
+                    BlockState state = chunk.getBlockState(cursor.set(worldX, worldY, worldZ));
+                    if (state.isAir() || !state.getFluidState().isEmpty()) {
+                        continue;
+                    }
+                    realized[index] = worldY;
+                    break;
+                }
+            }
+        }
+        Map<String, Object> evidence = new LinkedHashMap<>();
+        putSurfaceRoughnessEvidence(evidence, "authoredCap", measureSurfaceRoughness(authored));
+        putSurfaceRoughnessEvidence(evidence, "providerRaw", measureSurfaceRoughness(provider));
+        putSurfaceRoughnessEvidence(evidence, "providerFiltered", measureSurfaceRoughness(filteredProvider));
+        putSurfaceRoughnessEvidence(evidence, "realizedComposite", measureSurfaceRoughness(realized));
+        return evidence;
+    }
+
+    private static void putSurfaceRoughnessEvidence(
+            Map<String, Object> evidence, String source, SurfaceRoughness roughness) {
+        evidence.put("surfaceRoughness" + source + "MeanAbsStep", roughness.meanAbsStep());
+        evidence.put("surfaceRoughness" + source + "MeanAbsLaplacian", roughness.meanAbsLaplacian());
+        evidence.put("surfaceRoughness" + source + "StepSamples", roughness.stepSamples());
+        evidence.put("surfaceRoughness" + source + "LaplacianSamples", roughness.laplacianSamples());
+    }
+
+    private static SurfaceRoughness measureSurfaceRoughness(int[] heights) {
+        double absoluteStepSum = 0.0d;
+        double absoluteLaplacianSum = 0.0d;
+        int stepSamples = 0;
+        int laplacianSamples = 0;
+        for (int localZ = 1; localZ < 15; localZ++) {
+            for (int localX = 1; localX < 15; localX++) {
+                int index = localX + 16 * localZ;
+                int center = heights[index];
+                if (center == Integer.MIN_VALUE) {
+                    continue;
+                }
+                int west = heights[index - 1];
+                int east = heights[index + 1];
+                int north = heights[index - 16];
+                int south = heights[index + 16];
+                if (west != Integer.MIN_VALUE && east != Integer.MIN_VALUE) {
+                    absoluteStepSum += Math.abs(center - west) + Math.abs(east - center);
+                    stepSamples += 2;
+                    absoluteLaplacianSum += Math.abs(west - 2 * center + east);
+                    laplacianSamples++;
+                }
+                if (north != Integer.MIN_VALUE && south != Integer.MIN_VALUE) {
+                    absoluteStepSum += Math.abs(center - north) + Math.abs(south - center);
+                    stepSamples += 2;
+                    absoluteLaplacianSum += Math.abs(north - 2 * center + south);
+                    laplacianSamples++;
+                }
+            }
+        }
+        return new SurfaceRoughness(
+                stepSamples == 0 ? 0.0d : absoluteStepSum / stepSamples,
+                laplacianSamples == 0 ? 0.0d : absoluteLaplacianSum / laplacianSamples,
+                stepSamples,
+                laplacianSamples);
+    }
+
+    private record SurfaceRoughness(
+            double meanAbsStep, double meanAbsLaplacian, int stepSamples, int laplacianSamples) {}
 
     private static ProfileEvidence captureRealizedIslandSurface(ChunkAccess chunk) {
         MessageDigest digest = newSha256();
