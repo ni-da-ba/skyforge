@@ -9403,6 +9403,8 @@ tasks.register("sfImp0054TectonicTerrainAcceptance") {
                 && reopened.getProperty("reviewIslandCount") == "3"
                 && reopened.getProperty("reviewIslandLowerSurfaceDigest")
                     == vanilla.getProperty("reviewIslandLowerSurfaceDigest")
+                && reopened.getProperty("reviewIslandMiddleSurfaceDigest")
+                    == vanilla.getProperty("reviewIslandMiddleSurfaceDigest")
                 && reopened.getProperty("reviewIslandHigherSurfaceDigest")
                     == vanilla.getProperty("reviewIslandHigherSurfaceDigest")) {
             "SF-IMP-0054 provider surface or post-generation edit did not persist on reopen: $reopened"
@@ -9424,6 +9426,8 @@ tasks.register("sfImp0054TectonicTerrainAcceptance") {
                 && treatmentReopened.getProperty("reviewIslandCount") == "3"
                 && treatmentReopened.getProperty("reviewIslandLowerSurfaceDigest")
                     == treatment.getProperty("reviewIslandLowerSurfaceDigest")
+                && treatmentReopened.getProperty("reviewIslandMiddleSurfaceDigest")
+                    == treatment.getProperty("reviewIslandMiddleSurfaceDigest")
                 && treatmentReopened.getProperty("reviewIslandHigherSurfaceDigest")
                     == treatment.getProperty("reviewIslandHigherSurfaceDigest")) {
             "SF-IMP-0054 Tectonic provider surface did not persist unchanged across save/reopen: $treatmentReopened"
