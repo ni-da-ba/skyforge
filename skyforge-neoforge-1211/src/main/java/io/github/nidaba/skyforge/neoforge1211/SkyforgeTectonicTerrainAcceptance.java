@@ -55,15 +55,16 @@ final class SkyforgeTectonicTerrainAcceptance {
     private static final int PROFILE_RADIUS = 8;
     private static final int MINIMUM_TECTONIC_ISLAND_RELIEF_BLOCKS = 48;
     private static final int MAXIMUM_TECTONIC_ISLAND_COLUMNS_NEAR_PEAK = 128;
-    // Machine-only no-visual-change references from the accepted 7502d9b specimen.
+    // Provider-profile references remain pinned to the accepted 7502d9b specimen. Realized-surface
+    // references pin the intentional Euclidean edge-blend output from candidate 2d2da15.
     private static final String VANILLA_PROVIDER_PROFILE_DIGEST =
             "5943921b4706da8099ebf0ad86b097754bb225cd034f4139069272d139a0e621";
     private static final String VANILLA_PROVIDER_HEIGHT_DIGEST =
             "b526ee0ccb956d883b3299452b68c145e5f6af8e7ea898e2b9093e95376b6bbf";
     private static final String VANILLA_REALIZED_SURFACE_DIGEST =
-            "c6508e60b5e02342e1b7b617339bd37cb98994d15a1093ac8a5597661f511130";
+            "1cb0beeaf1c2f806e33eea1d53c0f92f81d631bf0d64bf782d38cb794493661f";
     private static final String VANILLA_REALIZED_HEIGHT_DIGEST =
-            "dfd0a4b20f4fdf37c8075176cfeefa0277a7f4528030178b3a29fb5dd99fe3bb";
+            "4c2c8940b47de5f4b3b4715f50cfb5759078e4700cd587b574d5105669b0df4c";
     private static final String TECTONIC_PROVIDER_PROFILE_DIGEST =
             "3ef91a1f90dca06cb69cf2f471be826cc7e1d78936df1bbae4a61f228c3bbf1a";
     private static final String TECTONIC_PROVIDER_HEIGHT_DIGEST =
@@ -246,7 +247,7 @@ final class SkyforgeTectonicTerrainAcceptance {
             }
             ProfileEvidence realizedSurface = captureRealizedIslandSurface(islandChunk);
             if (!reopening) {
-                verifyNoVisualChangeBaseline(server, treatment, profile, realizedSurface);
+                verifyDeterministicTerrainBaseline(server, treatment, profile, realizedSurface);
                 verifyProviderHaloPerformance(server, treatment);
             }
             if (realizedSurface.samples() == 0) {
@@ -1016,7 +1017,7 @@ final class SkyforgeTectonicTerrainAcceptance {
                 || !expectedProviderHeight.equals(provider.heightDigest())
                 || !expectedRealized.equals(realized.digest())
                 || !expectedRealizedHeight.equals(realized.heightDigest())) {
-            fail(server, "provider cache changed the deterministic terrain output; "
+            fail(server, "deterministic terrain baseline changed; "
                     + "providerDigest=" + provider.digest()
                     + ", providerHeightDigest=" + provider.heightDigest()
                     + ", realizedDigest=" + realized.digest()
