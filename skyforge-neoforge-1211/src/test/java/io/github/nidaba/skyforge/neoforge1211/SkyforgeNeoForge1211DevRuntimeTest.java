@@ -38,15 +38,17 @@ final class SkyforgeNeoForge1211DevRuntimeTest {
     }
 
     @Test
-    void tectonicReviewCatalogProducesThreeMassifsAtSeparatedHeights() {
+    void tectonicReviewCatalogProducesFiveMorphologiesAtOneElevation() {
         String property = SkyforgeNeoForge1211DevRuntime.TECTONIC_REVIEW_ENABLE_PROPERTY;
         String previous = System.getProperty(property);
         System.setProperty(property, "true");
         try {
             var adapter = SkyforgeNeoForge1211DevRuntime.adapter();
-            assertReviewIsland(adapter, new ChunkPos(-24, 0), -64, 640, -32, 176, "lower");
-            assertReviewIsland(adapter, new ChunkPos(0, 0), -64, 640, 96, 304, "middle");
-            assertReviewIsland(adapter, new ChunkPos(24, 0), -64, 640, 224, 432, "higher");
+            assertReviewIsland(adapter, new ChunkPos(-48, 0), -64, 640, 96, 304, "tableland");
+            assertReviewIsland(adapter, new ChunkPos(-24, 0), -64, 640, 96, 304, "spine");
+            assertReviewIsland(adapter, new ChunkPos(0, 0), -64, 640, 96, 304, "massif");
+            assertReviewIsland(adapter, new ChunkPos(24, 0), -64, 640, 96, 304, "basin");
+            assertReviewIsland(adapter, new ChunkPos(48, 0), -64, 640, 96, 304, "lobed");
         } finally {
             if (previous == null) {
                 System.clearProperty(property);
