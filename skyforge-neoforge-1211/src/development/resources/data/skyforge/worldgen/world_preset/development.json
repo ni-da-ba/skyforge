@@ -1,7 +1,7 @@
 {
   "dimensions": {
     "minecraft:overworld": {
-      "type": "minecraft:overworld",
+      "type": "skyforge:development_overworld",
       "generator": {
         "type": "skyforge:noise_overlay",
         "biome_source": {
