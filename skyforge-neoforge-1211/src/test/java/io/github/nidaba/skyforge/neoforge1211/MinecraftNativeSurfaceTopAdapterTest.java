@@ -116,6 +116,22 @@ final class MinecraftNativeSurfaceTopAdapterTest {
     }
 
     @Test
+    void footprintDistanceUsesEuclideanContoursRatherThanChebyshevContours() {
+        int width = 9;
+        int height = 9;
+        boolean[] unsupported = new boolean[width * height];
+        unsupported[4 + 4 * width] = true;
+
+        double[] distances = MinecraftNativeSurfaceTopAdapter.euclideanDistanceToUnsupported(
+                unsupported, width, height, 4);
+
+        assertEquals(1.0d, distances[5 + 4 * width], 0.0d);
+        assertEquals(Math.sqrt(2.0d), distances[5 + 5 * width], 1.0e-12d);
+        assertEquals(2.0d, distances[6 + 4 * width], 0.0d);
+        assertEquals(4.0d, distances[8 + 4 * width], 0.0d);
+    }
+
+    @Test
     void providerReliefFadesAcrossTheIslandFootprintEdge() {
         int radius = MinecraftNativeSurfaceTopAdapter.PROVIDER_RELIEF_EDGE_BLEND_RADIUS_BLOCKS;
         assertEquals(0, MinecraftNativeSurfaceTopAdapter.blendProviderReliefAtFootprintEdge(64, 0, radius));
