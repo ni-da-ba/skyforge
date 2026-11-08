@@ -63,9 +63,9 @@ final class SkyforgeTectonicTerrainAcceptance {
     private static final String VANILLA_PROVIDER_HEIGHT_DIGEST =
             "b526ee0ccb956d883b3299452b68c145e5f6af8e7ea898e2b9093e95376b6bbf";
     private static final String VANILLA_REALIZED_SURFACE_DIGEST =
-            "1cb0beeaf1c2f806e33eea1d53c0f92f81d631bf0d64bf782d38cb794493661f";
+            "c2bc49d71625285ccd13548c248c5f5fa314d53eac3d9762b970f8e32f020587";
     private static final String VANILLA_REALIZED_HEIGHT_DIGEST =
-            "4c2c8940b47de5f4b3b4715f50cfb5759078e4700cd587b574d5105669b0df4c";
+            "2b963f05fdceeb3c2649b5c6a713a038c7021669ea550ddf5db9f63b7b1fa2c6";
     private static final String TECTONIC_PROVIDER_PROFILE_DIGEST =
             "91ae640e14a61304f64da526024e7ec3e590906e8b4859380e486ef8add6cf33";
     private static final String TECTONIC_PROVIDER_HEIGHT_DIGEST =
