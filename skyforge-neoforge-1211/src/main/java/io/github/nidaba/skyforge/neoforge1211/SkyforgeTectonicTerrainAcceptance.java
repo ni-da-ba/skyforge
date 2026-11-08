@@ -45,6 +45,7 @@ final class SkyforgeTectonicTerrainAcceptance {
     private static final float REVIEW_CAMERA_PITCH = 35.0F;
     private static final double EXPECTED_TECTONIC_VERTICAL_SCALE = 2.0;
     private static final double EXPECTED_TECTONIC_ELEVATION_BOOST = 2.0;
+    private static final String EXPECTED_TECTONIC_ULTRASMOOTH = "true";
     private static final double EXPECTED_TECTONIC_CONTINENTS_SCALE = 0.5;
     private static final double EXPECTED_TECTONIC_EROSION_SCALE = 1.0;
     private static final double EXPECTED_TECTONIC_RIDGE_SCALE = 1.0;
@@ -183,6 +184,7 @@ final class SkyforgeTectonicTerrainAcceptance {
 
             String tectonicVerticalScale = "not-applicable";
             String tectonicElevationBoost = "not-applicable";
+            String tectonicUltrasmooth = "not-applicable";
             String tectonicContinentsScale = "not-applicable";
             String tectonicErosionScale = "not-applicable";
             String tectonicRidgeScale = "not-applicable";
@@ -191,12 +193,14 @@ final class SkyforgeTectonicTerrainAcceptance {
             if (treatment) {
                 tectonicVerticalScale = configuredTectonicVerticalScale();
                 tectonicElevationBoost = configuredTectonicElevationBoost();
+                tectonicUltrasmooth = configuredTectonicUltrasmooth();
                 tectonicContinentsScale = configuredTectonicContinentsScale();
                 tectonicErosionScale = configuredTectonicErosionScale();
                 tectonicRidgeScale = configuredTectonicRidgeScale();
                 tectonicFlatTerrainSkew = configuredTectonicFlatTerrainSkew();
                 tectonicOceanOffset = configuredTectonicOceanOffset();
                 if (!Double.toString(EXPECTED_TECTONIC_VERTICAL_SCALE).equals(tectonicVerticalScale)
+                        || !EXPECTED_TECTONIC_ULTRASMOOTH.equals(tectonicUltrasmooth)
                         || !Double.toString(EXPECTED_TECTONIC_ELEVATION_BOOST).equals(tectonicElevationBoost)
                         || !Double.toString(EXPECTED_TECTONIC_CONTINENTS_SCALE).equals(tectonicContinentsScale)
                         || !Double.toString(EXPECTED_TECTONIC_EROSION_SCALE).equals(tectonicErosionScale)
@@ -206,6 +210,7 @@ final class SkyforgeTectonicTerrainAcceptance {
                     fail(server, "Tectonic treatment config differs from the pinned terrain profile: "
                             + "vertical_scale=" + tectonicVerticalScale
                             + ", elevation_boost=" + tectonicElevationBoost
+                            + ", ultrasmooth=" + tectonicUltrasmooth
                             + ", continents_scale=" + tectonicContinentsScale
                             + ", erosion_scale=" + tectonicErosionScale
                             + ", ridge_scale=" + tectonicRidgeScale
@@ -460,6 +465,7 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put("tectonicPackSelected", tectonicPackSelected);
             evidence.put("tectonicVerticalScale", tectonicVerticalScale);
             evidence.put("tectonicElevationBoost", tectonicElevationBoost);
+            evidence.put("tectonicUltrasmooth", tectonicUltrasmooth);
             evidence.put("tectonicContinentsScale", tectonicContinentsScale);
             evidence.put("tectonicErosionScale", tectonicErosionScale);
             evidence.put("tectonicRidgeScale", tectonicRidgeScale);
@@ -565,6 +571,18 @@ final class SkyforgeTectonicTerrainAcceptance {
                     + " island is clipped by the development dimension: surface="
                     + surface.minimumY() + ".." + surface.maximumY()
                     + ", buildRange=" + level.getMinBuildHeight() + ".." + level.getMaxBuildHeight());
+        }
+    }
+
+    private static String configuredTectonicUltrasmooth() {
+        Path configPath = FMLPaths.CONFIGDIR.get().resolve("tectonic.json");
+        try {
+            JsonObject config = JsonParser.parseString(Files.readString(configPath)).getAsJsonObject();
+            JsonObject globalTerrain = config.getAsJsonObject("global_terrain");
+            return globalTerrain.get("ultrasmooth").getAsString();
+        } catch (IOException | RuntimeException failure) {
+            throw new IllegalStateException("could not read the pinned Tectonic smoothing configuration at "
+                    + configPath, failure);
         }
     }
 
