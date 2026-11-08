@@ -87,7 +87,7 @@ final class SkyforgeNeoForge1211DevRuntime {
         if (!Boolean.getBoolean(TECTONIC_REVIEW_ENABLE_PROPERTY)) {
             return new SkyIslandWorldCatalog(
                     ROOT_SEED,
-                    List.of(reviewMassif("sf-imp-0043-dev-massif", 0, 224, 0)));
+                    List.of(reviewMassif("sf-imp-0043-dev-massif", 0, 0, 224, 0)));
         }
 
         // The original middle specimen remains bit-for-bit positioned for A/B digest comparison.
@@ -96,16 +96,16 @@ final class SkyforgeNeoForge1211DevRuntime {
         return new SkyIslandWorldCatalog(
                 ROOT_SEED,
                 List.of(
-                        reviewMassif("sf-imp-0054-review-low", -384, 96, 0),
-                        reviewMassif("sf-imp-0043-dev-massif", 0, 224, 0),
-                        reviewMassif("sf-imp-0054-review-high", 384, 352, 0)));
+                        reviewMassif("sf-imp-0054-review-low", 1, -384, 96, 0),
+                        reviewMassif("sf-imp-0043-dev-massif", 0, 0, 224, 0),
+                        reviewMassif("sf-imp-0054-review-high", 2, 384, 352, 0)));
     }
 
     private static SkyIslandWorldVolume reviewMassif(
-            String volumeName, int centerX, int centerY, int centerZ) {
+            String volumeName, int memberOrdinal, int centerX, int centerY, int centerZ) {
         var compiled = compiledMassif(centerX, centerY, centerZ);
         var id = new SkyIslandWorldVolumeId(
-                ROOT_SEED, volumeName, centerX, centerZ, ROOT_SEED);
+                ROOT_SEED, volumeName, 0, memberOrdinal, ROOT_SEED);
         var worldVolume = new SkyIslandWorldVolume(
                 id,
                 new WorldBounds(
