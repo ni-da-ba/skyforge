@@ -996,7 +996,7 @@ final class SkyforgeTectonicTerrainAcceptance {
         }
     }
 
-    private static void verifyNoVisualChangeBaseline(
+    private static void verifyDeterministicTerrainBaseline(
             MinecraftServer server,
             boolean treatment,
             ProfileEvidence provider,
