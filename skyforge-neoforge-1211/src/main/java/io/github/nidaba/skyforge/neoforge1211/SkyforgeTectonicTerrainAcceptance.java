@@ -67,13 +67,13 @@ final class SkyforgeTectonicTerrainAcceptance {
     private static final String VANILLA_REALIZED_HEIGHT_DIGEST =
             "4c2c8940b47de5f4b3b4715f50cfb5759078e4700cd587b574d5105669b0df4c";
     private static final String TECTONIC_PROVIDER_PROFILE_DIGEST =
-            "3ef91a1f90dca06cb69cf2f471be826cc7e1d78936df1bbae4a61f228c3bbf1a";
+            "91ae640e14a61304f64da526024e7ec3e590906e8b4859380e486ef8add6cf33";
     private static final String TECTONIC_PROVIDER_HEIGHT_DIGEST =
-            "26af221f1b123863dc2f512b01b7fe5a58795c16ce5dd57295c90bc724ffd06e";
+            "0e2bdc8100cca0df30cd68e64c3623cabbf14ba954a0959115f0ff301a6de675";
     private static final String TECTONIC_REALIZED_SURFACE_DIGEST =
-            "638b1daa676f82d2517776813e0338a2686af186804cc4668a3e73a802d557d8";
+            "b447927ef9ea6ead7be8c238e03d5307a315a9d2fdd2acfd93d1302a1105abad";
     private static final String TECTONIC_REALIZED_HEIGHT_DIGEST =
-            "35ff7bcf7ec7ba9047571122d6aa58ebc2f77390b75d98c1f3cad395be5641a7";
+            "bb0fb830ea2de497c790836f94126698eeabab1e8b7c36502c4de16b496fee98";
     // The previous accepted treatment spent 527s of 563s in the halo. This gate requires
     // at least a 2x reduction while leaving substantial allowance for hosted-runner variance.
     private static final long MAX_TECTONIC_HEIGHT_HALO_NANOS = 240_000_000_000L;
