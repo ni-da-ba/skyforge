@@ -38,6 +38,55 @@ final class SkyforgeNeoForge1211DevRuntimeTest {
     }
 
     @Test
+    void tectonicReviewCatalogProducesFiveMorphologiesAtOneElevation() {
+        String property = SkyforgeNeoForge1211DevRuntime.TECTONIC_REVIEW_ENABLE_PROPERTY;
+        String previous = System.getProperty(property);
+        System.setProperty(property, "true");
+        try {
+            var adapter = SkyforgeNeoForge1211DevRuntime.adapter();
+            assertReviewIsland(adapter, new ChunkPos(-48, 0), -64, 640, 96, 304, "tableland");
+            assertReviewIsland(adapter, new ChunkPos(-24, 0), -64, 640, 96, 304, "spine");
+            assertReviewIsland(adapter, new ChunkPos(0, 0), -64, 640, 96, 304, "massif");
+            assertReviewIsland(adapter, new ChunkPos(24, 0), -64, 640, 96, 304, "basin");
+            assertReviewIsland(adapter, new ChunkPos(48, 0), -64, 640, 96, 304, "lobed");
+        } finally {
+            if (previous == null) {
+                System.clearProperty(property);
+            } else {
+                System.setProperty(property, previous);
+            }
+        }
+    }
+
+    private static void assertReviewIsland(
+            SkyforgeNeoForge1211ChunkAdapter adapter,
+            ChunkPos chunkPos,
+            int minimumY,
+            int height,
+            int expectedMinimumY,
+            int expectedMaximumY,
+            String label) {
+        MinecraftChunkMaterialization materialization =
+                adapter.materialize(chunkPos, minimumY, height);
+        assertTrue(materialization.candidateVolumeReferences() > 0, label + " island is absent from its review chunk");
+        assertTrue(materialization.solidBlockCount() > 0, label + " island materialized no solid blocks");
+
+        boolean surfaceWithinBand = false;
+        for (int worldY = expectedMinimumY; worldY <= expectedMaximumY && !surfaceWithinBand; worldY++) {
+            for (int localZ = 0; localZ < 16 && !surfaceWithinBand; localZ++) {
+                for (int localX = 0; localX < 16; localX++) {
+                    if (!SkyforgeMinecraftBlockPalette.AIR.equals(
+                            materialization.blockKeyAt(localX, worldY, localZ))) {
+                        surfaceWithinBand = true;
+                        break;
+                    }
+                }
+            }
+        }
+        assertTrue(surfaceWithinBand, label + " island missed its expected vertical review band");
+    }
+
+    @Test
     void developmentSpecimenProducesSolidTerrainAtDocumentedInspectionRegion() {
         MinecraftChunkMaterialization materialization = SkyforgeNeoForge1211DevRuntime.adapter()
                 .materialize(new ChunkPos(0, 0), -64, 384);

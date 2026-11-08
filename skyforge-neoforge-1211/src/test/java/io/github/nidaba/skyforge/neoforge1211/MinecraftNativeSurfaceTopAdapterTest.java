@@ -1,6 +1,7 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -41,6 +42,31 @@ final class MinecraftNativeSurfaceTopAdapterTest {
     }
 
     @Test
+    void islandTerrainDatumUsesTheMedianOfValidProviderHeights() {
+        assertEquals(
+                25,
+                MinecraftNativeSurfaceSnapshot.medianProviderTerrainDatumY(
+                        new int[] {Integer.MIN_VALUE, 10, 20, 30, 40}, 63));
+        assertEquals(
+                63,
+                MinecraftNativeSurfaceSnapshot.medianProviderTerrainDatumY(
+                        new int[] {Integer.MIN_VALUE, Integer.MIN_VALUE}, 63));
+    }
+
+    @Test
+    void islandDatumSamplesSpanTheWholeBoundsAtDeterministicIntegerColumns() {
+        assertArrayEquals(
+                new int[] {-160, -120, -80, -40, 0, 40, 80, 120, 160},
+                MinecraftNativeSurfaceSnapshot.providerIslandDatumSampleCoordinates(-160, 160, 8));
+        assertArrayEquals(
+                new int[] {10, 11, 12, 13},
+                MinecraftNativeSurfaceSnapshot.providerIslandDatumSampleCoordinates(10, 13, 8));
+        assertArrayEquals(
+                new int[] {5},
+                MinecraftNativeSurfaceSnapshot.providerIslandDatumSampleCoordinates(5, 5, 8));
+    }
+
+    @Test
     void providerReliefUsesBoundedLinearMappingAtIslandScale() {
         assertEquals(3, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(7));
         assertEquals(6, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(15));
@@ -75,11 +101,11 @@ final class MinecraftNativeSurfaceTopAdapterTest {
         MinecraftNativeSurfaceSnapshot snapshot = MinecraftNativeSurfaceSnapshot.capture(chunk, 63);
 
         assertEquals(
-                194,
+                192,
                 snapshot.smoothedProviderSurfaceY(8, 8),
-                "the broad local ridge should blend into its 11x11 provider neighborhood");
+                "the broad local ridge should blend into its 15x15 provider neighborhood");
         assertEquals(
-                193,
+                192,
                 snapshot.smoothedProviderSurfaceY(7, 7),
                 "the ridge edge should transition gradually");
         assertEquals(
@@ -113,6 +139,22 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                 MinecraftNativeSurfaceSnapshot.smoothedProviderSurfaceY(left, 15, 8),
                 MinecraftNativeSurfaceSnapshot.smoothedProviderSurfaceY(right, -1, 8),
                 "neighboring chunks must derive the same smoothed height at the shared border sample");
+    }
+
+    @Test
+    void footprintDistanceUsesEuclideanContoursRatherThanChebyshevContours() {
+        int width = 9;
+        int height = 9;
+        boolean[] unsupported = new boolean[width * height];
+        unsupported[4 + 4 * width] = true;
+
+        double[] distances = MinecraftNativeSurfaceTopAdapter.euclideanDistanceToUnsupported(
+                unsupported, width, height, 4);
+
+        assertEquals(1.0d, distances[5 + 4 * width], 0.0d);
+        assertEquals(Math.sqrt(2.0d), distances[5 + 5 * width], 1.0e-12d);
+        assertEquals(2.0d, distances[6 + 4 * width], 0.0d);
+        assertEquals(4.0d, distances[8 + 4 * width], 0.0d);
     }
 
     @Test

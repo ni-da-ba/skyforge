@@ -15,6 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.MinecraftServer;
@@ -45,6 +46,7 @@ final class SkyforgeTectonicTerrainAcceptance {
     private static final float REVIEW_CAMERA_PITCH = 35.0F;
     private static final double EXPECTED_TECTONIC_VERTICAL_SCALE = 2.0;
     private static final double EXPECTED_TECTONIC_ELEVATION_BOOST = 2.0;
+    private static final String EXPECTED_TECTONIC_ULTRASMOOTH = "true";
     private static final double EXPECTED_TECTONIC_CONTINENTS_SCALE = 0.5;
     private static final double EXPECTED_TECTONIC_EROSION_SCALE = 1.0;
     private static final double EXPECTED_TECTONIC_RIDGE_SCALE = 1.0;
@@ -55,29 +57,162 @@ final class SkyforgeTectonicTerrainAcceptance {
     private static final int PROFILE_RADIUS = 8;
     private static final int MINIMUM_TECTONIC_ISLAND_RELIEF_BLOCKS = 48;
     private static final int MAXIMUM_TECTONIC_ISLAND_COLUMNS_NEAR_PEAK = 128;
-    // Machine-only no-visual-change references from the accepted 7502d9b specimen.
+    // Provider-profile references remain pinned to the accepted 7502d9b specimen. Realized-surface
+    // references pin the intentional Euclidean edge-blend output from candidate 2d2da15.
     private static final String VANILLA_PROVIDER_PROFILE_DIGEST =
             "5943921b4706da8099ebf0ad86b097754bb225cd034f4139069272d139a0e621";
     private static final String VANILLA_PROVIDER_HEIGHT_DIGEST =
             "b526ee0ccb956d883b3299452b68c145e5f6af8e7ea898e2b9093e95376b6bbf";
     private static final String VANILLA_REALIZED_SURFACE_DIGEST =
-            "c6508e60b5e02342e1b7b617339bd37cb98994d15a1093ac8a5597661f511130";
+            "6bea3455b281178b4f6eaa79a94f5cf392a70005134bc0c0329f615387368dc7";
     private static final String VANILLA_REALIZED_HEIGHT_DIGEST =
-            "dfd0a4b20f4fdf37c8075176cfeefa0277a7f4528030178b3a29fb5dd99fe3bb";
+            "8c3608c9dafd7f2f20a6f66ac8f42ebee6b3f44ab73c90628b95dc69e8d49da5";
     private static final String TECTONIC_PROVIDER_PROFILE_DIGEST =
-            "3ef91a1f90dca06cb69cf2f471be826cc7e1d78936df1bbae4a61f228c3bbf1a";
+            "91ae640e14a61304f64da526024e7ec3e590906e8b4859380e486ef8add6cf33";
     private static final String TECTONIC_PROVIDER_HEIGHT_DIGEST =
-            "26af221f1b123863dc2f512b01b7fe5a58795c16ce5dd57295c90bc724ffd06e";
+            "0e2bdc8100cca0df30cd68e64c3623cabbf14ba954a0959115f0ff301a6de675";
     private static final String TECTONIC_REALIZED_SURFACE_DIGEST =
-            "17e36fcb17850837c964b6d1ba2c1a1bd515f3940dfa74f27d33226be0c161c7";
+            "62a720f89943bf1d609cb1e5b5f4894309d727f9e9d8f4bdd71eeaed9098f97b";
     private static final String TECTONIC_REALIZED_HEIGHT_DIGEST =
-            "e7f52392f2d3cdb60fa4e63e4dd3ea8c7f9eb0e777d5da459afbefbede5847f6";
+            "f59e82d672fa97d972a52d381f0ac4bc39d8dcee3180a37c99294e583492c8e8";
     // The previous accepted treatment spent 527s of 563s in the halo. This gate requires
     // at least a 2x reduction while leaving substantial allowance for hosted-runner variance.
     private static final long MAX_TECTONIC_HEIGHT_HALO_NANOS = 240_000_000_000L;
     private static boolean complete;
+    private static final Map<Long, Map<String, Object>> SURFACE_COMPOSITION_EVIDENCE =
+            new ConcurrentHashMap<>();
+    private static final Map<String, ChunkPos> SURFACE_COMPOSITION_CHUNKS = Map.of(
+            "basinScreenWestNorth", new ChunkPos(21, -2),
+            "basinScreenEastNorth", new ChunkPos(22, -2),
+            "basinScreenWestSouth", new ChunkPos(21, -1),
+            "basinScreenEastSouth", new ChunkPos(22, -1),
+            "spineReviewCore", new ChunkPos(-24, 0));
     private static final Set<UUID> REVIEW_RELOCATED_PLAYERS = new HashSet<>();
     private static final Map<UUID, Integer> REVIEW_RELOCATION_ATTEMPTS = new HashMap<>();
+
+    static boolean wantsSurfaceCompositionEvidence(ChunkPos chunkPos) {
+        return SURFACE_COMPOSITION_CHUNKS.containsValue(chunkPos);
+    }
+
+    static Map<String, Object> surfaceCompositionEvidence(ChunkPos chunkPos) {
+        return SURFACE_COMPOSITION_EVIDENCE.remove(chunkPos.toLong());
+    }
+
+    static Map<String, ChunkPos> surfaceCompositionChunks() {
+        return SURFACE_COMPOSITION_CHUNKS;
+    }
+
+    static void recordSurfaceCompositionEvidence(
+            ChunkPos chunkPos,
+            int[] authoredTopY,
+            int[] filteredProviderY,
+            int[] providerDatumY,
+            int[] projectedTopY,
+            int[] projectedReliefY,
+            int[] edgeInfluencePermille,
+            net.minecraft.resources.ResourceLocation[] authoredMaterial,
+            net.minecraft.resources.ResourceLocation[] providerMaterial,
+            net.minecraft.resources.ResourceLocation[] realizedMaterial) {
+        if (!Boolean.getBoolean(ENABLE_PROPERTY) || !wantsSurfaceCompositionEvidence(chunkPos)) {
+            return;
+        }
+        int count = authoredTopY.length;
+        if (count != 256
+                || filteredProviderY.length != count
+                || providerDatumY.length != count
+                || projectedTopY.length != count
+                || projectedReliefY.length != count
+                || edgeInfluencePermille.length != count
+                || authoredMaterial.length != count
+                || providerMaterial.length != count
+                || realizedMaterial.length != count) {
+            throw new IllegalArgumentException("surface composition evidence must contain one 16x16 chunk");
+        }
+        int sampled = 0;
+        int raised = 0;
+        int lowered = 0;
+        int unchanged = 0;
+        int raisedOne = 0;
+        int loweredOne = 0;
+        int changedMaterials = 0;
+        for (int i = 0; i < count; i++) {
+            if (authoredTopY[i] == Integer.MIN_VALUE || projectedTopY[i] == Integer.MIN_VALUE) {
+                continue;
+            }
+            sampled++;
+            int delta = projectedTopY[i] - authoredTopY[i];
+            if (delta > 0) raised++;
+            else if (delta < 0) lowered++;
+            else unchanged++;
+            if (delta == 1) raisedOne++;
+            if (delta == -1) loweredOne++;
+            if (!java.util.Objects.equals(authoredMaterial[i], realizedMaterial[i])) changedMaterials++;
+        }
+
+        Map<String, Object> evidence = new LinkedHashMap<>();
+        evidence.put("surfaceCompositionChunk", chunkPos.toString());
+        evidence.put("surfaceCompositionColumns", sampled);
+        evidence.put("surfaceCompositionRaisedColumns", raised);
+        evidence.put("surfaceCompositionLoweredColumns", lowered);
+        evidence.put("surfaceCompositionUnchangedColumns", unchanged);
+        evidence.put("surfaceCompositionExactlyOneBlockRaised", raisedOne);
+        evidence.put("surfaceCompositionExactlyOneBlockLowered", loweredOne);
+        evidence.put("surfaceCompositionChangedTopMaterials", changedMaterials);
+        evidence.put("surfaceCompositionAuthoredTopYGrid", formatIntGrid(authoredTopY));
+        evidence.put("surfaceCompositionFilteredProviderYGrid", formatIntGrid(filteredProviderY));
+        evidence.put("surfaceCompositionProviderDatumYGrid", formatIntGrid(providerDatumY));
+        evidence.put("surfaceCompositionProjectedReliefYGrid", formatIntGrid(projectedReliefY));
+        evidence.put("surfaceCompositionEdgeInfluencePermilleGrid", formatIntGrid(edgeInfluencePermille));
+        evidence.put("surfaceCompositionRealizedTopYGrid", formatIntGrid(projectedTopY));
+        evidence.put("surfaceCompositionMaterialPaletteAndGrid",
+                formatMaterialGrid(authoredMaterial, providerMaterial, realizedMaterial));
+        SURFACE_COMPOSITION_EVIDENCE.put(chunkPos.toLong(), Map.copyOf(evidence));
+    }
+
+    private static String formatIntGrid(int[] values) {
+        StringBuilder result = new StringBuilder();
+        for (int z = 0; z < 16; z++) {
+            if (z > 0) result.append('/');
+            for (int x = 0; x < 16; x++) {
+                if (x > 0) result.append(',');
+                int value = values[x + z * 16];
+                result.append(value == Integer.MIN_VALUE ? "x" : Integer.toString(value));
+            }
+        }
+        return result.toString();
+    }
+
+    private static String formatMaterialGrid(
+            net.minecraft.resources.ResourceLocation[] authored,
+            net.minecraft.resources.ResourceLocation[] provider,
+            net.minecraft.resources.ResourceLocation[] realized) {
+        java.util.TreeSet<String> palette = new java.util.TreeSet<>();
+        for (int i = 0; i < authored.length; i++) {
+            if (authored[i] != null) palette.add(authored[i].toString());
+            if (provider[i] != null) palette.add(provider[i].toString());
+            if (realized[i] != null) palette.add(realized[i].toString());
+        }
+        Map<String, Integer> indices = new java.util.HashMap<>();
+        int next = 0;
+        for (String material : palette) indices.put(material, next++);
+        StringBuilder result = new StringBuilder("palette=");
+        result.append(String.join(",", palette)).append(";grid=");
+        for (int z = 0; z < 16; z++) {
+            if (z > 0) result.append('/');
+            for (int x = 0; x < 16; x++) {
+                if (x > 0) result.append(',');
+                int i = x + z * 16;
+                result.append(materialIndex(indices, authored[i])).append('.')
+                        .append(materialIndex(indices, provider[i])).append('.')
+                        .append(materialIndex(indices, realized[i]));
+            }
+        }
+        return result.toString();
+    }
+
+    private static String materialIndex(Map<String, Integer> indices, net.minecraft.resources.ResourceLocation material) {
+        return material == null ? "x" : Integer.toString(indices.get(material.toString()));
+    }
 
     private SkyforgeTectonicTerrainAcceptance() {}
 
@@ -182,6 +317,7 @@ final class SkyforgeTectonicTerrainAcceptance {
 
             String tectonicVerticalScale = "not-applicable";
             String tectonicElevationBoost = "not-applicable";
+            String tectonicUltrasmooth = "not-applicable";
             String tectonicContinentsScale = "not-applicable";
             String tectonicErosionScale = "not-applicable";
             String tectonicRidgeScale = "not-applicable";
@@ -190,12 +326,14 @@ final class SkyforgeTectonicTerrainAcceptance {
             if (treatment) {
                 tectonicVerticalScale = configuredTectonicVerticalScale();
                 tectonicElevationBoost = configuredTectonicElevationBoost();
+                tectonicUltrasmooth = configuredTectonicUltrasmooth();
                 tectonicContinentsScale = configuredTectonicContinentsScale();
                 tectonicErosionScale = configuredTectonicErosionScale();
                 tectonicRidgeScale = configuredTectonicRidgeScale();
                 tectonicFlatTerrainSkew = configuredTectonicFlatTerrainSkew();
                 tectonicOceanOffset = configuredTectonicOceanOffset();
                 if (!Double.toString(EXPECTED_TECTONIC_VERTICAL_SCALE).equals(tectonicVerticalScale)
+                        || !EXPECTED_TECTONIC_ULTRASMOOTH.equals(tectonicUltrasmooth)
                         || !Double.toString(EXPECTED_TECTONIC_ELEVATION_BOOST).equals(tectonicElevationBoost)
                         || !Double.toString(EXPECTED_TECTONIC_CONTINENTS_SCALE).equals(tectonicContinentsScale)
                         || !Double.toString(EXPECTED_TECTONIC_EROSION_SCALE).equals(tectonicErosionScale)
@@ -205,6 +343,7 @@ final class SkyforgeTectonicTerrainAcceptance {
                     fail(server, "Tectonic treatment config differs from the pinned terrain profile: "
                             + "vertical_scale=" + tectonicVerticalScale
                             + ", elevation_boost=" + tectonicElevationBoost
+                            + ", ultrasmooth=" + tectonicUltrasmooth
                             + ", continents_scale=" + tectonicContinentsScale
                             + ", erosion_scale=" + tectonicErosionScale
                             + ", ridge_scale=" + tectonicRidgeScale
@@ -226,6 +365,25 @@ final class SkyforgeTectonicTerrainAcceptance {
             }
 
             ChunkAccess islandChunk = level.getChunk(REVIEW_CHUNK.getMiddleBlockPosition(0));
+            boolean multiIslandReview =
+                    Boolean.getBoolean(SkyforgeNeoForge1211DevRuntime.TECTONIC_REVIEW_ENABLE_PROPERTY);
+            ChunkAccess tablelandIslandChunk = multiIslandReview
+                    ? level.getChunk(new ChunkPos(-48, 0).getMiddleBlockPosition(0))
+                    : null;
+            ChunkAccess spineIslandChunk = multiIslandReview
+                    ? level.getChunk(new ChunkPos(-24, 0).getMiddleBlockPosition(0))
+                    : null;
+            ChunkAccess basinIslandChunk = multiIslandReview
+                    ? level.getChunk(new ChunkPos(24, 0).getMiddleBlockPosition(0))
+                    : null;
+            ChunkAccess lobedIslandChunk = multiIslandReview
+                    ? level.getChunk(new ChunkPos(48, 0).getMiddleBlockPosition(0))
+                    : null;
+            if (multiIslandReview && treatment) {
+                for (ChunkPos diagnosticChunk : SURFACE_COMPOSITION_CHUNKS.values()) {
+                    level.getChunk(diagnosticChunk.getMiddleBlockPosition(0));
+                }
+            }
             RandomState randomState =
                     generator.terrainProviderRandomState(level.getSeed(), level.registryAccess());
             boolean reopening = Boolean.getBoolean(ENABLE_PROPERTY + ".reopen");
@@ -245,17 +403,46 @@ final class SkyforgeTectonicTerrainAcceptance {
                 return;
             }
             ProfileEvidence realizedSurface = captureRealizedIslandSurface(islandChunk);
+            Map<String, Object> surfaceSourceRoughnessEvidence =
+                    !reopening && multiIslandReview && providerSurfaceSnapshot != null
+                            ? captureSurfaceSourceRoughness(islandChunk, providerSurfaceSnapshot)
+                            : Map.of();
+            ProfileEvidence tablelandRealizedSurface = tablelandIslandChunk == null
+                    ? null
+                    : captureRealizedIslandSurface(tablelandIslandChunk);
+            ProfileEvidence spineRealizedSurface = spineIslandChunk == null
+                    ? null
+                    : captureRealizedIslandSurface(spineIslandChunk);
+            ProfileEvidence basinRealizedSurface = basinIslandChunk == null
+                    ? null
+                    : captureRealizedIslandSurface(basinIslandChunk);
+            ProfileEvidence lobedRealizedSurface = lobedIslandChunk == null
+                    ? null
+                    : captureRealizedIslandSurface(lobedIslandChunk);
+            if (multiIslandReview) {
+                requireReviewIslandSurface(level, "tableland", tablelandRealizedSurface);
+                requireReviewIslandSurface(level, "spine", spineRealizedSurface);
+                requireReviewIslandSurface(level, "massif", realizedSurface);
+                requireReviewIslandSurface(level, "basin", basinRealizedSurface);
+                requireReviewIslandSurface(level, "lobed", lobedRealizedSurface);
+            }
             if (!reopening) {
-                verifyNoVisualChangeBaseline(server, treatment, profile, realizedSurface);
+                verifyDeterministicTerrainBaseline(server, treatment, profile, realizedSurface);
                 verifyProviderHaloPerformance(server, treatment);
             }
             if (realizedSurface.samples() == 0) {
                 fail(server, "Skyforge island has no realized top-surface columns in the origin chunk");
                 return;
             }
+            var reviewVolumes = SkyforgeNeoForge1211DevRuntime.catalog().volumes();
+            int islandTerrainDatumY = providerSurfaceSnapshot == null
+                    ? Integer.MIN_VALUE
+                    : multiIslandReview
+                            ? providerSurfaceSnapshot.providerReliefDatumY(reviewVolumes.get(2).id())
+                            : providerSurfaceSnapshot.baselineY();
             String providerTerrainDatumY = providerSurfaceSnapshot == null
                     ? "not-recomputed-on-reopen"
-                    : Integer.toString(providerSurfaceSnapshot.baselineY());
+                    : Integer.toString(islandTerrainDatumY);
             int realizedIslandRelief = realizedSurface.maximumY() - realizedSurface.minimumY();
             int peakNeighborhoodFloorY = realizedSurface.maximumY() - 8;
             int realizedIslandColumnsNearPeak =
@@ -379,6 +566,21 @@ final class SkyforgeTectonicTerrainAcceptance {
                 fail(server, "void exterior chunk contains " + exteriorNonAirBlocks + " non-air blocks");
                 return;
             }
+            int[] reviewGapNonAirBlocks = new int[4];
+            if (multiIslandReview) {
+                int[] gapChunkXs = {-36, -12, 12, 36};
+                for (int index = 0; index < gapChunkXs.length; index++) {
+                    ChunkAccess gapChunk =
+                            level.getChunk(new ChunkPos(gapChunkXs[index], 0).getMiddleBlockPosition(0));
+                    reviewGapNonAirBlocks[index] = countNonAir(gapChunk);
+                    if (reviewGapNonAirBlocks[index] != 0) {
+                        fail(server, "same-elevation morphology gap at chunk X="
+                                + gapChunkXs[index] + " contains "
+                                + reviewGapNonAirBlocks[index] + " non-air blocks");
+                        return;
+                    }
+                }
+            }
 
             int persistedGrassColumns = countTopMaterial(islandChunk, Blocks.GRASS_BLOCK.defaultBlockState());
             int persistedMutationColumns = countTopMaterial(islandChunk, Blocks.COBBLESTONE.defaultBlockState());
@@ -400,6 +602,7 @@ final class SkyforgeTectonicTerrainAcceptance {
             }
 
             Map<String, Object> evidence = new LinkedHashMap<>();
+            evidence.putAll(surfaceSourceRoughnessEvidence);
             evidence.put(
                     "runtimeModSet",
                     ModList.get().getMods().stream()
@@ -411,6 +614,7 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put("tectonicPackSelected", tectonicPackSelected);
             evidence.put("tectonicVerticalScale", tectonicVerticalScale);
             evidence.put("tectonicElevationBoost", tectonicElevationBoost);
+            evidence.put("tectonicUltrasmooth", tectonicUltrasmooth);
             evidence.put("tectonicContinentsScale", tectonicContinentsScale);
             evidence.put("tectonicErosionScale", tectonicErosionScale);
             evidence.put("tectonicRidgeScale", tectonicRidgeScale);
@@ -418,7 +622,14 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put("tectonicOceanOffset", tectonicOceanOffset);
             evidence.put("terrainProviderSettings", settingsKey);
             evidence.put("terrainProfileDatumY", providerTerrainDatumY);
-            evidence.put("terrainProfileDatumSampling", "world_fixed_origin_chunk_minimum");
+            evidence.put(
+                    "terrainProfileDatumSampling",
+                    multiIslandReview ? "island_anchor_chunk_median" : "world_fixed_origin_chunk_minimum");
+            evidence.put(
+                    "providerGlobalTerrainDatumY",
+                    providerSurfaceSnapshot == null
+                            ? "not-recomputed-on-reopen"
+                            : providerSurfaceSnapshot.baselineY());
             evidence.put(
                     "providerReliefMapping",
                     MinecraftNativeSurfaceTopAdapter.PROVIDER_RELIEF_MAPPING);
@@ -471,6 +682,32 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put("reviewSpawnSupport", BuiltInRegistries.BLOCK.getKey(reviewSpawnSupport.getBlock()));
             evidence.put("reviewSpawnAnchor", BuiltInRegistries.BLOCK.getKey(reviewSpawnAnchor.getBlock()));
             evidence.put("reviewSpawnSupportStable", true);
+            evidence.put("reviewIslandCount", multiIslandReview ? 5 : 1);
+            if (multiIslandReview) {
+                putReviewIslandEvidence(evidence, "tableland", new ChunkPos(-48, 0), tablelandRealizedSurface);
+                putReviewIslandEvidence(evidence, "spine", new ChunkPos(-24, 0), spineRealizedSurface);
+                putReviewIslandEvidence(evidence, "massif", REVIEW_CHUNK, realizedSurface);
+                putReviewIslandEvidence(evidence, "basin", new ChunkPos(24, 0), basinRealizedSurface);
+                putReviewIslandEvidence(evidence, "lobed", new ChunkPos(48, 0), lobedRealizedSurface);
+                evidence.put("reviewGapChunkXs", "-36,-12,12,36");
+                evidence.put("reviewGapNonAirBlocks", String.join(",",
+                        java.util.Arrays.stream(reviewGapNonAirBlocks)
+                                .mapToObj(Integer::toString)
+                                .toList()));
+                evidence.put("reviewDimensionBuildRange",
+                        level.getMinBuildHeight() + ".." + level.getMaxBuildHeight());
+                if (treatment) {
+                    for (var entry : SURFACE_COMPOSITION_CHUNKS.entrySet()) {
+                        Map<String, Object> composition = surfaceCompositionEvidence(entry.getValue());
+                        evidence.put("surfaceComposition." + entry.getKey() + ".captured",
+                                composition != null);
+                        if (composition != null) {
+                            composition.forEach((key, value) ->
+                                    evidence.put("surfaceComposition." + entry.getKey() + "." + key, value));
+                        }
+                    }
+                }
+            }
             complete = true;
             SkyforgeAutomatedAcceptanceHarness.completeServerCase(server, evidence);
         } catch (RuntimeException failure) {
@@ -478,6 +715,41 @@ final class SkyforgeTectonicTerrainAcceptance {
                     server,
                     "Tectonic terrain acceptance failed: "
                             + failure.getClass().getSimpleName() + ": " + failure.getMessage());
+        }
+    }
+
+    private static void putReviewIslandEvidence(
+            Map<String, Object> evidence, String family, ChunkPos chunk, ProfileEvidence surface) {
+        evidence.put("reviewIsland" + family + "Chunk", chunk.toString());
+        evidence.put("reviewIsland" + family + "HeightRange",
+                surface.minimumY() + ".." + surface.maximumY());
+        evidence.put("reviewIsland" + family + "SurfaceDigest", surface.digest());
+        evidence.put("reviewIsland" + family + "SurfaceColumns", surface.samples());
+    }
+
+    private static void requireReviewIslandSurface(
+            ServerLevel level, String label, ProfileEvidence surface) {
+        if (surface == null || surface.samples() == 0) {
+            throw new IllegalStateException("multi-island review " + label + " island has no realized surface");
+        }
+        if (surface.minimumY() <= level.getMinBuildHeight()
+                || surface.maximumY() >= level.getMaxBuildHeight()) {
+            throw new IllegalStateException("multi-island review " + label
+                    + " island is clipped by the development dimension: surface="
+                    + surface.minimumY() + ".." + surface.maximumY()
+                    + ", buildRange=" + level.getMinBuildHeight() + ".." + level.getMaxBuildHeight());
+        }
+    }
+
+    private static String configuredTectonicUltrasmooth() {
+        Path configPath = FMLPaths.CONFIGDIR.get().resolve("tectonic.json");
+        try {
+            JsonObject config = JsonParser.parseString(Files.readString(configPath)).getAsJsonObject();
+            JsonObject globalTerrain = config.getAsJsonObject("global_terrain");
+            return globalTerrain.get("ultrasmooth").getAsString();
+        } catch (IOException | RuntimeException failure) {
+            throw new IllegalStateException("could not read the pinned Tectonic smoothing configuration at "
+                    + configPath, failure);
         }
     }
 
@@ -864,6 +1136,107 @@ final class SkyforgeTectonicTerrainAcceptance {
         return matches;
     }
 
+    /**
+     * Separates high-frequency variation in the authored cap, raw provider profile, filtered provider
+     * profile, and realized composite surface. These diagnostics quantify the surface-source
+     * composition that a broad relief range and whole-profile digest cannot distinguish.
+     */
+    private static Map<String, Object> captureSurfaceSourceRoughness(
+            ChunkAccess chunk, MinecraftNativeSurfaceSnapshot providerSnapshot) {
+        ChunkPos chunkPos = chunk.getPos();
+        var reviewVolumes = SkyforgeNeoForge1211DevRuntime.catalog().volumes();
+        if (reviewVolumes.size() != 5) {
+            throw new IllegalStateException("roughness diagnostic requires the five-island review fixture");
+        }
+        var islandVolumeId = reviewVolumes.get(2).id();
+        var islandAdapter = SkyforgeNeoForge1211DevRuntime.adapter();
+        int[] authored = new int[16 * 16];
+        int[] provider = new int[16 * 16];
+        int[] filteredProvider = new int[16 * 16];
+        int[] realized = new int[16 * 16];
+        java.util.Arrays.fill(authored, Integer.MIN_VALUE);
+        java.util.Arrays.fill(provider, Integer.MIN_VALUE);
+        java.util.Arrays.fill(filteredProvider, Integer.MIN_VALUE);
+        java.util.Arrays.fill(realized, Integer.MIN_VALUE);
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int localZ = 0; localZ < 16; localZ++) {
+            int worldZ = chunkPos.getMinBlockZ() + localZ;
+            for (int localX = 0; localX < 16; localX++) {
+                int worldX = chunkPos.getMinBlockX() + localX;
+                int index = localX + 16 * localZ;
+                islandAdapter.integerSolidRange(islandVolumeId, worldX, worldZ)
+                        .ifPresent(range -> authored[index] = range.maximumY());
+                providerSnapshot.surface(localX, localZ)
+                        .ifPresent(surface -> provider[index] = surface.worldY());
+                filteredProvider[index] = providerSnapshot.smoothedProviderSurfaceY(localX, localZ);
+                for (int worldY = chunk.getMaxBuildHeight() - 1;
+                        worldY >= chunk.getMinBuildHeight();
+                        worldY--) {
+                    BlockState state = chunk.getBlockState(cursor.set(worldX, worldY, worldZ));
+                    if (state.isAir() || !state.getFluidState().isEmpty()) {
+                        continue;
+                    }
+                    realized[index] = worldY;
+                    break;
+                }
+            }
+        }
+        Map<String, Object> evidence = new LinkedHashMap<>();
+        putSurfaceRoughnessEvidence(evidence, "authoredCap", measureSurfaceRoughness(authored));
+        putSurfaceRoughnessEvidence(evidence, "providerRaw", measureSurfaceRoughness(provider));
+        putSurfaceRoughnessEvidence(evidence, "providerFiltered", measureSurfaceRoughness(filteredProvider));
+        putSurfaceRoughnessEvidence(evidence, "realizedComposite", measureSurfaceRoughness(realized));
+        return evidence;
+    }
+
+    private static void putSurfaceRoughnessEvidence(
+            Map<String, Object> evidence, String source, SurfaceRoughness roughness) {
+        evidence.put("surfaceRoughness" + source + "MeanAbsStep", roughness.meanAbsStep());
+        evidence.put("surfaceRoughness" + source + "MeanAbsLaplacian", roughness.meanAbsLaplacian());
+        evidence.put("surfaceRoughness" + source + "StepSamples", roughness.stepSamples());
+        evidence.put("surfaceRoughness" + source + "LaplacianSamples", roughness.laplacianSamples());
+    }
+
+    private static SurfaceRoughness measureSurfaceRoughness(int[] heights) {
+        double absoluteStepSum = 0.0d;
+        double absoluteLaplacianSum = 0.0d;
+        int stepSamples = 0;
+        int laplacianSamples = 0;
+        for (int localZ = 1; localZ < 15; localZ++) {
+            for (int localX = 1; localX < 15; localX++) {
+                int index = localX + 16 * localZ;
+                int center = heights[index];
+                if (center == Integer.MIN_VALUE) {
+                    continue;
+                }
+                int west = heights[index - 1];
+                int east = heights[index + 1];
+                int north = heights[index - 16];
+                int south = heights[index + 16];
+                if (west != Integer.MIN_VALUE && east != Integer.MIN_VALUE) {
+                    absoluteStepSum += Math.abs(center - west) + Math.abs(east - center);
+                    stepSamples += 2;
+                    absoluteLaplacianSum += Math.abs(west - 2 * center + east);
+                    laplacianSamples++;
+                }
+                if (north != Integer.MIN_VALUE && south != Integer.MIN_VALUE) {
+                    absoluteStepSum += Math.abs(center - north) + Math.abs(south - center);
+                    stepSamples += 2;
+                    absoluteLaplacianSum += Math.abs(north - 2 * center + south);
+                    laplacianSamples++;
+                }
+            }
+        }
+        return new SurfaceRoughness(
+                stepSamples == 0 ? 0.0d : absoluteStepSum / stepSamples,
+                laplacianSamples == 0 ? 0.0d : absoluteLaplacianSum / laplacianSamples,
+                stepSamples,
+                laplacianSamples);
+    }
+
+    private record SurfaceRoughness(
+            double meanAbsStep, double meanAbsLaplacian, int stepSamples, int laplacianSamples) {}
+
     private static ProfileEvidence captureRealizedIslandSurface(ChunkAccess chunk) {
         MessageDigest digest = newSha256();
         MessageDigest heightDigest = newSha256();
@@ -995,7 +1368,7 @@ final class SkyforgeTectonicTerrainAcceptance {
         }
     }
 
-    private static void verifyNoVisualChangeBaseline(
+    private static void verifyDeterministicTerrainBaseline(
             MinecraftServer server,
             boolean treatment,
             ProfileEvidence provider,
@@ -1016,7 +1389,7 @@ final class SkyforgeTectonicTerrainAcceptance {
                 || !expectedProviderHeight.equals(provider.heightDigest())
                 || !expectedRealized.equals(realized.digest())
                 || !expectedRealizedHeight.equals(realized.heightDigest())) {
-            fail(server, "provider cache changed the deterministic terrain output; "
+            fail(server, "deterministic terrain baseline changed; "
                     + "providerDigest=" + provider.digest()
                     + ", providerHeightDigest=" + provider.heightDigest()
                     + ", realizedDigest=" + realized.digest()

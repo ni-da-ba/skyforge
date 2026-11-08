@@ -1,25 +1,28 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import io.github.nidaba.skyforge.world.SkyIslandWorldVolume;
+import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.Optional;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.levelgen.Heightmap;
-import net.minecraft.world.level.StructureManager;
 import net.minecraft.world.level.NoiseColumn;
+import net.minecraft.world.level.StructureManager;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ProtoChunk;
 import net.minecraft.world.level.chunk.UpgradeData;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.blending.Blender;
@@ -36,12 +39,14 @@ final class MinecraftNativeSurfaceSnapshot {
     private static final int CHUNK_WIDTH = 16;
     private static final int SAMPLE_COUNT = CHUNK_WIDTH * CHUNK_WIDTH;
     static final int SURFACE_STRATA_DEPTH = 4;
-    private static final int PROFILE_FILTER_RADIUS = 5;
+    private static final int PROFILE_FILTER_RADIUS = 7;
     private static final int PROFILE_SAMPLE_HALO_RADIUS = PROFILE_FILTER_RADIUS;
     private static final int PROFILE_FILTER_WIDTH = CHUNK_WIDTH + PROFILE_SAMPLE_HALO_RADIUS * 2;
     static final int PROVIDER_HEIGHT_HALO_SAMPLE_COUNT = PROFILE_FILTER_WIDTH * PROFILE_FILTER_WIDTH;
     private static final Map<ProviderDatumKey, Integer> PROVIDER_TERRAIN_DATUMS = new ConcurrentHashMap<>();
-    // The 11x11 smoothing kernel needs at most a one-chunk border. Cache immutable provider
+    private static final ConcurrentHashMap<ProviderIslandDatumKey, Integer> PROVIDER_ISLAND_TERRAIN_DATUMS =
+            new ConcurrentHashMap<>();
+    // The 15x15 smoothing kernel needs at most a one-chunk border. Cache immutable provider
     // surface tiles so neighboring halos reuse chunk-level generation instead of thousands of
     // expensive per-column NoiseBasedChunkGenerator.getBaseHeight calls.
     private static final int MAX_CACHED_PROVIDER_SURFACE_CHUNKS = 512;
@@ -59,6 +64,7 @@ final class MinecraftNativeSurfaceSnapshot {
     private final ResourceLocation[] blockKeys;
     private final ResourceLocation[][] surfaceStrata;
     private final int[] providerHeightHalo;
+    private final Map<SkyIslandWorldVolumeId, Integer> providerReliefDatums;
 
     private MinecraftNativeSurfaceSnapshot(
             ChunkPos chunkPos,
@@ -76,6 +82,17 @@ final class MinecraftNativeSurfaceSnapshot {
             ResourceLocation[] blockKeys,
             ResourceLocation[][] surfaceStrata,
             int[] providerHeightHalo) {
+        this(chunkPos, baselineY, worldYs, blockKeys, surfaceStrata, providerHeightHalo, Map.of());
+    }
+
+    private MinecraftNativeSurfaceSnapshot(
+            ChunkPos chunkPos,
+            int baselineY,
+            int[] worldYs,
+            ResourceLocation[] blockKeys,
+            ResourceLocation[][] surfaceStrata,
+            int[] providerHeightHalo,
+            Map<SkyIslandWorldVolumeId, Integer> providerReliefDatums) {
         this.chunkPos = Objects.requireNonNull(chunkPos, "chunkPos");
         this.baselineY = baselineY;
         if (worldYs.length != SAMPLE_COUNT || blockKeys.length != SAMPLE_COUNT) {
@@ -97,6 +114,8 @@ final class MinecraftNativeSurfaceSnapshot {
             this.surfaceStrata[index] = Arrays.copyOf(surfaceStrata[index], SURFACE_STRATA_DEPTH);
         }
         this.providerHeightHalo = Arrays.copyOf(providerHeightHalo, providerHeightHalo.length);
+        this.providerReliefDatums = Map.copyOf(
+                Objects.requireNonNull(providerReliefDatums, "providerReliefDatums"));
     }
 
     static MinecraftNativeSurfaceSnapshot capture(
@@ -159,20 +178,28 @@ final class MinecraftNativeSurfaceSnapshot {
             StructureManager structureManager,
             ChunkAccess targetChunk,
             NoiseBasedChunkGenerator generator,
-            RandomState randomState) {
+            RandomState randomState,
+            List<SkyIslandWorldVolume> candidateVolumes) {
         Objects.requireNonNull(level, "level");
         Objects.requireNonNull(structureManager, "structureManager");
         Objects.requireNonNull(targetChunk, "targetChunk");
         Objects.requireNonNull(generator, "generator");
         Objects.requireNonNull(randomState, "randomState");
+        Objects.requireNonNull(candidateVolumes, "candidateVolumes");
 
         long stageStart = SkyforgeRuntimePerformanceMetrics.start();
         MinecraftNativeSurfaceSnapshot captured = cachedProviderSurfaceChunk(
                 level, structureManager, targetChunk.getPos(), generator, randomState);
         SkyforgeRuntimePerformanceMetrics.recordSince("terrain.providerSnapshot.surfaceChunkLookup", stageStart);
         stageStart = SkyforgeRuntimePerformanceMetrics.start();
+        Map<SkyIslandWorldVolumeId, Integer> reliefDatums = new HashMap<>();
+        for (SkyIslandWorldVolume volume : candidateVolumes) {
+            reliefDatums.put(
+                    volume.id(),
+                    providerIslandTerrainDatumY(level, generator, randomState, volume));
+        }
         MinecraftNativeSurfaceSnapshot withHalo =
-                captured.withProviderHeightHalo(level, structureManager, generator, randomState);
+                captured.withProviderHeightHalo(level, structureManager, generator, randomState, reliefDatums);
         SkyforgeRuntimePerformanceMetrics.recordSince("terrain.providerSnapshot.heightHalo", stageStart);
         return withHalo;
     }
@@ -181,13 +208,20 @@ final class MinecraftNativeSurfaceSnapshot {
             WorldGenRegion level,
             StructureManager structureManager,
             NoiseBasedChunkGenerator generator,
-            RandomState randomState) {
+            RandomState randomState,
+            Map<SkyIslandWorldVolumeId, Integer> providerReliefDatums) {
         int[] heightHalo = sampleProviderHeightHalo(
                 chunkPos,
                 (worldX, worldZ) -> cachedProviderSurfaceHeight(
                         level, structureManager, generator, randomState, worldX, worldZ));
         return new MinecraftNativeSurfaceSnapshot(
-                chunkPos, baselineY, worldYs, blockKeys, surfaceStrata, heightHalo);
+                chunkPos,
+                baselineY,
+                worldYs,
+                blockKeys,
+                surfaceStrata,
+                heightHalo,
+                providerReliefDatums);
     }
 
     /** Samples the complete filter window through one world-coordinate terrain source. */
@@ -279,6 +313,81 @@ final class MinecraftNativeSurfaceSnapshot {
             return centerHeight;
         }
         return (int) Math.round(weightedHeight / (double) totalWeight);
+    }
+
+    private static final int PROVIDER_ISLAND_DATUM_GRID_INTERVALS = 8;
+
+    /**
+     * Uses a deterministic provider-height median sampled across the island's horizontal bounds.
+     *
+     * <p>A tiny anchor neighborhood can land entirely on a Tectonic summit and make ordinary
+     * lower terrain look like a large negative basin. Sampling a fixed grid across the island
+     * footprint makes the datum represent broad local terrain instead of one anchor feature.
+     */
+    private static int providerIslandTerrainDatumY(
+            WorldGenRegion level,
+            NoiseBasedChunkGenerator generator,
+            RandomState randomState,
+            SkyIslandWorldVolume volume) {
+        SkyIslandWorldVolumeId volumeId = volume.id();
+        return PROVIDER_ISLAND_TERRAIN_DATUMS.computeIfAbsent(
+                new ProviderIslandDatumKey(generator, randomState, volumeId),
+                ignored -> {
+                    var bounds = volume.bounds();
+                    int minimumX = (int) Math.ceil(bounds.minimumX());
+                    int maximumX = (int) Math.floor(bounds.maximumX());
+                    int minimumZ = (int) Math.ceil(bounds.minimumZ());
+                    int maximumZ = (int) Math.floor(bounds.maximumZ());
+                    int[] sampleXs = providerIslandDatumSampleCoordinates(
+                            minimumX, maximumX, PROVIDER_ISLAND_DATUM_GRID_INTERVALS);
+                    int[] sampleZs = providerIslandDatumSampleCoordinates(
+                            minimumZ, maximumZ, PROVIDER_ISLAND_DATUM_GRID_INTERVALS);
+                    int[] heights = new int[sampleXs.length * sampleZs.length];
+                    int sample = 0;
+                    for (int worldZ : sampleZs) {
+                        for (int worldX : sampleXs) {
+                            NoiseColumn column = generator.getBaseColumn(worldX, worldZ, level, randomState);
+                            heights[sample++] = firstSolidSurfaceY(
+                                    column, level.getMinBuildHeight(), level.getMaxBuildHeight());
+                        }
+                    }
+                    return medianProviderTerrainDatumY(heights, generator.getSeaLevel());
+                });
+    }
+
+    static int[] providerIslandDatumSampleCoordinates(int minimum, int maximum, int requestedIntervals) {
+        if (maximum < minimum) {
+            throw new IllegalArgumentException("datum sample maximum must be at least the minimum");
+        }
+        if (requestedIntervals <= 0) {
+            throw new IllegalArgumentException("datum sample intervals must be positive");
+        }
+        int intervalCount = Math.min(requestedIntervals, maximum - minimum);
+        if (intervalCount == 0) {
+            return new int[] {minimum};
+        }
+        int[] coordinates = new int[intervalCount + 1];
+        for (int index = 0; index <= intervalCount; index++) {
+            coordinates[index] = minimum + (int) Math.round(
+                    (maximum - (double) minimum) * index / intervalCount);
+        }
+        return coordinates;
+    }
+
+    static int medianProviderTerrainDatumY(int[] providerHeights, int fallbackY) {
+        Objects.requireNonNull(providerHeights, "providerHeights");
+        int[] samples = Arrays.stream(providerHeights)
+                .filter(height -> height != Integer.MIN_VALUE)
+                .toArray();
+        if (samples.length == 0) {
+            return fallbackY;
+        }
+        Arrays.sort(samples);
+        int upper = samples.length / 2;
+        if ((samples.length & 1) == 1) {
+            return samples[upper];
+        }
+        return (int) Math.round((samples[upper - 1] + (double) samples[upper]) * 0.5d);
     }
 
     /** Uses a cached, world-fixed minimum origin profile as the provider-relative datum. */
@@ -506,6 +615,11 @@ final class MinecraftNativeSurfaceSnapshot {
 
     private record ProviderDatumKey(NoiseBasedChunkGenerator generator, RandomState randomState) {}
 
+    private record ProviderIslandDatumKey(
+            NoiseBasedChunkGenerator generator,
+            RandomState randomState,
+            SkyIslandWorldVolumeId volumeId) {}
+
     /**
      * A detached ProtoChunk retains worldgen postprocessing marks without exposing provider
      * writes to the live region. Its biome registry and height range come from the same region.
@@ -608,6 +722,11 @@ final class MinecraftNativeSurfaceSnapshot {
 
     int baselineY() {
         return baselineY;
+    }
+
+    int providerReliefDatumY(SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        return providerReliefDatums.getOrDefault(volumeId, baselineY);
     }
 
     Optional<NativeSurface> surface(int localX, int localZ) {

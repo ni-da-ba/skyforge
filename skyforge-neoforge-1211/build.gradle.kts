@@ -849,6 +849,7 @@ neoForge {
             systemProperty("skyforge.dev.tectonicTerrain", "true")
             systemProperty("skyforge.dev.tectonicTerrain.treatment", "false")
             systemProperty("skyforge.dev.tectonicTerrain.reopen", "true")
+            systemProperty("skyforge.dev.tectonicTerrainReviewIsland", "true")
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0054-provider-surface-reopen")
@@ -900,6 +901,7 @@ neoForge {
             systemProperty("skyforge.dev.tectonicTerrain", "true")
             systemProperty("skyforge.dev.tectonicTerrain.treatment", "true")
             systemProperty("skyforge.dev.tectonicTerrain.reopen", "true")
+            systemProperty("skyforge.dev.tectonicTerrainReviewIsland", "true")
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0054-tectonic-treatment-reopen")
@@ -9289,6 +9291,8 @@ tasks.register("f4kHydrologyReviewPrepareVerify") {
 val sfImp0054TectonicVerticalScale = 2.0
 val sfImp0054MinimumRidgeClearanceBlocks = 32
 val sfImp0054TectonicElevationBoost = 2.0
+// Tectonic's native filter is the next controlled smoothing treatment for residual ridge stair-stepping.
+val sfImp0054TectonicUltrasmooth = true
 // Higher horizontal noise frequency and thicker mountain ranges target island-scale relief.
 val sfImp0054TectonicContinentsScale = 0.5
 val sfImp0054TectonicErosionScale = 1.0
@@ -9310,7 +9314,8 @@ val sfImp0054TectonicConfig = """
       },
       "global_terrain": {
         "vertical_scale": $sfImp0054TectonicVerticalScale,
-        "elevation_boost": $sfImp0054TectonicElevationBoost
+        "elevation_boost": $sfImp0054TectonicElevationBoost,
+        "ultrasmooth": $sfImp0054TectonicUltrasmooth
       }
     }
 """.trimIndent() + "\n"
@@ -9397,9 +9402,16 @@ tasks.register("sfImp0054TectonicTerrainAcceptance") {
         val treatment = requireSfImp0054TectonicPass("treatment")
         val reopened = requireSfImp0054TectonicPass("reopen")
         val treatmentReopened = requireSfImp0054TectonicPass("treatment-reopen")
+        val reviewFamilies = listOf("tableland", "spine", "massif", "basin", "lobed")
         check(reopened.getProperty("reopenPass") == "true"
                 && reopened.getProperty("persistedProviderSurfaceColumns").toInt() > 0
-                && reopened.getProperty("persistedPostGenerationMutationColumns").toInt() > 0) {
+                && reopened.getProperty("persistedPostGenerationMutationColumns").toInt() > 0
+                && reopened.getProperty("reviewIslandCount") == "5"
+                && reviewFamilies.filter { it != "massif" }.all { family ->
+                    reopened.getProperty("reviewIsland${family}SurfaceDigest") == vanilla.getProperty("reviewIsland${family}SurfaceDigest")
+                }
+                && reopened.getProperty("realizedIslandSurfaceHeightDigest")
+                    == vanilla.getProperty("realizedIslandSurfaceHeightDigest")) {
             "SF-IMP-0054 provider surface or post-generation edit did not persist on reopen: $reopened"
         }
         check(treatmentReopened.getProperty("reopenPass") == "true"
@@ -9415,8 +9427,24 @@ tasks.register("sfImp0054TectonicTerrainAcceptance") {
                     == treatment.getProperty("realizedIslandSurfaceColumns")
                 && treatmentReopened.getProperty("persistedProviderSurfaceColumns").toInt() > 0
                 && treatmentReopened.getProperty("exteriorNonAirBlocks") == "0"
-                && treatmentReopened.getProperty("islandUndersideSolidSamples").toInt() > 0) {
+                && treatmentReopened.getProperty("islandUndersideSolidSamples").toInt() > 0
+                && treatmentReopened.getProperty("reviewIslandCount") == "5"
+                && reviewFamilies.all { family ->
+                    treatmentReopened.getProperty("reviewIsland${family}SurfaceDigest") == treatment.getProperty("reviewIsland${family}SurfaceDigest")
+                }) {
             "SF-IMP-0054 Tectonic provider surface did not persist unchanged across save/reopen: $treatmentReopened"
+        }
+        check(vanilla.getProperty("reviewIslandCount") == "5"
+                && treatment.getProperty("reviewIslandCount") == "5"
+                && reviewFamilies.all { family ->
+                    vanilla.getProperty("reviewIsland${family}SurfaceColumns").toInt() > 0
+                        && treatment.getProperty("reviewIsland${family}SurfaceColumns").toInt() > 0
+                }
+                && vanilla.getProperty("reviewGapNonAirBlocks") == "0,0,0,0"
+                && treatment.getProperty("reviewGapNonAirBlocks") == "0,0,0,0"
+                && vanilla.getProperty("reviewDimensionBuildRange") == "-64..576"
+                && treatment.getProperty("reviewDimensionBuildRange") == "-64..576") {
+            "SF-IMP-0054 same-elevation morphology review fixture is incomplete or clipped: vanilla=$vanilla treatment=$treatment"
         }
         check(vanilla.getProperty("worldSeed") == treatment.getProperty("worldSeed")) {
             "SF-IMP-0054 Tectonic A/B seeds differ"

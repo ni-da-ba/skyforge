@@ -84,22 +84,55 @@ final class SkyforgeNeoForge1211DevRuntime {
     }
 
     static SkyIslandWorldCatalog catalog() {
-        var compiled = compiledMassif();
-        var id = new SkyIslandWorldVolumeId(ROOT_SEED, "sf-imp-0043-dev-massif", 0, 0, ROOT_SEED);
-        var worldVolume = new SkyIslandWorldVolume(
-                id,
-                new WorldBounds(-160.0, 160.0, 96.0, 304.0, -160.0, 160.0),
-                compiled);
-        return new SkyIslandWorldCatalog(ROOT_SEED, List.of(worldVolume));
+        if (!Boolean.getBoolean(TECTONIC_REVIEW_ENABLE_PROPERTY)) {
+            return new SkyIslandWorldCatalog(
+                    ROOT_SEED,
+                    List.of(reviewIsland(
+                            "sf-imp-0043-dev-massif", 0, MorphologyFamily.MASSIF, 0, 224, 0)));
+        }
+
+        // Keep the original middle Massif bit-for-bit positioned as the vanilla/Tectonic A/B baseline.
+        // Four accepted morphology families flank it at the same center elevation for direct visual review.
+        return new SkyIslandWorldCatalog(
+                ROOT_SEED,
+                List.of(
+                        reviewIsland("sf-imp-0054-review-tableland", 1, MorphologyFamily.TABLELAND, -768, 224, 0),
+                        reviewIsland("sf-imp-0054-review-spine", 2, MorphologyFamily.SPINE, -384, 224, 0),
+                        reviewIsland("sf-imp-0043-dev-massif", 0, MorphologyFamily.MASSIF, 0, 224, 0),
+                        reviewIsland("sf-imp-0054-review-basin", 3, MorphologyFamily.BASIN, 384, 224, 0),
+                        reviewIsland("sf-imp-0054-review-lobed", 4, MorphologyFamily.LOBED, 768, 224, 0)));
     }
 
-    private static io.github.nidaba.skyforge.recipes.skyisland.CompiledSkyIslandVolume compiledMassif() {
+    private static SkyIslandWorldVolume reviewIsland(
+            String volumeName,
+            int memberOrdinal,
+            MorphologyFamily family,
+            int centerX,
+            int centerY,
+            int centerZ) {
+        var compiled = compiledMorphology(family, centerX, centerY, centerZ);
+        var id = new SkyIslandWorldVolumeId(
+                ROOT_SEED, volumeName, 0, memberOrdinal, ROOT_SEED);
+        return new SkyIslandWorldVolume(
+                id,
+                new WorldBounds(
+                        centerX - 160.0,
+                        centerX + 160.0,
+                        centerY - 128.0,
+                        centerY + 80.0,
+                        centerZ - 160.0,
+                        centerZ + 160.0),
+                compiled);
+    }
+
+    private static io.github.nidaba.skyforge.recipes.skyisland.CompiledSkyIslandVolume compiledMorphology(
+            MorphologyFamily family, double centerX, double centerY, double centerZ) {
         SkyIslandVolumeDescriptor descriptor = new SkyIslandVolumeDescriptor(
                 SkyIslandVolumeDescriptor.SCHEMA_VERSION_1,
                 ROOT_SEED,
-                0.0,
-                0.0,
-                224.0,
+                centerX,
+                centerZ,
+                centerY,
                 96.0,
                 42.0,
                 72.0,
@@ -110,7 +143,7 @@ final class SkyforgeNeoForge1211DevRuntime {
                 0.25,
                 0.0,
                 20.0);
-        var provider = SkyIslandMorphologyProviders.builtInId(MorphologyFamily.MASSIF);
+        var provider = SkyIslandMorphologyProviders.builtInId(family);
         return new EnrichedProviderMorphologySkyIslandVolumeRecipe().compile(
                 descriptor,
                 new ProviderMorphologyEnrichment(provider, 0.0, 0.0),

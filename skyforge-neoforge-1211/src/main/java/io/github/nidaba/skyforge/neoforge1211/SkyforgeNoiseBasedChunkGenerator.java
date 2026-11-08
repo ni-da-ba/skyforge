@@ -587,7 +587,8 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
                         structureManager,
                         chunk,
                         terrainProvider,
-                        terrainProviderRandomState(level));
+                        terrainProviderRandomState(level),
+                        SkyforgeNeoForge1211SurfaceStage.candidateVolumesForSnapshot(chunk));
             } else {
                 SkyforgeNativeSurfaceSnapshotStage.capture(chunk, getSeaLevel());
             }
