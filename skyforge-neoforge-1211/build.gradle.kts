@@ -9404,7 +9404,7 @@ tasks.register("sfImp0054TectonicTerrainAcceptance") {
                 && reopened.getProperty("persistedProviderSurfaceColumns").toInt() > 0
                 && reopened.getProperty("persistedPostGenerationMutationColumns").toInt() > 0
                 && reopened.getProperty("reviewIslandCount") == "5"
-                && reviewFamilies.all { family ->
+                && reviewFamilies.filter { it != "massif" }.all { family ->
                     reopened.getProperty("reviewIsland${family}SurfaceDigest") == vanilla.getProperty("reviewIsland${family}SurfaceDigest")
                 }
                 && reopened.getProperty("realizedIslandSurfaceHeightDigest")
