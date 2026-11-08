@@ -9405,8 +9405,8 @@ tasks.register("sfImp0054TectonicTerrainAcceptance") {
                 && reopened.getProperty("reviewIslandCount") == "3"
                 && reopened.getProperty("reviewIslandLowerSurfaceDigest")
                     == vanilla.getProperty("reviewIslandLowerSurfaceDigest")
-                && reopened.getProperty("reviewIslandMiddleSurfaceDigest")
-                    == vanilla.getProperty("reviewIslandMiddleSurfaceDigest")
+                && reopened.getProperty("realizedIslandSurfaceHeightDigest")
+                    == vanilla.getProperty("realizedIslandSurfaceHeightDigest")
                 && reopened.getProperty("reviewIslandHigherSurfaceDigest")
                     == vanilla.getProperty("reviewIslandHigherSurfaceDigest")) {
             "SF-IMP-0054 provider surface or post-generation edit did not persist on reopen: $reopened"
