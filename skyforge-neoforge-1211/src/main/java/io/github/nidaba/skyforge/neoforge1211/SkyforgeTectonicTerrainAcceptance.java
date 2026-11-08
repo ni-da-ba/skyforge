@@ -504,7 +504,7 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put("reviewSpawnSupportStable", true);
             evidence.put("reviewIslandCount", multiIslandReview ? 3 : 1);
             if (multiIslandReview) {
-                evidence.put("reviewIslandLowerChunk", new ChunkPos(-20, 4));
+                evidence.put("reviewIslandLowerChunk", new ChunkPos(-20, 4).toString());
                 evidence.put("reviewIslandLowerHeightRange", lowerRealizedSurface.minimumY()
                         + ".." + lowerRealizedSurface.maximumY());
                 evidence.put("reviewIslandLowerSurfaceDigest", lowerRealizedSurface.digest());
