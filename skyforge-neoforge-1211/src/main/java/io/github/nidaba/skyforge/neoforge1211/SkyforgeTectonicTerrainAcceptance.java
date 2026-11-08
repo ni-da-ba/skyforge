@@ -15,6 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.MinecraftServer;
@@ -78,8 +79,140 @@ final class SkyforgeTectonicTerrainAcceptance {
     // at least a 2x reduction while leaving substantial allowance for hosted-runner variance.
     private static final long MAX_TECTONIC_HEIGHT_HALO_NANOS = 240_000_000_000L;
     private static boolean complete;
+    private static final Map<Long, Map<String, Object>> SURFACE_COMPOSITION_EVIDENCE =
+            new ConcurrentHashMap<>();
+    private static final Map<String, ChunkPos> SURFACE_COMPOSITION_CHUNKS = Map.of(
+            "basinScreenWestNorth", new ChunkPos(21, -2),
+            "basinScreenEastNorth", new ChunkPos(22, -2),
+            "basinScreenWestSouth", new ChunkPos(21, -1),
+            "basinScreenEastSouth", new ChunkPos(22, -1),
+            "spineReviewCore", new ChunkPos(-24, 0));
     private static final Set<UUID> REVIEW_RELOCATED_PLAYERS = new HashSet<>();
     private static final Map<UUID, Integer> REVIEW_RELOCATION_ATTEMPTS = new HashMap<>();
+
+    static boolean wantsSurfaceCompositionEvidence(ChunkPos chunkPos) {
+        return SURFACE_COMPOSITION_CHUNKS.containsValue(chunkPos);
+    }
+
+    static Map<String, Object> surfaceCompositionEvidence(ChunkPos chunkPos) {
+        return SURFACE_COMPOSITION_EVIDENCE.remove(chunkPos.toLong());
+    }
+
+    static Map<String, ChunkPos> surfaceCompositionChunks() {
+        return SURFACE_COMPOSITION_CHUNKS;
+    }
+
+    static void recordSurfaceCompositionEvidence(
+            ChunkPos chunkPos,
+            int[] authoredTopY,
+            int[] filteredProviderY,
+            int[] providerDatumY,
+            int[] projectedTopY,
+            int[] projectedReliefY,
+            int[] edgeInfluencePermille,
+            net.minecraft.resources.ResourceLocation[] authoredMaterial,
+            net.minecraft.resources.ResourceLocation[] providerMaterial,
+            net.minecraft.resources.ResourceLocation[] realizedMaterial) {
+        if (!Boolean.getBoolean(ENABLE_PROPERTY) || !wantsSurfaceCompositionEvidence(chunkPos)) {
+            return;
+        }
+        int count = authoredTopY.length;
+        if (count != 256
+                || filteredProviderY.length != count
+                || providerDatumY.length != count
+                || projectedTopY.length != count
+                || projectedReliefY.length != count
+                || edgeInfluencePermille.length != count
+                || authoredMaterial.length != count
+                || providerMaterial.length != count
+                || realizedMaterial.length != count) {
+            throw new IllegalArgumentException("surface composition evidence must contain one 16x16 chunk");
+        }
+        int sampled = 0;
+        int raised = 0;
+        int lowered = 0;
+        int unchanged = 0;
+        int raisedOne = 0;
+        int loweredOne = 0;
+        int changedMaterials = 0;
+        for (int i = 0; i < count; i++) {
+            if (authoredTopY[i] == Integer.MIN_VALUE || projectedTopY[i] == Integer.MIN_VALUE) {
+                continue;
+            }
+            sampled++;
+            int delta = projectedTopY[i] - authoredTopY[i];
+            if (delta > 0) raised++;
+            else if (delta < 0) lowered++;
+            else unchanged++;
+            if (delta == 1) raisedOne++;
+            if (delta == -1) loweredOne++;
+            if (!java.util.Objects.equals(authoredMaterial[i], realizedMaterial[i])) changedMaterials++;
+        }
+
+        Map<String, Object> evidence = new LinkedHashMap<>();
+        evidence.put("surfaceCompositionChunk", chunkPos.toString());
+        evidence.put("surfaceCompositionColumns", sampled);
+        evidence.put("surfaceCompositionRaisedColumns", raised);
+        evidence.put("surfaceCompositionLoweredColumns", lowered);
+        evidence.put("surfaceCompositionUnchangedColumns", unchanged);
+        evidence.put("surfaceCompositionExactlyOneBlockRaised", raisedOne);
+        evidence.put("surfaceCompositionExactlyOneBlockLowered", loweredOne);
+        evidence.put("surfaceCompositionChangedTopMaterials", changedMaterials);
+        evidence.put("surfaceCompositionAuthoredTopYGrid", formatIntGrid(authoredTopY));
+        evidence.put("surfaceCompositionFilteredProviderYGrid", formatIntGrid(filteredProviderY));
+        evidence.put("surfaceCompositionProviderDatumYGrid", formatIntGrid(providerDatumY));
+        evidence.put("surfaceCompositionProjectedReliefYGrid", formatIntGrid(projectedReliefY));
+        evidence.put("surfaceCompositionEdgeInfluencePermilleGrid", formatIntGrid(edgeInfluencePermille));
+        evidence.put("surfaceCompositionRealizedTopYGrid", formatIntGrid(projectedTopY));
+        evidence.put("surfaceCompositionMaterialPaletteAndGrid",
+                formatMaterialGrid(authoredMaterial, providerMaterial, realizedMaterial));
+        SURFACE_COMPOSITION_EVIDENCE.put(chunkPos.toLong(), Map.copyOf(evidence));
+    }
+
+    private static String formatIntGrid(int[] values) {
+        StringBuilder result = new StringBuilder();
+        for (int z = 0; z < 16; z++) {
+            if (z > 0) result.append('/');
+            for (int x = 0; x < 16; x++) {
+                if (x > 0) result.append(',');
+                int value = values[x + z * 16];
+                result.append(value == Integer.MIN_VALUE ? "x" : Integer.toString(value));
+            }
+        }
+        return result.toString();
+    }
+
+    private static String formatMaterialGrid(
+            net.minecraft.resources.ResourceLocation[] authored,
+            net.minecraft.resources.ResourceLocation[] provider,
+            net.minecraft.resources.ResourceLocation[] realized) {
+        java.util.TreeSet<String> palette = new java.util.TreeSet<>();
+        for (int i = 0; i < authored.length; i++) {
+            if (authored[i] != null) palette.add(authored[i].toString());
+            if (provider[i] != null) palette.add(provider[i].toString());
+            if (realized[i] != null) palette.add(realized[i].toString());
+        }
+        Map<String, Integer> indices = new java.util.HashMap<>();
+        int next = 0;
+        for (String material : palette) indices.put(material, next++);
+        StringBuilder result = new StringBuilder("palette=");
+        result.append(String.join(",", palette)).append(";grid=");
+        for (int z = 0; z < 16; z++) {
+            if (z > 0) result.append('/');
+            for (int x = 0; x < 16; x++) {
+                if (x > 0) result.append(',');
+                int i = x + z * 16;
+                result.append(materialIndex(indices, authored[i])).append('.')
+                        .append(materialIndex(indices, provider[i])).append('.')
+                        .append(materialIndex(indices, realized[i]));
+            }
+        }
+        return result.toString();
+    }
+
+    private static String materialIndex(Map<String, Integer> indices, net.minecraft.resources.ResourceLocation material) {
+        return material == null ? "x" : Integer.toString(indices.get(material.toString()));
+    }
 
     private SkyforgeTectonicTerrainAcceptance() {}
 
@@ -246,6 +379,11 @@ final class SkyforgeTectonicTerrainAcceptance {
             ChunkAccess lobedIslandChunk = multiIslandReview
                     ? level.getChunk(new ChunkPos(48, 0).getMiddleBlockPosition(0))
                     : null;
+            if (multiIslandReview && treatment) {
+                for (ChunkPos diagnosticChunk : SURFACE_COMPOSITION_CHUNKS.values()) {
+                    level.getChunk(diagnosticChunk.getMiddleBlockPosition(0));
+                }
+            }
             RandomState randomState =
                     generator.terrainProviderRandomState(level.getSeed(), level.registryAccess());
             boolean reopening = Boolean.getBoolean(ENABLE_PROPERTY + ".reopen");
@@ -558,6 +696,17 @@ final class SkyforgeTectonicTerrainAcceptance {
                                 .toList()));
                 evidence.put("reviewDimensionBuildRange",
                         level.getMinBuildHeight() + ".." + level.getMaxBuildHeight());
+                if (treatment) {
+                    for (var entry : SURFACE_COMPOSITION_CHUNKS.entrySet()) {
+                        Map<String, Object> composition = surfaceCompositionEvidence(entry.getValue());
+                        evidence.put("surfaceComposition." + entry.getKey() + ".captured",
+                                composition != null);
+                        if (composition != null) {
+                            composition.forEach((key, value) ->
+                                    evidence.put("surfaceComposition." + entry.getKey() + "." + key, value));
+                        }
+                    }
+                }
             }
             complete = true;
             SkyforgeAutomatedAcceptanceHarness.completeServerCase(server, evidence);
