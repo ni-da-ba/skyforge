@@ -45,8 +45,8 @@ public final class MinecraftNativeSurfaceTopAdapter {
     /**
      * Projects native provider relief onto the exposed top cap of composite Skyforge terrain.
      *
-     * <p>The provider's surface height is interpreted relative to its captured world-fixed
-     * baseline, then passed through a bounded linear relief curve onto the existing Skyforge
+     * <p>The provider's surface height is interpreted relative to a deterministic median sampled
+     * from the island anchor chunk, then passed through a bounded linear relief curve onto the existing Skyforge
      * surface. The result is clamped to the chunk build range and a bounded 64-block extension
      * above the authored top-volume bound. Only newly added positions receive provider claims; the
      * compiled island footprint, lower body, and underside stay authoritative.
@@ -136,7 +136,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
                         edgeDistance,
                         PROVIDER_RELIEF_EDGE_BLEND_RADIUS_BLOCKS);
                 long providerRelief = (long) snapshot.smoothedProviderSurfaceY(localX, localZ)
-                        - snapshot.baselineY();
+                        - snapshot.providerReliefDatumY(ownerId);
                 long projectedProviderRelief = Math.round(projectProviderRelief(providerRelief) * providerInfluence);
                 long desiredY = (long) originalTopY + projectedProviderRelief;
                 int targetTopY = (int) Math.max(

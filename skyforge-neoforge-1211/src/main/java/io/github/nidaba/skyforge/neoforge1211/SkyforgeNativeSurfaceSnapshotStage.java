@@ -34,12 +34,13 @@ final class SkyforgeNativeSurfaceSnapshotStage {
             net.minecraft.world.level.StructureManager structureManager,
             ChunkAccess chunk,
             NoiseBasedChunkGenerator generator,
-            RandomState randomState) {
+            RandomState randomState,
+            java.util.List<io.github.nidaba.skyforge.world.SkyIslandWorldVolume> candidateVolumes) {
         Objects.requireNonNull(chunk, "chunk");
         capture(
                 chunk,
                 MinecraftNativeSurfaceSnapshot.captureProviderSurface(
-                        level, structureManager, chunk, generator, randomState));
+                        level, structureManager, chunk, generator, randomState, candidateVolumes));
     }
 
     static void capture(ChunkAccess chunk, int baselineY) {

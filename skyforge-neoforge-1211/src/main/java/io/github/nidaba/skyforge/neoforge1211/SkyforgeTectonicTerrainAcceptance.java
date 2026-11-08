@@ -296,9 +296,15 @@ final class SkyforgeTectonicTerrainAcceptance {
                 fail(server, "Skyforge island has no realized top-surface columns in the origin chunk");
                 return;
             }
+            var reviewVolumes = SkyforgeNeoForge1211DevRuntime.catalog().volumes();
+            int islandTerrainDatumY = providerSurfaceSnapshot == null
+                    ? Integer.MIN_VALUE
+                    : multiIslandReview
+                            ? providerSurfaceSnapshot.providerReliefDatumY(reviewVolumes.get(2).id())
+                            : providerSurfaceSnapshot.baselineY();
             String providerTerrainDatumY = providerSurfaceSnapshot == null
                     ? "not-recomputed-on-reopen"
-                    : Integer.toString(providerSurfaceSnapshot.baselineY());
+                    : Integer.toString(islandTerrainDatumY);
             int realizedIslandRelief = realizedSurface.maximumY() - realizedSurface.minimumY();
             int peakNeighborhoodFloorY = realizedSurface.maximumY() - 8;
             int realizedIslandColumnsNearPeak =
@@ -478,7 +484,14 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put("tectonicOceanOffset", tectonicOceanOffset);
             evidence.put("terrainProviderSettings", settingsKey);
             evidence.put("terrainProfileDatumY", providerTerrainDatumY);
-            evidence.put("terrainProfileDatumSampling", "world_fixed_origin_chunk_minimum");
+            evidence.put(
+                    "terrainProfileDatumSampling",
+                    multiIslandReview ? "island_anchor_chunk_median" : "world_fixed_origin_chunk_minimum");
+            evidence.put(
+                    "providerGlobalTerrainDatumY",
+                    providerSurfaceSnapshot == null
+                            ? "not-recomputed-on-reopen"
+                            : providerSurfaceSnapshot.baselineY());
             evidence.put(
                     "providerReliefMapping",
                     MinecraftNativeSurfaceTopAdapter.PROVIDER_RELIEF_MAPPING);

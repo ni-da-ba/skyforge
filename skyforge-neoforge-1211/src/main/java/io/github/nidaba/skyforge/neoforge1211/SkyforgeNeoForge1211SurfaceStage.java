@@ -822,6 +822,14 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         return binding != null && binding.nativeSurfaceTopAdapter().isPresent();
     }
 
+    /** Candidate exact Skyforge volumes whose provider snapshots may shape this chunk. */
+    static java.util.List<io.github.nidaba.skyforge.world.SkyIslandWorldVolume> candidateVolumesForSnapshot(
+            ChunkAccess chunk) {
+        Objects.requireNonNull(chunk, "chunk");
+        RuntimeBinding binding = ACTIVE.get();
+        return binding == null ? java.util.List.of() : binding.adapter().candidateVolumes(chunk);
+    }
+
     /** Cheap catalog prefilter used before snapshot capture or full terrain projection. */
     static boolean hasCandidateVolume(ChunkAccess chunk) {
         Objects.requireNonNull(chunk, "chunk");

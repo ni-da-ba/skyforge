@@ -41,6 +41,18 @@ final class MinecraftNativeSurfaceTopAdapterTest {
     }
 
     @Test
+    void islandTerrainDatumUsesTheMedianOfValidProviderHeights() {
+        assertEquals(
+                25,
+                MinecraftNativeSurfaceSnapshot.medianProviderTerrainDatumY(
+                        new int[] {Integer.MIN_VALUE, 10, 20, 30, 40}, 63));
+        assertEquals(
+                63,
+                MinecraftNativeSurfaceSnapshot.medianProviderTerrainDatumY(
+                        new int[] {Integer.MIN_VALUE, Integer.MIN_VALUE}, 63));
+    }
+
+    @Test
     void providerReliefUsesBoundedLinearMappingAtIslandScale() {
         assertEquals(3, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(7));
         assertEquals(6, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(15));
