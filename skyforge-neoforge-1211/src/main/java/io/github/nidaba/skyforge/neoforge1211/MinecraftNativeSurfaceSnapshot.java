@@ -196,7 +196,7 @@ final class MinecraftNativeSurfaceSnapshot {
         for (SkyIslandWorldVolume volume : candidateVolumes) {
             reliefDatums.put(
                     volume.id(),
-                    providerIslandTerrainDatumY(level, structureManager, generator, randomState, volume));
+                    providerIslandTerrainDatumY(level, generator, randomState, volume));
         }
         MinecraftNativeSurfaceSnapshot withHalo =
                 captured.withProviderHeightHalo(level, structureManager, generator, randomState, reliefDatums);
@@ -315,10 +315,9 @@ final class MinecraftNativeSurfaceSnapshot {
         return (int) Math.round(weightedHeight / (double) totalWeight);
     }
 
-    /** Uses one world-aligned provider-height tile at the island anchor as its local datum. */
+    /** Uses a deterministic base-column neighborhood at each island's anchor as its local datum. */
     private static int providerIslandTerrainDatumY(
             WorldGenRegion level,
-            StructureManager structureManager,
             NoiseBasedChunkGenerator generator,
             RandomState randomState,
             SkyIslandWorldVolume volume) {
@@ -329,14 +328,17 @@ final class MinecraftNativeSurfaceSnapshot {
                     var bounds = volume.bounds();
                     int centerX = (int) Math.floor((bounds.minimumX() + bounds.maximumX()) * 0.5d);
                     int centerZ = (int) Math.floor((bounds.minimumZ() + bounds.maximumZ()) * 0.5d);
-                    ChunkPos anchorChunk = new ChunkPos(centerX >> 4, centerZ >> 4);
-                    ProviderSurfaceChunkKey key =
-                            providerSurfaceChunkKey(level, anchorChunk, generator, randomState);
-                    int[] heights = PROVIDER_HEIGHT_CHUNKS.computeIfAbsent(
-                            key,
-                            missing -> generateProviderHeightChunk(
-                                    level, structureManager, anchorChunk, generator, randomState));
-                    trimProviderHeightChunks();
+                    int[] offsets = {-4, 0, 4};
+                    int[] heights = new int[offsets.length * offsets.length];
+                    int sample = 0;
+                    for (int deltaZ : offsets) {
+                        for (int deltaX : offsets) {
+                            NoiseColumn column = generator.getBaseColumn(
+                                    centerX + deltaX, centerZ + deltaZ, level, randomState);
+                            heights[sample++] = firstSolidSurfaceY(
+                                    column, level.getMinBuildHeight(), level.getMaxBuildHeight());
+                        }
+                    }
                     return medianProviderTerrainDatumY(heights, generator.getSeaLevel());
                 });
     }
