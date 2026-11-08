@@ -9291,6 +9291,8 @@ tasks.register("f4kHydrologyReviewPrepareVerify") {
 val sfImp0054TectonicVerticalScale = 2.0
 val sfImp0054MinimumRidgeClearanceBlocks = 32
 val sfImp0054TectonicElevationBoost = 2.0
+// Tectonic's native filter is the next controlled smoothing treatment for residual ridge stair-stepping.
+val sfImp0054TectonicUltrasmooth = true
 // Higher horizontal noise frequency and thicker mountain ranges target island-scale relief.
 val sfImp0054TectonicContinentsScale = 0.5
 val sfImp0054TectonicErosionScale = 1.0
@@ -9312,7 +9314,8 @@ val sfImp0054TectonicConfig = """
       },
       "global_terrain": {
         "vertical_scale": $sfImp0054TectonicVerticalScale,
-        "elevation_boost": $sfImp0054TectonicElevationBoost
+        "elevation_boost": $sfImp0054TectonicElevationBoost,
+        "ultrasmooth": $sfImp0054TectonicUltrasmooth
       }
     }
 """.trimIndent() + "\n"
