@@ -399,6 +399,17 @@ final class SkyforgeTectonicTerrainAcceptance {
                 fail(server, "void exterior chunk contains " + exteriorNonAirBlocks + " non-air blocks");
                 return;
             }
+            int oppositeExteriorNonAirBlocks = 0;
+            if (multiIslandReview) {
+                ChunkAccess oppositeExteriorChunk =
+                        level.getChunk(new ChunkPos(-12, 0).getMiddleBlockPosition(0));
+                oppositeExteriorNonAirBlocks = countNonAir(oppositeExteriorChunk);
+                if (oppositeExteriorNonAirBlocks != 0) {
+                    fail(server, "opposite multi-island gap contains "
+                            + oppositeExteriorNonAirBlocks + " non-air blocks");
+                    return;
+                }
+            }
 
             int persistedGrassColumns = countTopMaterial(islandChunk, Blocks.GRASS_BLOCK.defaultBlockState());
             int persistedMutationColumns = countTopMaterial(islandChunk, Blocks.COBBLESTONE.defaultBlockState());
@@ -497,13 +508,18 @@ final class SkyforgeTectonicTerrainAcceptance {
                 evidence.put("reviewIslandLowerHeightRange", lowerRealizedSurface.minimumY()
                         + ".." + lowerRealizedSurface.maximumY());
                 evidence.put("reviewIslandLowerSurfaceDigest", lowerRealizedSurface.digest());
-                evidence.put("reviewIslandMiddleChunk", REVIEW_CHUNK);
+                evidence.put("reviewIslandLowerSurfaceColumns", lowerRealizedSurface.samples());
+                evidence.put("reviewIslandMiddleChunk", REVIEW_CHUNK.toString());
+                evidence.put("reviewIslandMiddleSurfaceDigest", realizedSurface.digest());
+                evidence.put("reviewIslandMiddleSurfaceColumns", realizedSurface.samples());
                 evidence.put("reviewIslandMiddleHeightRange", realizedSurface.minimumY()
                         + ".." + realizedSurface.maximumY());
-                evidence.put("reviewIslandHigherChunk", new ChunkPos(28, 4));
+                evidence.put("reviewIslandHigherChunk", new ChunkPos(28, 4).toString());
+                evidence.put("reviewIslandHigherSurfaceColumns", higherRealizedSurface.samples());
                 evidence.put("reviewIslandHigherHeightRange", higherRealizedSurface.minimumY()
                         + ".." + higherRealizedSurface.maximumY());
                 evidence.put("reviewIslandHigherSurfaceDigest", higherRealizedSurface.digest());
+                evidence.put("reviewLowerGapNonAirBlocks", oppositeExteriorNonAirBlocks);
                 evidence.put("reviewDimensionBuildRange",
                         level.getMinBuildHeight() + ".." + level.getMaxBuildHeight());
             }
