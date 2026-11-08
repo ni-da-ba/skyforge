@@ -530,8 +530,8 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         Map<Long, BlockPos> targets = new TreeMap<>();
         scanProviderCandidates(level, control.bounds(), control.id(), false, source, sampler, controls);
         scanProviderCandidates(level, provider.bounds(), provider.id(), true, source, sampler, targets);
-        List<Long> controlKeys = orderCandidateChunks(controls, -168, 8);
-        List<Long> targetKeys = orderCandidateChunks(targets, 168, 8);
+        List<Long> controlKeys = orderCandidateChunks(controls, 8, 8);
+        List<Long> targetKeys = orderCandidateChunks(targets, 344, 8);
         controlProofChunkKeys.clear();
         providerProofChunkKeys.clear();
         controlKeys.stream().limit(MAXIMUM_CONTROL_PROOF_CHUNKS).forEach(controlProofChunkKeys::add);
@@ -1159,11 +1159,11 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         if (Boolean.getBoolean(PROVIDER_BIOME_PROPERTY)) {
             // Provider-biome comparison: same-height side-by-side islands separated by a void gap.
             var control = new SkyIslandWorldVolume(lowerId,
-                    new WorldBounds(-312.0, -24.0, 196.0, 284.0, -136.0, 152.0),
-                    compileTableland(lowerSeed, -168.0, 8.0, 236.0, 144.0, 40.0));
+                    new WorldBounds(-136.0, 152.0, 196.0, 284.0, -136.0, 152.0),
+                    compileTableland(lowerSeed, 8.0, 8.0, 236.0, 144.0, 40.0));
             var provider = new SkyIslandWorldVolume(upperId,
-                    new WorldBounds(24.0, 312.0, 196.0, 284.0, -136.0, 152.0),
-                    compileTableland(upperSeed, 168.0, 8.0, 236.0, 144.0, 40.0));
+                    new WorldBounds(200.0, 488.0, 196.0, 284.0, -136.0, 152.0),
+                    compileTableland(upperSeed, 344.0, 8.0, 236.0, 144.0, 40.0));
             return new SkyIslandWorldCatalog(ROOT_SEED, List.of(control, provider));
         }
         var lower = new SkyIslandWorldVolume(lowerId,
