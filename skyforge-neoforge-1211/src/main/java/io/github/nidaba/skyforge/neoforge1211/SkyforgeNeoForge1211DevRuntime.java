@@ -84,22 +84,49 @@ final class SkyforgeNeoForge1211DevRuntime {
     }
 
     static SkyIslandWorldCatalog catalog() {
-        var compiled = compiledMassif();
-        var id = new SkyIslandWorldVolumeId(ROOT_SEED, "sf-imp-0043-dev-massif", 0, 0, ROOT_SEED);
-        var worldVolume = new SkyIslandWorldVolume(
-                id,
-                new WorldBounds(-160.0, 160.0, 96.0, 304.0, -160.0, 160.0),
-                compiled);
-        return new SkyIslandWorldCatalog(ROOT_SEED, List.of(worldVolume));
+        if (!Boolean.getBoolean(TECTONIC_REVIEW_ENABLE_PROPERTY)) {
+            return new SkyIslandWorldCatalog(
+                    ROOT_SEED,
+                    List.of(reviewMassif("sf-imp-0043-dev-massif", 0, 224, 0)));
+        }
+
+        // The original middle specimen remains bit-for-bit positioned for A/B digest comparison.
+        // Two translated copies let visual review compare the same provider at lower and higher
+        // elevations without overlapping horizontal support or changing morphology.
+        return new SkyIslandWorldCatalog(
+                ROOT_SEED,
+                List.of(
+                        reviewMassif("sf-imp-0054-review-low", -384, 96, 0),
+                        reviewMassif("sf-imp-0043-dev-massif", 0, 224, 0),
+                        reviewMassif("sf-imp-0054-review-high", 384, 352, 0)));
     }
 
-    private static io.github.nidaba.skyforge.recipes.skyisland.CompiledSkyIslandVolume compiledMassif() {
+    private static SkyIslandWorldVolume reviewMassif(
+            String volumeName, int centerX, int centerY, int centerZ) {
+        var compiled = compiledMassif(centerX, centerY, centerZ);
+        var id = new SkyIslandWorldVolumeId(
+                ROOT_SEED, volumeName, centerX, centerZ, ROOT_SEED);
+        var worldVolume = new SkyIslandWorldVolume(
+                id,
+                new WorldBounds(
+                        centerX - 160.0,
+                        centerX + 160.0,
+                        centerY - 128.0,
+                        centerY + 80.0,
+                        centerZ - 160.0,
+                        centerZ + 160.0),
+                compiled);
+        return worldVolume;
+    }
+
+    private static io.github.nidaba.skyforge.recipes.skyisland.CompiledSkyIslandVolume compiledMassif(
+            double centerX, double centerY, double centerZ) {
         SkyIslandVolumeDescriptor descriptor = new SkyIslandVolumeDescriptor(
                 SkyIslandVolumeDescriptor.SCHEMA_VERSION_1,
                 ROOT_SEED,
-                0.0,
-                0.0,
-                224.0,
+                centerX,
+                centerZ,
+                centerY,
                 96.0,
                 42.0,
                 72.0,
