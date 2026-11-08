@@ -1,6 +1,7 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -50,6 +51,19 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                 63,
                 MinecraftNativeSurfaceSnapshot.medianProviderTerrainDatumY(
                         new int[] {Integer.MIN_VALUE, Integer.MIN_VALUE}, 63));
+    }
+
+    @Test
+    void islandDatumSamplesSpanTheWholeBoundsAtDeterministicIntegerColumns() {
+        assertArrayEquals(
+                new int[] {-160, -120, -80, -40, 0, 40, 80, 120, 160},
+                MinecraftNativeSurfaceSnapshot.providerIslandDatumSampleCoordinates(-160, 160, 8));
+        assertArrayEquals(
+                new int[] {10, 11, 12, 13},
+                MinecraftNativeSurfaceSnapshot.providerIslandDatumSampleCoordinates(10, 13, 8));
+        assertArrayEquals(
+                new int[] {5},
+                MinecraftNativeSurfaceSnapshot.providerIslandDatumSampleCoordinates(5, 5, 8));
     }
 
     @Test
