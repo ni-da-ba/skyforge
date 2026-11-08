@@ -85,7 +85,12 @@ final class SkyforgeNativeSurfaceSnapshotStage {
         MinecraftNativeSurfaceSnapshot snapshot = SNAPSHOTS.remove(chunk.getPos().toLong());
         if (snapshot == null) {
             snapshot = MinecraftNativeSurfaceSnapshot.captureProviderSurface(
-                    level, structureManager, chunk, generator, randomState);
+                    level,
+                    structureManager,
+                    chunk,
+                    generator,
+                    randomState,
+                    SkyforgeNeoForge1211SurfaceStage.candidateVolumesForSnapshot(chunk));
         }
         retainAcceptanceSnapshot(chunk, snapshot);
         return snapshot;

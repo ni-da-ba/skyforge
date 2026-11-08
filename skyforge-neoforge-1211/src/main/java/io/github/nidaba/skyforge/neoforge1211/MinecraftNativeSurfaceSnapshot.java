@@ -1,28 +1,28 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import io.github.nidaba.skyforge.world.SkyIslandWorldVolume;
+import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import io.github.nidaba.skyforge.world.SkyIslandWorldVolume;
-import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.Optional;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.levelgen.Heightmap;
-import net.minecraft.world.level.StructureManager;
 import net.minecraft.world.level.NoiseColumn;
+import net.minecraft.world.level.StructureManager;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ProtoChunk;
 import net.minecraft.world.level.chunk.UpgradeData;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.blending.Blender;
@@ -114,7 +114,8 @@ final class MinecraftNativeSurfaceSnapshot {
             this.surfaceStrata[index] = Arrays.copyOf(surfaceStrata[index], SURFACE_STRATA_DEPTH);
         }
         this.providerHeightHalo = Arrays.copyOf(providerHeightHalo, providerHeightHalo.length);
-        this.providerReliefDatums = Map.copyOf(Objects.requireNonNull(providerReliefDatums, "providerReliefDatums"));
+        this.providerReliefDatums = Map.copyOf(
+                Objects.requireNonNull(providerReliefDatums, "providerReliefDatums"));
     }
 
     static MinecraftNativeSurfaceSnapshot capture(
@@ -214,7 +215,13 @@ final class MinecraftNativeSurfaceSnapshot {
                 (worldX, worldZ) -> cachedProviderSurfaceHeight(
                         level, structureManager, generator, randomState, worldX, worldZ));
         return new MinecraftNativeSurfaceSnapshot(
-                chunkPos, baselineY, worldYs, blockKeys, surfaceStrata, heightHalo, providerReliefDatums);
+                chunkPos,
+                baselineY,
+                worldYs,
+                blockKeys,
+                surfaceStrata,
+                heightHalo,
+                providerReliefDatums);
     }
 
     /** Samples the complete filter window through one world-coordinate terrain source. */
