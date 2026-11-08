@@ -227,6 +227,14 @@ final class SkyforgeTectonicTerrainAcceptance {
             }
 
             ChunkAccess islandChunk = level.getChunk(REVIEW_CHUNK.getMiddleBlockPosition(0));
+            boolean multiIslandReview =
+                    Boolean.getBoolean(SkyforgeNeoForge1211DevRuntime.TECTONIC_REVIEW_ENABLE_PROPERTY);
+            ChunkAccess lowerIslandChunk = multiIslandReview
+                    ? level.getChunk(new ChunkPos(-20, 4).getMiddleBlockPosition(0))
+                    : null;
+            ChunkAccess higherIslandChunk = multiIslandReview
+                    ? level.getChunk(new ChunkPos(28, 4).getMiddleBlockPosition(0))
+                    : null;
             RandomState randomState =
                     generator.terrainProviderRandomState(level.getSeed(), level.registryAccess());
             boolean reopening = Boolean.getBoolean(ENABLE_PROPERTY + ".reopen");
@@ -246,6 +254,17 @@ final class SkyforgeTectonicTerrainAcceptance {
                 return;
             }
             ProfileEvidence realizedSurface = captureRealizedIslandSurface(islandChunk);
+            ProfileEvidence lowerRealizedSurface = lowerIslandChunk == null
+                    ? null
+                    : captureRealizedIslandSurface(lowerIslandChunk);
+            ProfileEvidence higherRealizedSurface = higherIslandChunk == null
+                    ? null
+                    : captureRealizedIslandSurface(higherIslandChunk);
+            if (multiIslandReview) {
+                requireReviewIslandSurface(level, "lower", lowerRealizedSurface);
+                requireReviewIslandSurface(level, "middle", realizedSurface);
+                requireReviewIslandSurface(level, "higher", higherRealizedSurface);
+            }
             if (!reopening) {
                 verifyDeterministicTerrainBaseline(server, treatment, profile, realizedSurface);
                 verifyProviderHaloPerformance(server, treatment);
@@ -472,6 +491,22 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put("reviewSpawnSupport", BuiltInRegistries.BLOCK.getKey(reviewSpawnSupport.getBlock()));
             evidence.put("reviewSpawnAnchor", BuiltInRegistries.BLOCK.getKey(reviewSpawnAnchor.getBlock()));
             evidence.put("reviewSpawnSupportStable", true);
+            evidence.put("reviewIslandCount", multiIslandReview ? 3 : 1);
+            if (multiIslandReview) {
+                evidence.put("reviewIslandLowerChunk", new ChunkPos(-20, 4));
+                evidence.put("reviewIslandLowerHeightRange", lowerRealizedSurface.minimumY()
+                        + ".." + lowerRealizedSurface.maximumY());
+                evidence.put("reviewIslandLowerSurfaceDigest", lowerRealizedSurface.digest());
+                evidence.put("reviewIslandMiddleChunk", REVIEW_CHUNK);
+                evidence.put("reviewIslandMiddleHeightRange", realizedSurface.minimumY()
+                        + ".." + realizedSurface.maximumY());
+                evidence.put("reviewIslandHigherChunk", new ChunkPos(28, 4));
+                evidence.put("reviewIslandHigherHeightRange", higherRealizedSurface.minimumY()
+                        + ".." + higherRealizedSurface.maximumY());
+                evidence.put("reviewIslandHigherSurfaceDigest", higherRealizedSurface.digest());
+                evidence.put("reviewDimensionBuildRange",
+                        level.getMinBuildHeight() + ".." + level.getMaxBuildHeight());
+            }
             complete = true;
             SkyforgeAutomatedAcceptanceHarness.completeServerCase(server, evidence);
         } catch (RuntimeException failure) {
@@ -479,6 +514,20 @@ final class SkyforgeTectonicTerrainAcceptance {
                     server,
                     "Tectonic terrain acceptance failed: "
                             + failure.getClass().getSimpleName() + ": " + failure.getMessage());
+        }
+    }
+
+    private static void requireReviewIslandSurface(
+            ServerLevel level, String label, ProfileEvidence surface) {
+        if (surface == null || surface.samples() == 0) {
+            throw new IllegalStateException("multi-island review " + label + " island has no realized surface");
+        }
+        if (surface.minimumY() <= level.getMinBuildHeight()
+                || surface.maximumY() >= level.getMaxBuildHeight()) {
+            throw new IllegalStateException("multi-island review " + label
+                    + " island is clipped by the development dimension: surface="
+                    + surface.minimumY() + ".." + surface.maximumY()
+                    + ", buildRange=" + level.getMinBuildHeight() + ".." + level.getMaxBuildHeight());
         }
     }
 
