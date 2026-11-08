@@ -9405,8 +9405,7 @@ tasks.register("sfImp0054TectonicTerrainAcceptance") {
                 && reopened.getProperty("persistedPostGenerationMutationColumns").toInt() > 0
                 && reopened.getProperty("reviewIslandCount") == "5"
                 && reviewFamilies.all { family ->
-                    reopened.getProperty("reviewIsland${family}SurfaceDigest")
-                        == vanilla.getProperty("reviewIsland${family}SurfaceDigest")
+                    reopened.getProperty("reviewIsland${family}SurfaceDigest") == vanilla.getProperty("reviewIsland${family}SurfaceDigest")
                 }
                 && reopened.getProperty("realizedIslandSurfaceHeightDigest")
                     == vanilla.getProperty("realizedIslandSurfaceHeightDigest")) {
@@ -9428,8 +9427,7 @@ tasks.register("sfImp0054TectonicTerrainAcceptance") {
                 && treatmentReopened.getProperty("islandUndersideSolidSamples").toInt() > 0
                 && treatmentReopened.getProperty("reviewIslandCount") == "5"
                 && reviewFamilies.all { family ->
-                    treatmentReopened.getProperty("reviewIsland${family}SurfaceDigest")
-                        == treatment.getProperty("reviewIsland${family}SurfaceDigest")
+                    treatmentReopened.getProperty("reviewIsland${family}SurfaceDigest") == treatment.getProperty("reviewIsland${family}SurfaceDigest")
                 }) {
             "SF-IMP-0054 Tectonic provider surface did not persist unchanged across save/reopen: $treatmentReopened"
         }
