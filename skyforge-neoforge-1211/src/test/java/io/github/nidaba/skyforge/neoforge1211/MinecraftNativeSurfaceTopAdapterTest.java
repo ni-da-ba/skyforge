@@ -101,11 +101,11 @@ final class MinecraftNativeSurfaceTopAdapterTest {
         MinecraftNativeSurfaceSnapshot snapshot = MinecraftNativeSurfaceSnapshot.capture(chunk, 63);
 
         assertEquals(
-                194,
+                192,
                 snapshot.smoothedProviderSurfaceY(8, 8),
-                "the broad local ridge should blend into its 11x11 provider neighborhood");
+                "the broad local ridge should blend into its 15x15 provider neighborhood");
         assertEquals(
-                193,
+                192,
                 snapshot.smoothedProviderSurfaceY(7, 7),
                 "the ridge edge should transition gradually");
         assertEquals(
