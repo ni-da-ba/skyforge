@@ -9399,7 +9399,12 @@ tasks.register("sfImp0054TectonicTerrainAcceptance") {
         val treatmentReopened = requireSfImp0054TectonicPass("treatment-reopen")
         check(reopened.getProperty("reopenPass") == "true"
                 && reopened.getProperty("persistedProviderSurfaceColumns").toInt() > 0
-                && reopened.getProperty("persistedPostGenerationMutationColumns").toInt() > 0) {
+                && reopened.getProperty("persistedPostGenerationMutationColumns").toInt() > 0
+                && reopened.getProperty("reviewIslandCount") == "3"
+                && reopened.getProperty("reviewIslandLowerSurfaceDigest")
+                    == vanilla.getProperty("reviewIslandLowerSurfaceDigest")
+                && reopened.getProperty("reviewIslandHigherSurfaceDigest")
+                    == vanilla.getProperty("reviewIslandHigherSurfaceDigest")) {
             "SF-IMP-0054 provider surface or post-generation edit did not persist on reopen: $reopened"
         }
         check(treatmentReopened.getProperty("reopenPass") == "true"
@@ -9415,8 +9420,25 @@ tasks.register("sfImp0054TectonicTerrainAcceptance") {
                     == treatment.getProperty("realizedIslandSurfaceColumns")
                 && treatmentReopened.getProperty("persistedProviderSurfaceColumns").toInt() > 0
                 && treatmentReopened.getProperty("exteriorNonAirBlocks") == "0"
-                && treatmentReopened.getProperty("islandUndersideSolidSamples").toInt() > 0) {
+                && treatmentReopened.getProperty("islandUndersideSolidSamples").toInt() > 0
+                && treatmentReopened.getProperty("reviewIslandCount") == "3"
+                && treatmentReopened.getProperty("reviewIslandLowerSurfaceDigest")
+                    == treatment.getProperty("reviewIslandLowerSurfaceDigest")
+                && treatmentReopened.getProperty("reviewIslandHigherSurfaceDigest")
+                    == treatment.getProperty("reviewIslandHigherSurfaceDigest")) {
             "SF-IMP-0054 Tectonic provider surface did not persist unchanged across save/reopen: $treatmentReopened"
+        }
+        check(vanilla.getProperty("reviewIslandCount") == "3"
+                && treatment.getProperty("reviewIslandCount") == "3"
+                && vanilla.getProperty("reviewIslandLowerSurfaceColumns").toInt() > 0
+                && vanilla.getProperty("reviewIslandHigherSurfaceColumns").toInt() > 0
+                && treatment.getProperty("reviewIslandLowerSurfaceColumns").toInt() > 0
+                && treatment.getProperty("reviewIslandHigherSurfaceColumns").toInt() > 0
+                && vanilla.getProperty("reviewLowerGapNonAirBlocks") == "0"
+                && treatment.getProperty("reviewLowerGapNonAirBlocks") == "0"
+                && vanilla.getProperty("reviewDimensionBuildRange") == "-64..576"
+                && treatment.getProperty("reviewDimensionBuildRange") == "-64..576") {
+            "SF-IMP-0054 multi-island review fixture is incomplete or clipped: vanilla=$vanilla treatment=$treatment"
         }
         check(vanilla.getProperty("worldSeed") == treatment.getProperty("worldSeed")) {
             "SF-IMP-0054 Tectonic A/B seeds differ"
