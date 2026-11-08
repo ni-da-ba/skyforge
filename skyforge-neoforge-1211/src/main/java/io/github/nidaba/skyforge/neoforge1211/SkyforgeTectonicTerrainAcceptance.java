@@ -229,11 +229,17 @@ final class SkyforgeTectonicTerrainAcceptance {
             ChunkAccess islandChunk = level.getChunk(REVIEW_CHUNK.getMiddleBlockPosition(0));
             boolean multiIslandReview =
                     Boolean.getBoolean(SkyforgeNeoForge1211DevRuntime.TECTONIC_REVIEW_ENABLE_PROPERTY);
-            ChunkAccess lowerIslandChunk = multiIslandReview
-                    ? level.getChunk(new ChunkPos(-20, 4).getMiddleBlockPosition(0))
+            ChunkAccess tablelandIslandChunk = multiIslandReview
+                    ? level.getChunk(new ChunkPos(-48, 0).getMiddleBlockPosition(0))
                     : null;
-            ChunkAccess higherIslandChunk = multiIslandReview
-                    ? level.getChunk(new ChunkPos(28, 4).getMiddleBlockPosition(0))
+            ChunkAccess spineIslandChunk = multiIslandReview
+                    ? level.getChunk(new ChunkPos(-24, 0).getMiddleBlockPosition(0))
+                    : null;
+            ChunkAccess basinIslandChunk = multiIslandReview
+                    ? level.getChunk(new ChunkPos(24, 0).getMiddleBlockPosition(0))
+                    : null;
+            ChunkAccess lobedIslandChunk = multiIslandReview
+                    ? level.getChunk(new ChunkPos(48, 0).getMiddleBlockPosition(0))
                     : null;
             RandomState randomState =
                     generator.terrainProviderRandomState(level.getSeed(), level.registryAccess());
@@ -254,16 +260,24 @@ final class SkyforgeTectonicTerrainAcceptance {
                 return;
             }
             ProfileEvidence realizedSurface = captureRealizedIslandSurface(islandChunk);
-            ProfileEvidence lowerRealizedSurface = lowerIslandChunk == null
+            ProfileEvidence tablelandRealizedSurface = tablelandIslandChunk == null
                     ? null
-                    : captureRealizedIslandSurface(lowerIslandChunk);
-            ProfileEvidence higherRealizedSurface = higherIslandChunk == null
+                    : captureRealizedIslandSurface(tablelandIslandChunk);
+            ProfileEvidence spineRealizedSurface = spineIslandChunk == null
                     ? null
-                    : captureRealizedIslandSurface(higherIslandChunk);
+                    : captureRealizedIslandSurface(spineIslandChunk);
+            ProfileEvidence basinRealizedSurface = basinIslandChunk == null
+                    ? null
+                    : captureRealizedIslandSurface(basinIslandChunk);
+            ProfileEvidence lobedRealizedSurface = lobedIslandChunk == null
+                    ? null
+                    : captureRealizedIslandSurface(lobedIslandChunk);
             if (multiIslandReview) {
-                requireReviewIslandSurface(level, "lower", lowerRealizedSurface);
-                requireReviewIslandSurface(level, "middle", realizedSurface);
-                requireReviewIslandSurface(level, "higher", higherRealizedSurface);
+                requireReviewIslandSurface(level, "tableland", tablelandRealizedSurface);
+                requireReviewIslandSurface(level, "spine", spineRealizedSurface);
+                requireReviewIslandSurface(level, "massif", realizedSurface);
+                requireReviewIslandSurface(level, "basin", basinRealizedSurface);
+                requireReviewIslandSurface(level, "lobed", lobedRealizedSurface);
             }
             if (!reopening) {
                 verifyDeterministicTerrainBaseline(server, treatment, profile, realizedSurface);
@@ -399,15 +413,19 @@ final class SkyforgeTectonicTerrainAcceptance {
                 fail(server, "void exterior chunk contains " + exteriorNonAirBlocks + " non-air blocks");
                 return;
             }
-            int oppositeExteriorNonAirBlocks = 0;
+            int[] reviewGapNonAirBlocks = new int[4];
             if (multiIslandReview) {
-                ChunkAccess oppositeExteriorChunk =
-                        level.getChunk(new ChunkPos(-12, 0).getMiddleBlockPosition(0));
-                oppositeExteriorNonAirBlocks = countNonAir(oppositeExteriorChunk);
-                if (oppositeExteriorNonAirBlocks != 0) {
-                    fail(server, "opposite multi-island gap contains "
-                            + oppositeExteriorNonAirBlocks + " non-air blocks");
-                    return;
+                int[] gapChunkXs = {-36, -12, 12, 36};
+                for (int index = 0; index < gapChunkXs.length; index++) {
+                    ChunkAccess gapChunk =
+                            level.getChunk(new ChunkPos(gapChunkXs[index], 0).getMiddleBlockPosition(0));
+                    reviewGapNonAirBlocks[index] = countNonAir(gapChunk);
+                    if (reviewGapNonAirBlocks[index] != 0) {
+                        fail(server, "same-elevation morphology gap at chunk X="
+                                + gapChunkXs[index] + " contains "
+                                + reviewGapNonAirBlocks[index] + " non-air blocks");
+                        return;
+                    }
                 }
             }
 
@@ -502,24 +520,18 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put("reviewSpawnSupport", BuiltInRegistries.BLOCK.getKey(reviewSpawnSupport.getBlock()));
             evidence.put("reviewSpawnAnchor", BuiltInRegistries.BLOCK.getKey(reviewSpawnAnchor.getBlock()));
             evidence.put("reviewSpawnSupportStable", true);
-            evidence.put("reviewIslandCount", multiIslandReview ? 3 : 1);
+            evidence.put("reviewIslandCount", multiIslandReview ? 5 : 1);
             if (multiIslandReview) {
-                evidence.put("reviewIslandLowerChunk", new ChunkPos(-20, 4).toString());
-                evidence.put("reviewIslandLowerHeightRange", lowerRealizedSurface.minimumY()
-                        + ".." + lowerRealizedSurface.maximumY());
-                evidence.put("reviewIslandLowerSurfaceDigest", lowerRealizedSurface.digest());
-                evidence.put("reviewIslandLowerSurfaceColumns", lowerRealizedSurface.samples());
-                evidence.put("reviewIslandMiddleChunk", REVIEW_CHUNK.toString());
-                evidence.put("reviewIslandMiddleSurfaceDigest", realizedSurface.digest());
-                evidence.put("reviewIslandMiddleSurfaceColumns", realizedSurface.samples());
-                evidence.put("reviewIslandMiddleHeightRange", realizedSurface.minimumY()
-                        + ".." + realizedSurface.maximumY());
-                evidence.put("reviewIslandHigherChunk", new ChunkPos(28, 4).toString());
-                evidence.put("reviewIslandHigherSurfaceColumns", higherRealizedSurface.samples());
-                evidence.put("reviewIslandHigherHeightRange", higherRealizedSurface.minimumY()
-                        + ".." + higherRealizedSurface.maximumY());
-                evidence.put("reviewIslandHigherSurfaceDigest", higherRealizedSurface.digest());
-                evidence.put("reviewLowerGapNonAirBlocks", oppositeExteriorNonAirBlocks);
+                putReviewIslandEvidence(evidence, "tableland", new ChunkPos(-48, 0), tablelandRealizedSurface);
+                putReviewIslandEvidence(evidence, "spine", new ChunkPos(-24, 0), spineRealizedSurface);
+                putReviewIslandEvidence(evidence, "massif", REVIEW_CHUNK, realizedSurface);
+                putReviewIslandEvidence(evidence, "basin", new ChunkPos(24, 0), basinRealizedSurface);
+                putReviewIslandEvidence(evidence, "lobed", new ChunkPos(48, 0), lobedRealizedSurface);
+                evidence.put("reviewGapChunkXs", "-36,-12,12,36");
+                evidence.put("reviewGapNonAirBlocks", String.join(",",
+                        java.util.Arrays.stream(reviewGapNonAirBlocks)
+                                .mapToObj(Integer::toString)
+                                .toList()));
                 evidence.put("reviewDimensionBuildRange",
                         level.getMinBuildHeight() + ".." + level.getMaxBuildHeight());
             }
@@ -531,6 +543,15 @@ final class SkyforgeTectonicTerrainAcceptance {
                     "Tectonic terrain acceptance failed: "
                             + failure.getClass().getSimpleName() + ": " + failure.getMessage());
         }
+    }
+
+    private static void putReviewIslandEvidence(
+            Map<String, Object> evidence, String family, ChunkPos chunk, ProfileEvidence surface) {
+        evidence.put("reviewIsland" + family + "Chunk", chunk.toString());
+        evidence.put("reviewIsland" + family + "HeightRange",
+                surface.minimumY() + ".." + surface.maximumY());
+        evidence.put("reviewIsland" + family + "SurfaceDigest", surface.digest());
+        evidence.put("reviewIsland" + family + "SurfaceColumns", surface.samples());
     }
 
     private static void requireReviewIslandSurface(
