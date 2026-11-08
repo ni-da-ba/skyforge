@@ -15,6 +15,7 @@
   "piglin_safe": false,
   "has_raids": true,
   "monster_spawn_light_level": {
+    "type": "minecraft:uniform",
     "min_inclusive": 0,
     "max_inclusive": 7
   },
