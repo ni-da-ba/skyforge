@@ -131,7 +131,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
                             "terrain.providerSnapshot.reliefFootprint", footprintStart);
                     providerReliefFootprintsForChunk.put(ownerId, footprint);
                 }
-                int edgeDistance = footprint.interiorDistance(worldX, worldZ);
+                double edgeDistance = footprint.interiorDistance(worldX, worldZ);
                 double providerInfluence = providerReliefInfluenceAtFootprintEdge(
                         edgeDistance,
                         PROVIDER_RELIEF_EDGE_BLEND_RADIUS_BLOCKS);
@@ -324,7 +324,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
         return new TerrainProfileAdaptation(adapted, providerWriteClaims);
     }
 
-    static double providerReliefInfluenceAtFootprintEdge(int interiorDistance, int blendRadius) {
+    static double providerReliefInfluenceAtFootprintEdge(double interiorDistance, int blendRadius) {
         if (interiorDistance < 0 || blendRadius <= 0) {
             throw new IllegalArgumentException("provider relief blend distance/radius is invalid");
         }
@@ -334,14 +334,14 @@ public final class MinecraftNativeSurfaceTopAdapter {
 
     static long blendProviderReliefAtFootprintEdge(
             long projectedRelief,
-            int interiorDistance,
+            double interiorDistance,
             int blendRadius) {
         return Math.round(projectedRelief
                 * providerReliefInfluenceAtFootprintEdge(interiorDistance, blendRadius));
     }
 
     static int providerSurfaceLayerCountAtFootprintEdge(
-            int interiorDistance,
+            double interiorDistance,
             int blendRadius,
             int maximumLayerCount) {
         if (maximumLayerCount <= 0) {
@@ -360,14 +360,14 @@ public final class MinecraftNativeSurfaceTopAdapter {
         private final int minimumZ;
         private final int width;
         private final int height;
-        private final byte[] interiorDistances;
+        private final double[] interiorDistances;
 
         private ProviderReliefFootprint(
                 int minimumX,
                 int minimumZ,
                 int width,
                 int height,
-                byte[] interiorDistances) {
+                double[] interiorDistances) {
             this.minimumX = minimumX;
             this.minimumZ = minimumZ;
             this.width = width;
@@ -393,10 +393,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
             int width = CHUNK_WIDTH + radius * 2;
             int height = CHUNK_WIDTH + radius * 2;
             int cellCount = Math.multiplyExact(width, height);
-            byte[] distances = new byte[cellCount];
-            Arrays.fill(distances, (byte) -1);
-            int[] frontier = new int[cellCount];
-            int frontierSize = 0;
+            boolean[] unsupported = new boolean[cellCount];
             int supportWidth = supportMaximumX - supportMinimumX + 1;
             int supportHeight = supportMaximumZ - supportMinimumZ + 1;
             for (int gridZ = 0; gridZ < height; gridZ++) {
@@ -411,66 +408,105 @@ public final class MinecraftNativeSurfaceTopAdapter {
                             && supportZ < supportHeight;
                     boolean supported = insideBounds
                             && adapter.integerSolidRange(volumeId, worldX, worldZ).isPresent();
-                    if (!supported) {
-                        int index = gridX + width * gridZ;
-                        distances[index] = 0;
-                        frontier[frontierSize++] = index;
-                    }
+                    unsupported[gridX + width * gridZ] = !supported;
                 }
             }
 
-            // An 8-neighbor breadth-first transform gives a deterministic Chebyshev interior
-            // distance. Values saturate at the transition radius, which is all the blend needs.
-            int frontierRead = 0;
-            while (frontierRead < frontierSize) {
-                int index = frontier[frontierRead++];
-                int nextDistance = (distances[index] & 0xff) + 1;
-                if (nextDistance > radius) {
-                    continue;
-                }
-                int gridX = index % width;
-                int gridZ = index / width;
-                for (int deltaZ = -1; deltaZ <= 1; deltaZ++) {
-                    int neighborZ = gridZ + deltaZ;
-                    if (neighborZ < 0 || neighborZ >= height) {
-                        continue;
-                    }
-                    for (int deltaX = -1; deltaX <= 1; deltaX++) {
-                        if (deltaX == 0 && deltaZ == 0) {
-                            continue;
-                        }
-                        int neighborX = gridX + deltaX;
-                        if (neighborX < 0 || neighborX >= width) {
-                            continue;
-                        }
-                        int neighborIndex = neighborX + width * neighborZ;
-                        if (distances[neighborIndex] != (byte) -1) {
-                            continue;
-                        }
-                        distances[neighborIndex] = (byte) nextDistance;
-                        frontier[frontierSize++] = neighborIndex;
-                    }
-                }
-            }
-
-            // Unsupported columns beyond this local grid cannot affect a target point beyond the
-            // radius. Treat every still-unreached interior sample as the saturated distance.
-            for (int index = 0; index < distances.length; index++) {
-                if (distances[index] < 0) {
-                    distances[index] = (byte) radius;
-                }
-            }
+            // The exact squared Euclidean distance transform avoids the square contours produced
+            // by an unweighted 8-neighbor flood fill. Values saturate at the transition radius.
+            double[] distances = euclideanDistanceToUnsupported(unsupported, width, height, radius);
             return new ProviderReliefFootprint(minimumX, minimumZ, width, height, distances);
         }
 
-        int interiorDistance(int worldX, int worldZ) {
+        double interiorDistance(int worldX, int worldZ) {
             int gridX = worldX - minimumX;
             int gridZ = worldZ - minimumZ;
             if (gridX < 0 || gridX >= width || gridZ < 0 || gridZ >= height) {
-                return 0;
+                return 0.0d;
             }
-            return interiorDistances[gridX + width * gridZ] & 0xff;
+            return interiorDistances[gridX + width * gridZ];
         }
+    }
+
+    /**
+     * Computes distances to unsupported cells using a separable exact Euclidean distance transform.
+     * The bounded footprint window makes this linear-time transform small and deterministic.
+     */
+    static double[] euclideanDistanceToUnsupported(
+            boolean[] unsupported,
+            int width,
+            int height,
+            int maximumDistance) {
+        Objects.requireNonNull(unsupported, "unsupported");
+        if (width <= 0 || height <= 0 || maximumDistance <= 0
+                || unsupported.length != Math.multiplyExact(width, height)) {
+            throw new IllegalArgumentException("distance-transform dimensions or radius are invalid");
+        }
+
+        final int infinity = 1_000_000_000;
+        int[] horizontal = new int[unsupported.length];
+        int[] input = new int[Math.max(width, height)];
+        int[] output = new int[input.length];
+        for (int z = 0; z < height; z++) {
+            int row = z * width;
+            for (int x = 0; x < width; x++) {
+                input[x] = unsupported[row + x] ? 0 : infinity;
+            }
+            squaredDistanceTransform1d(input, output, width);
+            System.arraycopy(output, 0, horizontal, row, width);
+        }
+
+        double[] distances = new double[unsupported.length];
+        int radiusSquared = Math.multiplyExact(maximumDistance, maximumDistance);
+        for (int x = 0; x < width; x++) {
+            for (int z = 0; z < height; z++) {
+                input[z] = horizontal[x + z * width];
+            }
+            squaredDistanceTransform1d(input, output, height);
+            for (int z = 0; z < height; z++) {
+                int index = x + z * width;
+                int squaredDistance = Math.min(radiusSquared, output[z]);
+                distances[index] = Math.sqrt(squaredDistance);
+            }
+        }
+        return distances;
+    }
+
+    private static void squaredDistanceTransform1d(int[] input, int[] output, int length) {
+        int[] envelope = new int[length];
+        double[] boundaries = new double[length + 1];
+        int last = 0;
+        envelope[0] = 0;
+        boundaries[0] = Double.NEGATIVE_INFINITY;
+        boundaries[1] = Double.POSITIVE_INFINITY;
+
+        for (int q = 1; q < length; q++) {
+            double intersection = parabolaIntersection(input, q, envelope[last]);
+            while (intersection <= boundaries[last]) {
+                last--;
+                intersection = parabolaIntersection(input, q, envelope[last]);
+            }
+            last++;
+            envelope[last] = q;
+            boundaries[last] = intersection;
+            boundaries[last + 1] = Double.POSITIVE_INFINITY;
+        }
+
+        last = 0;
+        for (int q = 0; q < length; q++) {
+            while (boundaries[last + 1] < q) {
+                last++;
+            }
+            int delta = q - envelope[last];
+            output[q] = Math.addExact(input[envelope[last]], Math.multiplyExact(delta, delta));
+        }
+    }
+
+    private static double parabolaIntersection(int[] values, int q, int previous) {
+        long qSquared = (long) q * q;
+        long previousSquared = (long) previous * previous;
+        return (values[q] + (double) qSquared - values[previous] - (double) previousSquared)
+                / (2.0d * (q - previous));
     }
 
     /**
