@@ -181,6 +181,10 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             completePersistedReopenAcceptance(event.getServer().overworld());
             return;
         }
+        if (Boolean.getBoolean(PROVIDER_BIOME_PROPERTY)
+                && SkyforgeAutomatedAcceptanceHarness.warmupComplete()) {
+            populateUnscannedProviderProofChunks(event.getServer().overworld());
+        }
         if (!proofComplete || !remoteClientJoinPassed()) {
             return;
         }
@@ -383,6 +387,35 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             for (int z = -PROOF_RADIUS_CHUNKS; z <= PROOF_RADIUS_CHUNKS; z++) keys.add(new ChunkPos(x, z).toLong());
         }
         return List.copyOf(keys);
+    }
+
+    /**
+     * Some proof chunks can be generated while Minecraft is preparing its initial spawn, before
+     * the provider preflight has installed the finite proof-key set. Once the harness has warmed
+     * and ticketed the selected footprint, route only those still-unscanned chunks through the
+     * same exact-volume population path. This avoids silently omitting the control island when it
+     * overlaps the world's initial spawn region.
+     */
+    private static void populateUnscannedProviderProofChunks(ServerLevel level) {
+        ChunkGenerator generator = level.getChunkSource().getGenerator();
+        int recovered = 0;
+        List<Long> proofKeys = new ArrayList<>(controlProofChunkKeys);
+        proofKeys.addAll(providerProofChunkKeys);
+        for (long key : proofKeys) {
+            if (scannedProofChunks.contains(key)) continue;
+            ChunkPos pos = new ChunkPos(key);
+            ChunkAccess chunk = level.getChunkSource().getChunkNow(pos.x, pos.z);
+            if (chunk == null) {
+                throw new IllegalStateException("warmed side-by-side proof chunk is not loaded: " + pos);
+            }
+            populateProviderSideBySide(level, chunk, generator);
+            recovered++;
+        }
+        if (recovered > 0) {
+            LOGGER.log(System.Logger.Level.INFO,
+                    "SF-IMP-0054 recovered " + recovered
+                            + " side-by-side proof chunks generated before proof selection was installed.");
+        }
     }
 
     private static void populateProviderSideBySide(WorldGenLevel level, ChunkAccess chunk, ChunkGenerator generator) {
