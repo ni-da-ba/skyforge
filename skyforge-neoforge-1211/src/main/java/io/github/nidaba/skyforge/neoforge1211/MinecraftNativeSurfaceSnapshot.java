@@ -315,7 +315,15 @@ final class MinecraftNativeSurfaceSnapshot {
         return (int) Math.round(weightedHeight / (double) totalWeight);
     }
 
-    /** Uses a deterministic base-column neighborhood at each island's anchor as its local datum. */
+    private static final int PROVIDER_ISLAND_DATUM_GRID_INTERVALS = 8;
+
+    /**
+     * Uses a deterministic provider-height median sampled across the island's horizontal bounds.
+     *
+     * <p>A tiny anchor neighborhood can land entirely on a Tectonic summit and make ordinary
+     * lower terrain look like a large negative basin. Sampling a fixed grid across the island
+     * footprint makes the datum represent broad local terrain instead of one anchor feature.
+     */
     private static int providerIslandTerrainDatumY(
             WorldGenRegion level,
             NoiseBasedChunkGenerator generator,
@@ -326,21 +334,44 @@ final class MinecraftNativeSurfaceSnapshot {
                 new ProviderIslandDatumKey(generator, randomState, volumeId),
                 ignored -> {
                     var bounds = volume.bounds();
-                    int centerX = (int) Math.floor((bounds.minimumX() + bounds.maximumX()) * 0.5d);
-                    int centerZ = (int) Math.floor((bounds.minimumZ() + bounds.maximumZ()) * 0.5d);
-                    int[] offsets = {-4, 0, 4};
-                    int[] heights = new int[offsets.length * offsets.length];
+                    int minimumX = (int) Math.ceil(bounds.minimumX());
+                    int maximumX = (int) Math.floor(bounds.maximumX());
+                    int minimumZ = (int) Math.ceil(bounds.minimumZ());
+                    int maximumZ = (int) Math.floor(bounds.maximumZ());
+                    int[] sampleXs = providerIslandDatumSampleCoordinates(
+                            minimumX, maximumX, PROVIDER_ISLAND_DATUM_GRID_INTERVALS);
+                    int[] sampleZs = providerIslandDatumSampleCoordinates(
+                            minimumZ, maximumZ, PROVIDER_ISLAND_DATUM_GRID_INTERVALS);
+                    int[] heights = new int[sampleXs.length * sampleZs.length];
                     int sample = 0;
-                    for (int deltaZ : offsets) {
-                        for (int deltaX : offsets) {
-                            NoiseColumn column = generator.getBaseColumn(
-                                    centerX + deltaX, centerZ + deltaZ, level, randomState);
+                    for (int worldZ : sampleZs) {
+                        for (int worldX : sampleXs) {
+                            NoiseColumn column = generator.getBaseColumn(worldX, worldZ, level, randomState);
                             heights[sample++] = firstSolidSurfaceY(
                                     column, level.getMinBuildHeight(), level.getMaxBuildHeight());
                         }
                     }
                     return medianProviderTerrainDatumY(heights, generator.getSeaLevel());
                 });
+    }
+
+    static int[] providerIslandDatumSampleCoordinates(int minimum, int maximum, int requestedIntervals) {
+        if (maximum < minimum) {
+            throw new IllegalArgumentException("datum sample maximum must be at least the minimum");
+        }
+        if (requestedIntervals <= 0) {
+            throw new IllegalArgumentException("datum sample intervals must be positive");
+        }
+        int intervalCount = Math.min(requestedIntervals, maximum - minimum);
+        if (intervalCount == 0) {
+            return new int[] {minimum};
+        }
+        int[] coordinates = new int[intervalCount + 1];
+        for (int index = 0; index <= intervalCount; index++) {
+            coordinates[index] = minimum + (int) Math.round(
+                    (maximum - (double) minimum) * index / intervalCount);
+        }
+        return coordinates;
     }
 
     static int medianProviderTerrainDatumY(int[] providerHeights, int fallbackY) {
