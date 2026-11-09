@@ -722,15 +722,15 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
-        // SF-IMP-0054 local review client. Stage the same provider-backed biome stack used by the
-        // dedicated-server specimen so downloaded acceptance saves open with matching registries.
+        // SF-IMP-0054 modded-biome experiment. Stage the selected server-side biome mod stack in
+        // this isolated game directory, then run the same exact-volume proof against its final
+        // registered biome and vegetation features. The proof defaults to vanilla taiga elsewhere.
         create("moddedBiomePopulationClient") {
             client()
             sourceSet.set(moddedBiomePopulationClientRuntime)
             gameDirectory = layout.projectDirectory.dir("run-sf-imp-0054-modded-biome").asFile
             systemProperty("skyforge.dev.biomePopulation", "true")
-            systemProperty("skyforge.dev.biomePopulation.upperBiome", "biomesoplenty:rocky_shrubland")
-            systemProperty("skyforge.dev.biomePopulation.providerBiome", "true")
+            systemProperty("skyforge.dev.biomePopulation.upperBiome", "biomesoplenty:maple_woods")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
