@@ -3,6 +3,7 @@ package io.github.nidaba.skyforge.neoforge1211;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -26,6 +27,8 @@ import net.minecraft.world.level.levelgen.RandomState;
 final class MinecraftNativeSurfaceSnapshot {
     private static final int CHUNK_WIDTH = 16;
     private static final int SAMPLE_COUNT = CHUNK_WIDTH * CHUNK_WIDTH;
+    private static final Set<String> VANILLA_MANTLE_FALLBACKS = Set.of(
+            "dirt", "coarse_dirt", "rooted_dirt", "mud", "sand", "red_sand");
     /** Surface block plus at most seven provider-authored soil/sand blocks beneath it. */
     static final int MAX_SURFACE_LAYERS = 8;
 
@@ -177,19 +180,23 @@ final class MinecraftNativeSurfaceSnapshot {
             if (state.isAir() || !state.getFluidState().isEmpty()) {
                 break;
             }
-            if (depth > 0 && !isNativeSurfaceMantle(state)) {
-                break;
-            }
             ResourceLocation key = BuiltInRegistries.BLOCK.getKey(state.getBlock());
             if (key == null || SkyforgeMinecraftBlockPalette.AIR.equals(key)) {
+                break;
+            }
+            if (depth > 0 && !isNativeSurfaceMantle(state, key)) {
                 break;
             }
             mantleBlockKeys[mantleIndex(localX, localZ, depth)] = key;
         }
     }
 
-    private static boolean isNativeSurfaceMantle(BlockState state) {
-        return state.is(BlockTags.DIRT) || state.is(BlockTags.SAND);
+    private static boolean isNativeSurfaceMantle(BlockState state, ResourceLocation key) {
+        // Default vanilla tags are not always loaded in focused unit tests; keep the vanilla base
+        // soil recognizable there while allowing registry/data-pack tags to admit modded soils.
+        return state.is(BlockTags.DIRT)
+                || state.is(BlockTags.SAND)
+                || ("minecraft".equals(key.getNamespace()) && VANILLA_MANTLE_FALLBACKS.contains(key.getPath()));
     }
 
     record NativeSurface(int worldY, ResourceLocation blockKey) {
