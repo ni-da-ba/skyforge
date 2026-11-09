@@ -102,10 +102,13 @@ final class SkyforgeNeoForge1211BiomePopulationJoinClientAcceptance {
         }
 
         BlockPos feet = minecraft.player.blockPosition();
+        BlockPos headPosition = feet.above();
         BlockPos supportPosition = feet.below();
         BlockState feetState = minecraft.level.getBlockState(feet);
+        BlockState headState = minecraft.level.getBlockState(headPosition);
         BlockState supportState = minecraft.level.getBlockState(supportPosition);
-        if (!feetState.isAir()
+        if (!feetState.getCollisionShape(minecraft.level, feet).isEmpty()
+                || !headState.getCollisionShape(minecraft.level, headPosition).isEmpty()
                 || supportState.isAir()
                 || supportState.getCollisionShape(minecraft.level, supportPosition).isEmpty()) {
             return;
