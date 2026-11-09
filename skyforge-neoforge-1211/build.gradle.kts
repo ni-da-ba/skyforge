@@ -754,7 +754,7 @@ neoForge {
             programArgument("--world")
             programArgument("acceptance")
             systemProperty("skyforge.dev.biomePopulation", "true")
-            systemProperty("skyforge.dev.biomePopulation.upperBiome", "biomesoplenty:rocky_shrubland")
+            systemProperty("skyforge.dev.biomePopulation.upperBiome", "biomesoplenty:prairie")
             systemProperty("skyforge.dev.biomePopulation.providerBiome", "true")
             systemProperty("skyforge.dev.biomePopulation.waitForRemoteClient", "true")
             systemProperty(
@@ -784,7 +784,7 @@ neoForge {
             programArgument("--world")
             programArgument("acceptance")
             systemProperty("skyforge.dev.biomePopulation", "true")
-            systemProperty("skyforge.dev.biomePopulation.upperBiome", "biomesoplenty:rocky_shrubland")
+            systemProperty("skyforge.dev.biomePopulation.upperBiome", "biomesoplenty:prairie")
             systemProperty("skyforge.dev.biomePopulation.providerBiome", "true")
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "server")
