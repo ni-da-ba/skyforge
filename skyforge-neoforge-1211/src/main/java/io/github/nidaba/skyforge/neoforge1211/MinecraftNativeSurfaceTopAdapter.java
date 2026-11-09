@@ -120,6 +120,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 ResourceLocation nativeBlockKey = nativeSurface.orElseThrow().blockKey();
                 if (stableWhenAdapted(blockKeys, targetLocalY, localX, localZ, nativeBlockKey)) {
                     blockKeys[targetIndex] = nativeBlockKey;
+                    adaptSurfaceMantleAtTop(blockKeys, targetLocalY, localX, localZ, snapshot);
                 }
             }
         }
@@ -134,6 +135,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
                             materialization.height(),
                             localX,
                             localZ,
+                            snapshot,
                             nativeSurface.orElseThrow());
                 }
             }
@@ -210,6 +212,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
                         materialization.height(),
                         localX,
                         localZ,
+                        snapshot,
                         nativeSurface.orElseThrow());
             }
         }
@@ -228,6 +231,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
             int height,
             int localX,
             int localZ,
+            MinecraftNativeSurfaceSnapshot snapshot,
             MinecraftNativeSurfaceSnapshot.NativeSurface nativeSurface) {
         for (int localY = height - 1; localY >= 0; localY--) {
             int index = linearIndex(localX, localY, localZ);
@@ -243,14 +247,37 @@ public final class MinecraftNativeSurfaceTopAdapter {
             }
 
             int worldY = minimumY + localY;
-            if (nativeSurface.worldY() < worldY
-                    && stableWhenAdapted(
-                            blockKeys,
-                            localY,
-                            localX,
-                            localZ,
-                            nativeSurface.blockKey())) {
-                blockKeys[index] = nativeSurface.blockKey();
+            if (nativeSurface.worldY() >= worldY) {
+                continue;
+            }
+            adaptSurfaceMantleAtTop(blockKeys, localY, localX, localZ, snapshot);
+        }
+    }
+
+    private static void adaptSurfaceMantleAtTop(
+            ResourceLocation[] blockKeys,
+            int topLocalY,
+            int localX,
+            int localZ,
+            MinecraftNativeSurfaceSnapshot snapshot) {
+        for (int depth = 0; depth < MinecraftNativeSurfaceSnapshot.MAX_SURFACE_LAYERS; depth++) {
+            int targetLocalY = topLocalY - depth;
+            if (targetLocalY < 0) {
+                break;
+            }
+            int targetIndex = linearIndex(localX, targetLocalY, localZ);
+            if (depth > 0 && SkyforgeMinecraftBlockPalette.AIR.equals(blockKeys[targetIndex])) {
+                break;
+            }
+            var nativeLayer = snapshot.mantleBlockAtDepth(localX, localZ, depth);
+            if (nativeLayer.isEmpty()) {
+                break;
+            }
+            ResourceLocation layerKey = nativeLayer.orElseThrow();
+            if (stableWhenAdapted(blockKeys, targetLocalY, localX, localZ, layerKey)) {
+                blockKeys[targetIndex] = layerKey;
+            } else if (depth == 0) {
+                break;
             }
         }
     }
@@ -285,3 +312,4 @@ public final class MinecraftNativeSurfaceTopAdapter {
         return localX + CHUNK_WIDTH * (localZ + CHUNK_WIDTH * localY);
     }
 }
+
