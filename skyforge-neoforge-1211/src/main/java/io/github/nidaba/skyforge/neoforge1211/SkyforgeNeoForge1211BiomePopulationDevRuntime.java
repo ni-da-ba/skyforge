@@ -558,7 +558,8 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 Map.entry("lowerLeafBlocks", controlLeaves),
                 Map.entry("upperLogBlocks", providerLogs),
                 Map.entry("upperLeafBlocks", providerLeaves),
-                Map.entry("exteriorNonAirBlocks", exterior)));
+                Map.entry("exteriorNonAirBlocks", exterior),
+                Map.entry("generationReapplied", false)));
     }
 
     private record SideBySideSurfaceSample(
