@@ -247,7 +247,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
             }
 
             int worldY = minimumY + localY;
-            if (nativeSurface.worldY() < worldY) {
+            if (nativeSurface.worldY() >= worldY) {
                 continue;
             }
             adaptSurfaceMantleAtTop(blockKeys, localY, localX, localZ, snapshot);
