@@ -24,6 +24,7 @@ import net.minecraft.world.level.levelgen.RandomState;
 final class MinecraftNativeSurfaceSnapshot {
     private static final int CHUNK_WIDTH = 16;
     private static final int SAMPLE_COUNT = CHUNK_WIDTH * CHUNK_WIDTH;
+    static final int MAX_SURFACE_LAYERS = 8;
 
     private final ChunkPos chunkPos;
     private final int baselineY;
@@ -37,7 +38,7 @@ final class MinecraftNativeSurfaceSnapshot {
             ResourceLocation[] blockKeys) {
         this.chunkPos = Objects.requireNonNull(chunkPos, "chunkPos");
         this.baselineY = baselineY;
-        if (worldYs.length != SAMPLE_COUNT || blockKeys.length != SAMPLE_COUNT) {
+        if (worldYs.length != SAMPLE_COUNT || blockKeys.length != SAMPLE_COUNT * MAX_SURFACE_LAYERS) {
             throw new IllegalArgumentException("native surface snapshot must contain exactly 256 columns");
         }
         this.worldYs = Arrays.copyOf(worldYs, worldYs.length);
@@ -54,7 +55,7 @@ final class MinecraftNativeSurfaceSnapshot {
         int baselineY = generator.getSeaLevel();
         int[] worldYs = new int[SAMPLE_COUNT];
         Arrays.fill(worldYs, Integer.MIN_VALUE);
-        ResourceLocation[] blockKeys = new ResourceLocation[SAMPLE_COUNT];
+        ResourceLocation[] blockKeys = new ResourceLocation[SAMPLE_COUNT * MAX_SURFACE_LAYERS];
         for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
             int worldZ = chunk.getPos().getMinBlockZ() + localZ;
             for (int localX = 0; localX < CHUNK_WIDTH; localX++) {
@@ -73,7 +74,21 @@ final class MinecraftNativeSurfaceSnapshot {
                     }
                     int index = index(localX, localZ);
                     worldYs[index] = worldY;
-                    blockKeys[index] = key;
+                    for (int depth = 0; depth < MAX_SURFACE_LAYERS; depth++) {
+                        int layerY = worldY - depth;
+                        if (layerY < chunk.getMinBuildHeight()) {
+                            break;
+                        }
+                        BlockState layer = column.getBlock(layerY);
+                        if (layer.isAir() || !layer.getFluidState().isEmpty()) {
+                            break;
+                        }
+                        ResourceLocation layerKey = BuiltInRegistries.BLOCK.getKey(layer.getBlock());
+                        if (layerKey == null || SkyforgeMinecraftBlockPalette.AIR.equals(layerKey)) {
+                            break;
+                        }
+                        blockKeys[layerIndex(index, depth)] = layerKey;
+                    }
                     break;
                 }
             }
@@ -108,7 +123,21 @@ final class MinecraftNativeSurfaceSnapshot {
                         continue;
                     }
                     worldYs[index] = worldY;
-                    blockKeys[index] = key;
+                    for (int depth = 0; depth < MAX_SURFACE_LAYERS; depth++) {
+                        int layerY = worldY - depth;
+                        if (layerY < chunk.getMinBuildHeight()) {
+                            break;
+                        }
+                        BlockState layer = chunk.getBlockState(cursor.set(worldX, layerY, worldZ));
+                        if (layer.isAir() || !layer.getFluidState().isEmpty()) {
+                            break;
+                        }
+                        ResourceLocation layerKey = BuiltInRegistries.BLOCK.getKey(layer.getBlock());
+                        if (layerKey == null || SkyforgeMinecraftBlockPalette.AIR.equals(layerKey)) {
+                            break;
+                        }
+                        blockKeys[layerIndex(index, depth)] = layerKey;
+                    }
                     break;
                 }
             }
@@ -125,14 +154,36 @@ final class MinecraftNativeSurfaceSnapshot {
     }
 
     Optional<NativeSurface> surface(int localX, int localZ) {
-        if (localX < 0 || localX >= CHUNK_WIDTH || localZ < 0 || localZ >= CHUNK_WIDTH) {
-            throw new IllegalArgumentException("local surface coordinate must be inside one chunk");
-        }
+        checkColumn(localX, localZ);
         int index = index(localX, localZ);
-        ResourceLocation blockKey = blockKeys[index];
+        ResourceLocation blockKey = blockKeys[layerIndex(index, 0)];
         return blockKey == null
                 ? Optional.empty()
                 : Optional.of(new NativeSurface(worldYs[index], blockKey));
+    }
+
+    int surfaceMaterialLayerCount(int localX, int localZ) {
+        checkColumn(localX, localZ);
+        int columnIndex = index(localX, localZ);
+        int count = 0;
+        while (count < MAX_SURFACE_LAYERS && blockKeys[layerIndex(columnIndex, count)] != null) {
+            count++;
+        }
+        return count;
+    }
+
+    Optional<ResourceLocation> surfaceMaterialAtDepth(int localX, int localZ, int depth) {
+        checkColumn(localX, localZ);
+        if (depth < 0 || depth >= MAX_SURFACE_LAYERS) {
+            throw new IllegalArgumentException("surface material depth outside captured profile");
+        }
+        return Optional.ofNullable(blockKeys[layerIndex(index(localX, localZ), depth)]);
+    }
+
+    private static void checkColumn(int localX, int localZ) {
+        if (localX < 0 || localX >= CHUNK_WIDTH || localZ < 0 || localZ >= CHUNK_WIDTH) {
+            throw new IllegalArgumentException("local surface coordinate must be inside one chunk");
+        }
     }
 
     record NativeSurface(int worldY, ResourceLocation blockKey) {
@@ -143,5 +194,9 @@ final class MinecraftNativeSurfaceSnapshot {
 
     private static int index(int localX, int localZ) {
         return localX + CHUNK_WIDTH * localZ;
+    }
+
+    private static int layerIndex(int columnIndex, int depth) {
+        return columnIndex * MAX_SURFACE_LAYERS + depth;
     }
 }
