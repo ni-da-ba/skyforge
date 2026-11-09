@@ -104,7 +104,7 @@ final class MinecraftNativeSurfaceSnapshot {
         Objects.requireNonNull(chunk, "chunk");
         int[] worldYs = new int[SAMPLE_COUNT];
         Arrays.fill(worldYs, Integer.MIN_VALUE);
-        ResourceLocation[] blockKeys = new ResourceLocation[SAMPLE_COUNT];
+        ResourceLocation[] blockKeys = new ResourceLocation[SAMPLE_COUNT * MAX_SURFACE_LAYERS];
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         int maximumY = chunk.getMinBuildHeight() + chunk.getHeight() - 1;
 
