@@ -492,7 +492,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
     }
 
     private static void completeSideBySideReopenAcceptance(ServerLevel level) {
-        int scanned = 0, eligible = 0, skippedProviderBiomeChunks = 0;
+        int scanned = 0, eligible = 0, skippedProviderBiomeChunks = 0, providerBiomeMatchedChunks = 0;
         int controlLogs = 0, controlLeaves = 0, providerLogs = 0, providerLeaves = 0;
         ChunkGenerator generator = level.getChunkSource().getGenerator();
         List<Long> keys = proofChunkKeysForReopen();
@@ -520,6 +520,9 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 return;
             }
             eligible++;
+            if (provider && UPPER_BIOME.equals(sample.orElseThrow().providerBiome())) {
+                providerBiomeMatchedChunks++;
+            }
             VegetationEvidence e = scanVegetation(level, pos, sample.orElseThrow().surfaceY());
             if (provider) { providerLogs += e.logBlocks(); providerLeaves += e.leafBlocks(); }
             else { controlLogs += e.logBlocks(); controlLeaves += e.leafBlocks(); }
@@ -544,7 +547,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         acceptanceCompletionRequested = true;
         SkyforgeAutomatedAcceptanceHarness.completeServerCase(level.getServer(), Map.ofEntries(
                 Map.entry("selectedUpperBiome", UPPER_BIOME.location()),
-                Map.entry("providerBiomeMatchesPopulation", UPPER_BIOME.equals(upperAggregate.biomeKey())),
+                Map.entry("providerBiomeMatchesPopulation", providerBiomeMatchedChunks > 0),
                 Map.entry("scannedChunks", scanned),
                 Map.entry("eligibleChunks", eligible),
                 Map.entry("skippedProviderBiomeChunks", skippedProviderBiomeChunks),
