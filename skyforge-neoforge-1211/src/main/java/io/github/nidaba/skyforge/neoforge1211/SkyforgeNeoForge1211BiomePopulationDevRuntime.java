@@ -643,7 +643,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             upperAggregate.add(nativeResult, vegetation);
         }
         eligibleProofChunks.add(chunkKey);
-        evaluateCompletion(volumes.get(0).id(), volumes.get(1).id());
+        evaluateCompletion(level, volumes.get(0).id(), volumes.get(1).id());
     }
 
     private static void recordProviderBiomeEvidence(
