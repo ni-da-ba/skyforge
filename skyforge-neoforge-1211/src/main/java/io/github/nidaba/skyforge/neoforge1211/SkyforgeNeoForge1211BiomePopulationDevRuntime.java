@@ -53,7 +53,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
     static final String CLIENT_RESULT_FILE_PROPERTY = "skyforge.dev.biomePopulation.clientResultFile";
     private static final String REOPEN_ACCEPTANCE_CASE = "sf-imp-0054-modded-biome-reopen";
     private static final ResourceKey<Biome> UPPER_BIOME = configuredBiomeKey(
-            System.getProperty(UPPER_BIOME_PROPERTY, "minecraft:taiga"));
+            System.getProperty(UPPER_BIOME_PROPERTY, "minecraft:cherry_grove"));
     private static final long ROOT_SEED = 0x5346494d50303054L;
     private static final ChunkPos EXTERIOR_WITNESS_CHUNK = new ChunkPos(5, 0);
     private static final int PROVIDER_PREFLIGHT_QUART_STEP = 4;
