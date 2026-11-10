@@ -7,6 +7,7 @@ import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.QuartPos;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.ChunkPos;
@@ -103,7 +104,9 @@ final class MinecraftNativeSurfaceSnapshot {
                                     QuartPos.fromBlock(worldY),
                                     QuartPos.fromBlock(worldZ),
                                     randomState.sampler())
-                            .location();
+                            .unwrapKey()
+                            .map(ResourceKey::location)
+                            .orElse(null);
                     captureMantle(column::getBlock, worldY, localX, localZ, mantleBlockKeys);
                     break;
                 }
