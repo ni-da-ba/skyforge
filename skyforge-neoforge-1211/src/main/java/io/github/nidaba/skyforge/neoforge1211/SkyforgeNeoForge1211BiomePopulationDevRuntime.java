@@ -552,7 +552,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 System.Logger.Level.INFO,
                 "Skyforge SF-IMP-0054 side-by-side surface-ecology specimen enabled. Create a NEW disposable "
                         + "Skyforge Development world and compare the same-height Forest island at x=0 with "
-                        + "the provider-biome island at x=176, both centered near z=0. Each island runs its "
+                        + "the provider-biome island at x=176, both centered near z=0. Each specimen has a compact 88-block landform profile. Each island runs its "
                         + "complete admitted VEGETAL_DECORATION surface-ecology route within exact volume ownership.");
     }
 
@@ -846,11 +846,11 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         var upperId = new SkyIslandWorldVolumeId(ROOT_SEED, "sf-imp-0054-biomes", 0, 1, upperSeed);
         var lower = new SkyIslandWorldVolume(
                 lowerId,
-                new WorldBounds(-72.0, 72.0, 96.0, 168.0, -72.0, 72.0),
+                new WorldBounds(-64.0, 64.0, 96.0, 168.0, -64.0, 64.0),
                 compileTableland(lowerSeed, 0.0, 136.0));
         var upper = new SkyIslandWorldVolume(
                 upperId,
-                new WorldBounds(104.0, 248.0, 96.0, 168.0, -72.0, 72.0),
+                new WorldBounds(112.0, 240.0, 96.0, 168.0, -64.0, 64.0),
                 compileTableland(upperSeed, 176.0, 136.0));
         return new SkyIslandWorldCatalog(ROOT_SEED, List.of(lower, upper));
     }
@@ -869,7 +869,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 centerX,
                 0.0,
                 elevation,
-                56.0,
+                44.0,
                 12.0,
                 28.0,
                 10.0,
