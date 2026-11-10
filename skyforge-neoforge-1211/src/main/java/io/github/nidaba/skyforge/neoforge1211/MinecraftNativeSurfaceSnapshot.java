@@ -5,6 +5,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.QuartPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.BlockTags;
@@ -12,6 +13,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.NoiseColumn;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.RandomState;
 
@@ -37,13 +39,15 @@ final class MinecraftNativeSurfaceSnapshot {
     private final int[] worldYs;
     private final ResourceLocation[] blockKeys;
     private final ResourceLocation[] mantleBlockKeys;
+    private final ResourceLocation[] sourceBiomeKeys;
 
     private MinecraftNativeSurfaceSnapshot(
             ChunkPos chunkPos,
             int baselineY,
             int[] worldYs,
             ResourceLocation[] blockKeys,
-            ResourceLocation[] mantleBlockKeys) {
+            ResourceLocation[] mantleBlockKeys,
+            ResourceLocation[] sourceBiomeKeys) {
         this.chunkPos = Objects.requireNonNull(chunkPos, "chunkPos");
         this.baselineY = baselineY;
         if (worldYs.length != SAMPLE_COUNT || blockKeys.length != SAMPLE_COUNT) {
@@ -55,6 +59,10 @@ final class MinecraftNativeSurfaceSnapshot {
         this.worldYs = Arrays.copyOf(worldYs, worldYs.length);
         this.blockKeys = Arrays.copyOf(blockKeys, blockKeys.length);
         this.mantleBlockKeys = Arrays.copyOf(mantleBlockKeys, mantleBlockKeys.length);
+        if (sourceBiomeKeys.length != SAMPLE_COUNT) {
+            throw new IllegalArgumentException("native surface source biomes must contain exactly 256 columns");
+        }
+        this.sourceBiomeKeys = Arrays.copyOf(sourceBiomeKeys, sourceBiomeKeys.length);
     }
 
     static MinecraftNativeSurfaceSnapshot capture(
@@ -69,6 +77,7 @@ final class MinecraftNativeSurfaceSnapshot {
         Arrays.fill(worldYs, Integer.MIN_VALUE);
         ResourceLocation[] blockKeys = new ResourceLocation[SAMPLE_COUNT];
         ResourceLocation[] mantleBlockKeys = new ResourceLocation[SAMPLE_COUNT * MAX_SURFACE_LAYERS];
+        ResourceLocation[] sourceBiomeKeys = new ResourceLocation[SAMPLE_COUNT];
         for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
             int worldZ = chunk.getPos().getMinBlockZ() + localZ;
             for (int localX = 0; localX < CHUNK_WIDTH; localX++) {
@@ -88,13 +97,20 @@ final class MinecraftNativeSurfaceSnapshot {
                     int index = index(localX, localZ);
                     worldYs[index] = worldY;
                     blockKeys[index] = key;
+                    sourceBiomeKeys[index] = generator.getBiomeSource()
+                            .getNoiseBiome(
+                                    QuartPos.fromBlock(worldX),
+                                    QuartPos.fromBlock(worldY),
+                                    QuartPos.fromBlock(worldZ),
+                                    randomState.sampler())
+                            .location();
                     captureMantle(column::getBlock, worldY, localX, localZ, mantleBlockKeys);
                     break;
                 }
             }
         }
         return new MinecraftNativeSurfaceSnapshot(
-                chunk.getPos(), baselineY, worldYs, blockKeys, mantleBlockKeys);
+                chunk.getPos(), baselineY, worldYs, blockKeys, mantleBlockKeys, sourceBiomeKeys);
     }
 
     static MinecraftNativeSurfaceSnapshot capture(ChunkAccess chunk) {
@@ -107,6 +123,7 @@ final class MinecraftNativeSurfaceSnapshot {
         Arrays.fill(worldYs, Integer.MIN_VALUE);
         ResourceLocation[] blockKeys = new ResourceLocation[SAMPLE_COUNT];
         ResourceLocation[] mantleBlockKeys = new ResourceLocation[SAMPLE_COUNT * MAX_SURFACE_LAYERS];
+        ResourceLocation[] sourceBiomeKeys = new ResourceLocation[SAMPLE_COUNT];
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         int maximumY = chunk.getMinBuildHeight() + chunk.getHeight() - 1;
 
@@ -137,7 +154,7 @@ final class MinecraftNativeSurfaceSnapshot {
             }
         }
         return new MinecraftNativeSurfaceSnapshot(
-                chunk.getPos(), baselineY, worldYs, blockKeys, mantleBlockKeys);
+                chunk.getPos(), baselineY, worldYs, blockKeys, mantleBlockKeys, sourceBiomeKeys);
     }
 
     ChunkPos chunkPos() {
@@ -157,6 +174,13 @@ final class MinecraftNativeSurfaceSnapshot {
         return blockKey == null
                 ? Optional.empty()
                 : Optional.of(new NativeSurface(worldYs[index], blockKey));
+    }
+
+    Optional<ResourceLocation> sourceBiomeKey(int localX, int localZ) {
+        if (localX < 0 || localX >= CHUNK_WIDTH || localZ < 0 || localZ >= CHUNK_WIDTH) {
+            throw new IllegalArgumentException("local surface coordinate must be inside one chunk");
+        }
+        return Optional.ofNullable(sourceBiomeKeys[index(localX, localZ)]);
     }
 
     Optional<ResourceLocation> mantleBlockAtDepth(int localX, int localZ, int depth) {
