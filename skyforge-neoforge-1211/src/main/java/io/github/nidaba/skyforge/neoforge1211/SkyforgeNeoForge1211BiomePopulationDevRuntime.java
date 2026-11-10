@@ -602,14 +602,14 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         }
         SkyforgeExactVolumeBiomeResolver resolver = providerMode
                 ? providerBackedProofResolver(volumes.get(0).id(), volumes.get(1).id())
-                : (volumeId, x, y, z) -> {
-            if (volumeId.equals(volumes.get(0).id())) {
+                : (resolvedVolumeId, x, y, z) -> {
+            if (resolvedVolumeId.equals(volumes.get(0).id())) {
                 return Biomes.FOREST;
             }
-            if (volumeId.equals(volumes.get(1).id())) {
+            if (resolvedVolumeId.equals(volumes.get(1).id())) {
                 return UPPER_BIOME;
             }
-            throw new IllegalArgumentException("unknown SF-IMP-0054 proof volume: " + volumeId.path());
+            throw new IllegalArgumentException("unknown SF-IMP-0054 proof volume: " + resolvedVolumeId.path());
         };
         var surface = SkyforgeNativeSurfacePopulationCoordinator.findSurface(level, volumeId, chunkPos);
         if (surface.isEmpty()) {
