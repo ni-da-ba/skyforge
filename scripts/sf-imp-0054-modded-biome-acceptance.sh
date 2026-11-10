@@ -86,6 +86,33 @@ verify_server_result() {
   grep -Eq '^exteriorNonAirBlocks=0$' "$result"
 }
 
+verify_full_surface_coverage() {
+  local result="$1"
+  local forest_surface provider_surface forest_populated provider_populated target_chunks
+  grep -Eq '^surfaceEcologyRoute=VEGETAL_DECORATION/SURFACE_ECOLOGY$' "$result"
+  forest_surface=$(sed -n 's/^forestSurfaceChunks=//p' "$result")
+  provider_surface=$(sed -n 's/^providerSurfaceChunks=//p' "$result")
+  forest_populated=$(sed -n 's/^forestPopulatedChunks=//p' "$result")
+  provider_populated=$(sed -n 's/^providerPopulatedChunks=//p' "$result")
+  target_chunks=$(sed -n 's/^providerBiomeTargetChunks=//p' "$result")
+  test "$forest_surface" -gt 0
+  test "$provider_surface" -gt 0
+  test "$target_chunks" -gt 0
+  test "$forest_surface" -eq "$forest_populated"
+  test "$provider_surface" -eq "$provider_populated"
+}
+
+verify_reopen_footprint() {
+  local result="$1"
+  local forest_surface provider_surface scanned
+  forest_surface=$(sed -n 's/^forestSurfaceChunks=//p' "$result")
+  provider_surface=$(sed -n 's/^providerSurfaceChunks=//p' "$result")
+  scanned=$(sed -n 's/^scannedChunks=//p' "$result")
+  test "$forest_surface" -gt 0
+  test "$provider_surface" -gt 0
+  test "$scanned" -eq "$((forest_surface + provider_surface))"
+}
+
 rm -f "$server_dir/logs/latest.log"
 launch_server ":skyforge-neoforge-1211:runModdedBiomePopulationServer" "$server_task_log"
 wait_server_ready "$server_task_log"
@@ -120,6 +147,7 @@ grep -Eq '^spawnSupported=true$' "$client_result"
 wait "$server_pid"
 server_pid=""
 verify_server_result "$server_result"
+verify_full_surface_coverage "$server_result"
 grep -Fq 'providerBiomeSource=biomesoplenty\:rocky_shrubland' "$server_result"
 grep -Eq '^providerBiomeMatchesPopulation=true$' "$server_result"
 cp "$server_result" "$acceptance_dir/server-initial.properties"
@@ -131,8 +159,10 @@ wait_server_ready "$reopen_task_log"
 wait "$server_pid"
 server_pid=""
 verify_server_result "$reopen_result"
+verify_reopen_footprint "$reopen_result"
 grep -Eq '^generationReapplied=false$' "$reopen_result"
 test -f "$server_dir/saves/acceptance/level.dat"
 
 printf 'status=PASS\nsameWorldFolder=saves/acceptance\nserverBoots=2\nremoteServerJoin=true\n' > "$reopen_summary"
 echo "SF-IMP-0054 modded-biome dedicated-server, remote-client join, and same-world reopen acceptance PASS."
+
