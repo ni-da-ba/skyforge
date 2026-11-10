@@ -260,6 +260,25 @@ public final class MinecraftNativeSurfaceTopAdapter {
             int localX,
             int localZ,
             MinecraftNativeSurfaceSnapshot snapshot) {
+        if (developmentGreenSoilFallbackApplies(snapshot, localX, localZ)) {
+            int surfaceIndex = linearIndex(localX, topLocalY, localZ);
+            if (stableWhenAdapted(blockKeys, topLocalY, localX, localZ,
+                    ResourceLocation.withDefaultNamespace("grass_block"))) {
+                blockKeys[surfaceIndex] = ResourceLocation.withDefaultNamespace("grass_block");
+                for (int depth = 1; depth <= 3; depth++) {
+                    int targetLocalY = topLocalY - depth;
+                    if (targetLocalY < 0) {
+                        break;
+                    }
+                    int targetIndex = linearIndex(localX, targetLocalY, localZ);
+                    if (SkyforgeMinecraftBlockPalette.AIR.equals(blockKeys[targetIndex])) {
+                        break;
+                    }
+                    blockKeys[targetIndex] = SkyforgeMinecraftBlockPalette.DIRT;
+                }
+                return;
+            }
+        }
         for (int depth = 0; depth < MinecraftNativeSurfaceSnapshot.MAX_SURFACE_LAYERS; depth++) {
             int targetLocalY = topLocalY - depth;
             if (targetLocalY < 0) {
@@ -280,6 +299,26 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 break;
             }
         }
+    }
+
+    private static boolean developmentGreenSoilFallbackApplies(
+            MinecraftNativeSurfaceSnapshot snapshot,
+            int localX,
+            int localZ) {
+        if (!Boolean.getBoolean(SkyforgeNeoForge1211BiomePopulationDevRuntime.ENABLE_PROPERTY)) {
+            return false;
+        }
+        var nativeSurface = snapshot.surface(localX, localZ);
+        if (nativeSurface.isEmpty()
+                || !SkyforgeMinecraftBlockPalette.STONE.equals(nativeSurface.orElseThrow().blockKey())
+                || snapshot.mantleBlockAtDepth(localX, localZ, 1).isPresent()) {
+            return false;
+        }
+        String sourceBiome = snapshot.sourceBiomeKey(localX, localZ)
+                .map(ResourceLocation::toString)
+                .orElse("");
+        return "minecraft:forest".equals(sourceBiome)
+                || "minecraft:cherry_grove".equals(sourceBiome);
     }
 
     /**
