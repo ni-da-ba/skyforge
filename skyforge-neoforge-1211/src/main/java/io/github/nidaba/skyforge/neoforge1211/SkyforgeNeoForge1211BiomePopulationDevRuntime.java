@@ -613,7 +613,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         };
         var surface = SkyforgeNativeSurfacePopulationCoordinator.findSurface(level, volumeId, chunkPos);
         if (surface.isEmpty()) {
-            evaluateCompletion(volumes.get(0).id(), volumes.get(1).id());
+            evaluateCompletion(level, volumes.get(0).id(), volumes.get(1).id());
             return;
         }
         var sample = surface.orElseThrow();
@@ -666,6 +666,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
     }
 
     private static void evaluateCompletion(
+            WorldGenLevel level,
             SkyIslandWorldVolumeId lowerId,
             SkyIslandWorldVolumeId upperId) {
         int expectedCandidateChunks = forestProofChunkKeys.size() + providerProofChunkKeys.size();
@@ -688,7 +689,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                     + "targetChunks=" + providerBiomeTargetChunkKeys.size()
                     + ", matchingPopulationChunks=" + providerBiomeCandidateProofChunks.size());
         }
-        completeProof(lowerId, upperId);
+        completeProof(level, lowerId, upperId);
     }
 
     private static SkyforgeExactVolumeBiomeResolver providerBackedProofResolver(
@@ -718,7 +719,47 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         };
     }
 
+    private static BlockPos findSafeProviderReviewSpawn(WorldGenLevel level, BlockPos preferred) {
+        if (preferred == null) {
+            return null;
+        }
+        SkyIslandWorldVolumeId providerVolume = catalog().volumes().get(1).id();
+        for (int radius = 0; radius <= 12; radius++) {
+            for (int dx = -radius; dx <= radius; dx++) {
+                for (int dz = -radius; dz <= radius; dz++) {
+                    if (Math.max(Math.abs(dx), Math.abs(dz)) != radius) {
+                        continue;
+                    }
+                    int x = preferred.getX() + dx;
+                    int z = preferred.getZ() + dz;
+                    var support = SkyforgeNeoForge1211SurfaceStage.integerSolidRange(providerVolume, x, z);
+                    if (support.isEmpty()) {
+                        continue;
+                    }
+                    int surfaceY = support.orElseThrow().maximumY();
+                    BlockPos feet = new BlockPos(x, surfaceY + 1, z);
+                    BlockPos head = feet.above();
+                    BlockPos supportPosition = feet.below();
+                    if (!level.getBiome(feet).unwrapKey().filter(UPPER_BIOME::equals).isPresent()
+                            || !level.getBlockState(feet).isAir()
+                            || !level.getBlockState(head).isAir()) {
+                        continue;
+                    }
+                    var supportState = level.getBlockState(supportPosition);
+                    if (supportState.isAir()
+                            || !supportState.getFluidState().isEmpty()
+                            || supportState.getCollisionShape(level, supportPosition).isEmpty()) {
+                        continue;
+                    }
+                    return feet;
+                }
+            }
+        }
+        return null;
+    }
+
     private static void completeProof(
+            WorldGenLevel level,
             SkyIslandWorldVolumeId lowerId,
             SkyIslandWorldVolumeId upperId) {
         if (proofComplete) {
@@ -727,6 +768,16 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         requireAggregate("lower", lowerAggregate, Biomes.FOREST);
         requireAggregate("upper", upperAggregate,
                 Boolean.getBoolean(PROVIDER_BIOME_PROPERTY) ? UPPER_BIOME : null);
+        if (Boolean.getBoolean(PROVIDER_BIOME_PROPERTY)) {
+            BlockPos safeSpawn = findSafeProviderReviewSpawn(level, providerReviewSpawn);
+            if (safeSpawn == null) {
+                throw new IllegalStateException("SF-IMP-0054 could not find an air-above-solid spawn on the provider island");
+            }
+            providerReviewSpawn = safeSpawn;
+            serverLevel(level).setDefaultSpawnPos(safeSpawn, 0.0F);
+            LOGGER.log(System.Logger.Level.INFO,
+                    "SF-IMP-0054 selected post-decoration safe provider spawn " + safeSpawn.toShortString());
+        }
         proofComplete = true;
         LOGGER.log(
                 System.Logger.Level.INFO,
