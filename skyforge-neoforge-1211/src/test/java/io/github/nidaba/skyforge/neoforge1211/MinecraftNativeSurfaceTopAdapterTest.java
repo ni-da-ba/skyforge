@@ -121,6 +121,35 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                 "island surface representation must come from native terrain, not later decoration");
     }
 
+    @Test
+    void copiesOnlyNativeTaggedSurfaceMantleAndPreservesIslandOccupancy() {
+        ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(new ChunkPos(0, 0));
+        chunk.setBlockState(new BlockPos(0, 64, 0), Blocks.GRASS_BLOCK.defaultBlockState(), false);
+        chunk.setBlockState(new BlockPos(0, 63, 0), Blocks.DIRT.defaultBlockState(), false);
+        chunk.setBlockState(new BlockPos(0, 62, 0), Blocks.DIRT.defaultBlockState(), false);
+        chunk.setBlockState(new BlockPos(0, 61, 0), Blocks.STONE.defaultBlockState(), false);
+
+        ResourceLocation[] keys = new ResourceLocation[CHUNK_WIDTH * CHUNK_WIDTH * chunk.getHeight()];
+        Arrays.fill(keys, SkyforgeMinecraftBlockPalette.AIR);
+        for (int worldY = 200; worldY >= 190; worldY--) {
+            put(keys, chunk.getMinBuildHeight(), 0, worldY, 0, SkyforgeMinecraftBlockPalette.STONE);
+        }
+        MinecraftChunkMaterialization original = new MinecraftChunkMaterialization(
+                chunk.getPos(), chunk.getMinBuildHeight(), chunk.getHeight(), keys, 2);
+
+        MinecraftChunkMaterialization adapted = new MinecraftNativeSurfaceTopAdapter().adapt(
+                MinecraftNativeSurfaceSnapshot.capture(chunk, 63), original);
+
+        assertEquals(ResourceLocation.withDefaultNamespace("grass_block"), adapted.blockKeyAt(0, 200, 0));
+        assertEquals(ResourceLocation.withDefaultNamespace("dirt"), adapted.blockKeyAt(0, 199, 0));
+        assertEquals(ResourceLocation.withDefaultNamespace("dirt"), adapted.blockKeyAt(0, 198, 0));
+        assertEquals(
+                SkyforgeMinecraftBlockPalette.STONE,
+                adapted.blockKeyAt(0, 197, 0),
+                "native subsurface beyond the tagged soil mantle remains Skyforge-owned");
+        assertEquals(original.solidBlockCount(), adapted.solidBlockCount());
+    }
+
     private static MinecraftChunkMaterialization materialization(ProtoChunk chunk) {
         ResourceLocation[] keys = new ResourceLocation[CHUNK_WIDTH * CHUNK_WIDTH * chunk.getHeight()];
         Arrays.fill(keys, SkyforgeMinecraftBlockPalette.AIR);
@@ -147,3 +176,4 @@ final class MinecraftNativeSurfaceTopAdapterTest {
         keys[localX + CHUNK_WIDTH * (localZ + CHUNK_WIDTH * localY)] = key;
     }
 }
+
