@@ -55,7 +55,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
     private static final ResourceKey<Biome> UPPER_BIOME = configuredBiomeKey(
             System.getProperty(UPPER_BIOME_PROPERTY, "minecraft:taiga"));
     private static final long ROOT_SEED = 0x5346494d50303054L;
-    private static final ChunkPos EXTERIOR_WITNESS_CHUNK = new ChunkPos(40, 40);
+    private static final ChunkPos EXTERIOR_WITNESS_CHUNK = new ChunkPos(0, 0);
     private static final int PROVIDER_PREFLIGHT_QUART_STEP = 4;
     private static final int VEGETATION_SCAN_HEIGHT = 40;
     private static final int MAXIMUM_ATTACHMENT_DEPTH = 24;
@@ -140,7 +140,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                             + ", proofChunks=" + providerProofChunkKeys
                             + ", reviewSpawn=" + providerReviewSpawn.toShortString()
                             + (SkyforgeAutomatedAcceptanceHarness.serverMode()
-                                    ? ". The harness will warm both full island footprints, a two-chunk feature attachment margin, and the remote void witness."
+                                    ? ". The harness will warm both full island footprints, a two-chunk feature attachment margin, and the inter-island void witness."
                                     : ". The integrated review world will spawn on the provider island; explore west to compare the Forest island."));
         } catch (RuntimeException failure) {
             SkyforgeAutomatedAcceptanceHarness.fail(
@@ -638,9 +638,9 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         }
         VegetationEvidence vegetation = scanVegetation(level, chunkPos, sample.firstFreeY());
         if (forestIsland) {
-            lowerAggregate.add(nativeResult, vegetation, 1);
+            lowerAggregate.add(nativeResult, vegetation);
         } else {
-            upperAggregate.add(nativeResult, vegetation, 1);
+            upperAggregate.add(nativeResult, vegetation);
         }
         eligibleProofChunks.add(chunkKey);
         evaluateCompletion(volumes.get(0).id(), volumes.get(1).id());
@@ -906,8 +906,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
 
         void add(
                 SkyforgeNativeBiomePopulationRunner.Result result,
-                VegetationEvidence vegetation,
-                int chunkSharedColumns) {
+                VegetationEvidence vegetation) {
             chunks = Math.addExact(chunks, 1);
             biomeCounts.merge(result.biomeKey().location(), 1, Math::addExact);
             attemptedFeatures = Math.addExact(attemptedFeatures, result.attemptedFeatures());
