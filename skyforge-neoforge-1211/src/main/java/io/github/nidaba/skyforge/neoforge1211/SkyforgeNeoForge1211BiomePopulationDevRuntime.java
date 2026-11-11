@@ -503,30 +503,24 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             if (providerIsland) {
                 for (long chunkKey : providerProofChunkKeys) {
                     ChunkPos chunkPos = new ChunkPos(chunkKey);
-                    int worldX = chunkPos.getMiddleBlockX();
-                    int worldZ = chunkPos.getMiddleBlockZ();
-                    var centerSurface = SkyforgeNeoForge1211SurfaceStage.queryBaseHeightClaim(
-                            volume.id(),
-                            worldX,
-                            worldZ,
-                            Heightmap.Types.WORLD_SURFACE_WG,
-                            level.getMinBuildHeight(),
-                            level.getHeight());
-                    if (centerSurface.isEmpty()) {
+                    var populationSample = SkyforgeNativeSurfacePopulationCoordinator.findSurface(
+                            level, volume.id(), chunkPos);
+                    if (populationSample.isEmpty()) {
                         continue;
                     }
-                    int surfaceY = centerSurface.orElseThrow().height();
-                    ResourceKey<Biome> centerBiome = providerBiomeSource.getNoiseBiome(
-                                    QuartPos.fromBlock(worldX),
-                                    QuartPos.fromBlock(surfaceY),
-                                    QuartPos.fromBlock(worldZ),
+                    var sample = populationSample.orElseThrow();
+                    ResourceKey<Biome> sampleBiome = providerBiomeSource.getNoiseBiome(
+                                    QuartPos.fromBlock(sample.x()),
+                                    QuartPos.fromBlock(sample.firstFreeY()),
+                                    QuartPos.fromBlock(sample.z()),
                                     providerBiomeSampler)
                             .unwrapKey()
                             .orElseThrow(() -> new IllegalStateException(
-                                    "active provider biome source returned an unregistered biome at chunk center"));
-                    if (UPPER_BIOME.equals(centerBiome)) {
+                                    "active provider biome source returned an unregistered biome at the population surface sample"));
+                    if (UPPER_BIOME.equals(sampleBiome)) {
                         providerBiomeTargetChunkKeys.add(chunkKey);
-                        biomeCandidates.put(chunkKey, new BlockPos(worldX, surfaceY, worldZ));
+                        biomeCandidates.put(chunkKey,
+                                new BlockPos(sample.x(), sample.firstFreeY(), sample.z()));
                     }
                 }
                 providerReviewSpawn = biomeCandidates.values().stream()
