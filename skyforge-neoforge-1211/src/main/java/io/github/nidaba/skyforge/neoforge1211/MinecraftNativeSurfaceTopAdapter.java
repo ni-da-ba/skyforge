@@ -310,8 +310,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
         }
         var nativeSurface = snapshot.surface(localX, localZ);
         if (nativeSurface.isEmpty()
-                || !SkyforgeMinecraftBlockPalette.STONE.equals(nativeSurface.orElseThrow().blockKey())
-                || snapshot.mantleBlockAtDepth(localX, localZ, 1).isPresent()) {
+                || !SkyforgeMinecraftBlockPalette.STONE.equals(nativeSurface.orElseThrow().blockKey())) {
             return false;
         }
         String sourceBiome = snapshot.sourceBiomeKey(localX, localZ)
