@@ -333,7 +333,8 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             if (chunk == null) {
                 continue;
             }
-            try (var postProcessing = SkyforgeDeferredPopulationPostProcessingBridge.open(level)) {
+            var postProcessing = SkyforgeDeferredPopulationPostProcessingBridge.open(level);
+            try {
                 populate(level, chunk, generator);
             } catch (RuntimeException failure) {
                 SkyforgeAutomatedAcceptanceHarness.fail(
@@ -341,6 +342,8 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                         "SF-IMP-0054 already-loaded proof chunk catch-up failed at " + chunkPos + ": "
                                 + failure.getClass().getSimpleName() + ": " + failure.getMessage());
                 return;
+            } finally {
+                postProcessing.close();
             }
             caughtUp++;
             if (proofComplete || caughtUp >= maximumChunksPerTick) {
