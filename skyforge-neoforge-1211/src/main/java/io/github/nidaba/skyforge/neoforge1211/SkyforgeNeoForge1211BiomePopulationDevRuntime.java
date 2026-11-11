@@ -488,8 +488,6 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                                 .unwrapKey()
                                 .orElseThrow(() -> new IllegalStateException(
                                         "active provider biome source returned an unregistered biome at preflight surface sample"));
-                        providerBiomePreflightDistribution.merge(
-                                sourceBiome.location().toString(), 1, Math::addExact);
                         if (UPPER_BIOME.equals(sourceBiome)) {
                             providerBiomePreflightTargetSamples = Math.addExact(
                                     providerBiomePreflightTargetSamples, 1);
@@ -509,7 +507,9 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                         continue;
                     }
                     var sample = populationSample.orElseThrow();
-                    ResourceKey<Biome> sampleBiome = providerBiomeSource.getNoiseBiome(
+                    BlockPos populationPosition =
+                            new BlockPos(sample.x(), sample.firstFreeY(), sample.z());
+                    ResourceKey<Biome> sourceBiome = providerBiomeSource.getNoiseBiome(
                                     QuartPos.fromBlock(sample.x()),
                                     QuartPos.fromBlock(sample.firstFreeY()),
                                     QuartPos.fromBlock(sample.z()),
@@ -517,10 +517,15 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                             .unwrapKey()
                             .orElseThrow(() -> new IllegalStateException(
                                     "active provider biome source returned an unregistered biome at the population surface sample"));
-                    if (UPPER_BIOME.equals(sampleBiome)) {
+                    ResourceKey<Biome> populationBiome = level.getBiome(populationPosition)
+                            .unwrapKey()
+                            .orElseThrow(() -> new IllegalStateException(
+                                    "active world returned an unregistered biome at the population surface sample"));
+                    providerBiomePreflightDistribution.merge(
+                            populationBiome.location().toString(), 1, Math::addExact);
+                    if (UPPER_BIOME.equals(populationBiome)) {
                         providerBiomeTargetChunkKeys.add(chunkKey);
-                        biomeCandidates.put(chunkKey,
-                                new BlockPos(sample.x(), sample.firstFreeY(), sample.z()));
+                        biomeCandidates.put(chunkKey, populationPosition);
                     }
                 }
                 providerReviewSpawn = biomeCandidates.values().stream()
