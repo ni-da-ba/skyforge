@@ -164,10 +164,15 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             completePersistedReopenAcceptance(event.getServer().overworld());
             return;
         }
+        ServerLevel acceptanceLevel = event.getServer().overworld();
+        if (!proofComplete && Boolean.getBoolean(PROVIDER_BIOME_PROPERTY)
+                && SkyforgeAutomatedAcceptanceHarness.warmupComplete()) {
+            catchUpAlreadyLoadedProofChunks(acceptanceLevel);
+        }
         if (!proofComplete || !remoteClientJoinPassed()) {
             return;
         }
-        int exteriorNonAirBlocks = countExteriorWitnessNonAirBlocks(event.getServer().overworld());
+        int exteriorNonAirBlocks = countExteriorWitnessNonAirBlocks(acceptanceLevel);
         if (exteriorNonAirBlocks != 0) {
             SkyforgeAutomatedAcceptanceHarness.fail(
                     event.getServer(),
@@ -306,6 +311,51 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                         Map.entry("generationReapplied", false),
                         Map.entry("exteriorWitnessChunk", EXTERIOR_WITNESS_CHUNK),
                         Map.entry("exteriorNonAirBlocks", exteriorNonAirBlocks)));
+    }
+
+    /**
+     * A server may generate its initial spawn chunks before the first tick runs provider preflight.
+     * Those chunks miss the evidence callback because the exact proof footprint is not known yet.
+     * Once the harness has warmed and ticketed the finite footprint, replay only unscanned,
+     * already-loaded proof chunks through the same coordinator using its accepted deferred-chunk
+     * post-processing bridge. The coordinator and scanned-key set keep this bounded and idempotent.
+     */
+    private static void catchUpAlreadyLoadedProofChunks(ServerLevel level) {
+        final int maximumChunksPerTick = 2;
+        ChunkGenerator generator = level.getChunkSource().getGenerator();
+        int caughtUp = 0;
+        for (long chunkKey : allProofChunkKeys()) {
+            if (scannedProofChunks.contains(chunkKey)) {
+                continue;
+            }
+            ChunkPos chunkPos = new ChunkPos(chunkKey);
+            ChunkAccess chunk = level.getChunkSource().getChunkNow(chunkPos.x, chunkPos.z);
+            if (chunk == null) {
+                continue;
+            }
+            try (var postProcessing = SkyforgeDeferredPopulationPostProcessingBridge.open(level)) {
+                populate(level, chunk, generator);
+            } catch (RuntimeException failure) {
+                SkyforgeAutomatedAcceptanceHarness.fail(
+                        level.getServer(),
+                        "SF-IMP-0054 already-loaded proof chunk catch-up failed at " + chunkPos + ": "
+                                + failure.getClass().getSimpleName() + ": " + failure.getMessage());
+                return;
+            }
+            caughtUp++;
+            if (proofComplete || caughtUp >= maximumChunksPerTick) {
+                break;
+            }
+        }
+        if (caughtUp > 0) {
+            LOGGER.log(System.Logger.Level.INFO,
+                    "SF-IMP-0054 acceptance catch-up processed " + caughtUp
+                            + " already-loaded proof chunks this tick; scanned=" + scannedProofChunks.size()
+                            + "/" + (forestProofChunkKeys.size() + providerProofChunkKeys.size())
+                            + ", forest=" + lowerAggregate.chunks + "/" + forestProofChunkKeys.size()
+                            + ", provider=" + upperAggregate.chunks + "/" + providerProofChunkKeys.size()
+                            + ", proofComplete=" + proofComplete);
+        }
     }
 
     private static boolean remoteClientJoinPassed() {
