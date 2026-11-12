@@ -169,4 +169,3 @@ test -f "$server_dir/saves/acceptance/level.dat"
 
 printf 'status=PASS\nsameWorldFolder=saves/acceptance\nserverBoots=2\nremoteServerJoin=true\n' > "$reopen_summary"
 echo "SF-IMP-0054 modded-biome dedicated-server, remote-client join, and same-world reopen acceptance PASS."
-
