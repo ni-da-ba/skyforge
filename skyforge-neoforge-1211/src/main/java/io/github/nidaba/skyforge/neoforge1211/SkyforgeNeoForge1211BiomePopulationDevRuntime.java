@@ -185,7 +185,6 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                         Map.entry("tectonicLoaded", ModList.get().isLoaded("tectonic")),
                         Map.entry("lithostitchedLoaded", ModList.get().isLoaded("lithostitched")),
                         Map.entry("tectonicConfigVerified", tectonicConfigVerified()),
-                        Map.entry("islandBiomeField", UPPER_BIOME.location()),
                         Map.entry("islandBiomeFieldMatchesPopulation", upperIslandBiomeFieldSampleKey != null
                                 && upperAggregate.biomeCounts.containsKey(UPPER_BIOME.location())),
                         Map.entry("islandBiomeFieldColumnDistribution", islandBiomeFieldColumnDistribution.toString()),
@@ -325,6 +324,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 level.getServer(),
                 Map.ofEntries(
                         Map.entry("selectedUpperBiome", UPPER_BIOME.location()),
+                        Map.entry("islandBiomeField", UPPER_BIOME.location()),
                         Map.entry("tectonicLoaded", ModList.get().isLoaded("tectonic")),
                         Map.entry("lithostitchedLoaded", ModList.get().isLoaded("lithostitched")),
                         Map.entry("tectonicConfigVerified", tectonicConfigVerified()),
