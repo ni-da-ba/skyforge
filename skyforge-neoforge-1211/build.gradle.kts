@@ -728,9 +728,10 @@ neoForge {
             gameDirectory = layout.projectDirectory.dir("run-sf-imp-0054-modded-biome-review").asFile
             programArgument("--quickPlaySingleplayer")
             programArgument("acceptance")
-            val checkoutSha = providers.exec {
-                commandLine("git", "-C", rootProject.projectDir.absolutePath, "rev-parse", "HEAD")
-            }
+            val checkoutSha = providers.environmentVariable("SKYFORGE_REVIEW_SOURCE_SHA")
+                .orElse(providers.exec {
+                    commandLine("git", "-C", rootProject.projectDir.absolutePath, "rev-parse", "HEAD")
+                }.standardOutput.asText.map(String::trim))
             taskBefore(tasks.register<Sync>("stageModdedBiomePopulationReviewSave") {
                 group = "verification"
                 description = "Stage the exact accepted SF-IMP-0054 server world into the isolated visual-review client."
@@ -753,7 +754,7 @@ neoForge {
                         provenanceFile.inputStream().use(::load)
                     }
                     val expectedSha = provenance.getProperty("sourceSha")
-                    val actualSha = checkoutSha.standardOutput.asText.get().trim()
+                    val actualSha = checkoutSha.get()
                     check(expectedSha == actualSha) {
                         "SF-IMP-0054 review artifact source $expectedSha does not match checkout $actualSha; use the exact source commit"
                     }
