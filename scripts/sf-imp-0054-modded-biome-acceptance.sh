@@ -166,5 +166,7 @@ test -f "$server_dir/saves/acceptance/level.dat"
 printf 'status=PASS\nsameWorldFolder=saves/acceptance\nserverBoots=2\nremoteServerJoin=true\n' > "$reopen_summary"
 source_sha="${SKYFORGE_REVIEW_SOURCE_SHA:?workflow must provide the PR-head source SHA}"
 printf 'sourceSha=%s\nrunId=%s\n' "$source_sha" "${GITHUB_RUN_ID:-unknown}" > "$acceptance_dir/review-provenance.properties"
-echo "SF-IMP-0054 modded-biome dedicated-server, remote-client join, same-world reopen, and review provenance acceptance PASS."
+./gradlew :skyforge-neoforge-1211:stageModdedBiomePopulationReviewSave --no-daemon --no-configuration-cache
+test -f skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-review/saves/acceptance/level.dat
+echo "SF-IMP-0054 modded-biome dedicated-server, remote-client join, same-world reopen, and staged-review acceptance PASS."
 
