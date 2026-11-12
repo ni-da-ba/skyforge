@@ -750,12 +750,12 @@ neoForge {
                     check(provenanceFile.isFile) {
                         "SF-IMP-0054 review provenance is missing; download the current server-client artifact"
                     }
-                    val provenance = java.util.Properties().apply {
-                        provenanceFile.inputStream().use(::load)
-                    }
-                    val expectedSha = provenance.getProperty("sourceSha")
+                    val expectedSha = provenanceFile.readLines()
+                        .firstOrNull { it.startsWith("sourceSha=") }
+                        ?.substringAfter("=")
+                        ?.trim()
                     val actualSha = checkoutSha.get()
-                    check(expectedSha == actualSha) {
+                    check(expectedSha != null && expectedSha == actualSha) {
                         "SF-IMP-0054 review artifact source $expectedSha does not match checkout $actualSha; use the exact source commit"
                     }
                 }
