@@ -86,6 +86,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
     private static boolean proofComplete;
     private static boolean acceptanceCompletionRequested;
     private static boolean providerWarmupPrepared;
+    private static boolean warmupProofFootprintReconciled;
     private static BlockPos providerReviewSpawn;
     private static ResourceKey<Biome> upperIslandBiomeFieldSampleKey;
 
@@ -165,6 +166,13 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             }
             completePersistedReopenAcceptance(event.getServer().overworld());
             return;
+        }
+        if (!SkyforgeAutomatedAcceptanceHarness.warmupComplete()) {
+            return;
+        }
+        if (!warmupProofFootprintReconciled) {
+            reconcileWarmupProofFootprint(event.getServer().overworld());
+            warmupProofFootprintReconciled = true;
         }
         if (!proofComplete || !remoteClientJoinPassed()) {
             return;
@@ -522,6 +530,25 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         long dx = sample.getX() - 176L;
         long dz = sample.getZ();
         return dx * dx + dz * dz;
+    }
+
+    /**
+     * The server may generate its original spawn chunks before the provider preflight installs the
+     * exact island chunk sets. Once the bounded warmup is complete, reconcile every proof chunk
+     * against the native population coordinator. Already processed chunks are idempotent; this
+     * catches spawn chunks whose generation callback ran before preflight could admit them.
+     */
+    private static void reconcileWarmupProofFootprint(ServerLevel level) {
+        ChunkGenerator generator = level.getChunkSource().getGenerator();
+        for (long chunkKey : allProofChunkKeys()) {
+            ChunkPos chunkPos = new ChunkPos(chunkKey);
+            ChunkAccess chunk = level.getChunkSource().getChunkNow(chunkPos.x, chunkPos.z);
+            if (chunk == null) {
+                throw new IllegalStateException(
+                        "SF-IMP-0054 warmed proof chunk is not present in the server cache: " + chunkPos);
+            }
+            populate(level, chunk, generator);
+        }
     }
 
     private static int countExteriorWitnessNonAirBlocks(ServerLevel level) {
