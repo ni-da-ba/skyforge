@@ -80,6 +80,267 @@ verify_server_result() {
   local result="$1"
   test -f "$result"
   grep -Eq '^status=PASS$' "$result"
+  grep -Eq '^tectonicLoaded=true
+  grep -Eq '^lowerPersistentTreeEvidence=true$' "$result"
+  grep -Eq '^upperPersistentTreeEvidence=true$' "$result"
+  grep -Eq '^exteriorNonAirBlocks=0$' "$result"
+}
+
+verify_full_surface_coverage() {
+  local result="$1"
+  local forest_surface provider_surface forest_populated provider_populated target_chunks
+  grep -Eq '^surfaceEcologyRoute=VEGETAL_DECORATION/SURFACE_ECOLOGY$' "$result"
+  forest_surface=$(sed -n 's/^forestSurfaceChunks=//p' "$result")
+  provider_surface=$(sed -n 's/^providerSurfaceChunks=//p' "$result")
+  forest_populated=$(sed -n 's/^forestPopulatedChunks=//p' "$result")
+  provider_populated=$(sed -n 's/^providerPopulatedChunks=//p' "$result")
+  target_chunks=$(sed -n 's/^providerBiomeTargetChunks=//p' "$result")
+  test "$forest_surface" -gt 0
+  test "$provider_surface" -gt 0
+  test "$target_chunks" -gt 0
+  test "$forest_surface" -eq "$forest_populated"
+  test "$provider_surface" -eq "$provider_populated"
+}
+
+verify_reopen_footprint() {
+  local result="$1"
+  local forest_surface provider_surface scanned
+  forest_surface=$(sed -n 's/^forestSurfaceChunks=//p' "$result")
+  provider_surface=$(sed -n 's/^providerSurfaceChunks=//p' "$result")
+  scanned=$(sed -n 's/^scannedChunks=//p' "$result")
+  test "$forest_surface" -gt 0
+  test "$provider_surface" -gt 0
+  test "$scanned" -eq "$((forest_surface + provider_surface))"
+}
+
+rm -f "$server_dir/logs/latest.log"
+launch_server ":skyforge-neoforge-1211:runModdedBiomePopulationServer" "$server_task_log"
+wait_server_ready "$server_task_log"
+
+setsid bash -c 'exec timeout 12m xvfb-run -a ./gradlew :skyforge-neoforge-1211:runModdedBiomePopulationJoinClient --no-daemon --stacktrace' \
+  >"$client_task_log" 2>&1 &
+client_pid=$!
+
+client_result_ready=false
+for _ in $(seq 1 360); do
+  if [[ -f "$client_result" ]]; then
+    client_result_ready=true
+    break
+  fi
+  if ! kill -0 "$client_pid" 2>/dev/null; then
+    cat "$client_task_log"
+    exit 1
+  fi
+  sleep 2
+done
+if [[ "$client_result_ready" != true ]]; then
+  echo "Actual client did not complete the remote-join acceptance within 12 minutes." >&2
+  exit 1
+fi
+wait "$client_pid"
+client_pid=""
+grep -Eq '^status=PASS$' "$client_result"
+grep -Eq '^remoteServerJoin=true$' "$client_result"
+grep -Eq '^singleplayerServer=false$' "$client_result"
+grep -Eq '^spawnSupported=true$' "$client_result"
+
+wait "$server_pid"
+server_pid=""
+verify_server_result "$server_result"
+verify_full_surface_coverage "$server_result"
+grep -Fq 'providerBiomeSource=biomesoplenty\:rocky_shrubland' "$server_result"
+grep -Eq '^providerBiomeMatchesPopulation=true$' "$server_result"
+cp "$server_result" "$acceptance_dir/server-initial.properties"
+cp "$server_dir/logs/latest.log" "$acceptance_dir/server-initial.log"
+
+rm -f "$server_dir/logs/latest.log"
+launch_server ":skyforge-neoforge-1211:runModdedBiomePopulationServerReopen" "$reopen_task_log"
+wait_server_ready "$reopen_task_log"
+wait "$server_pid"
+server_pid=""
+verify_server_result "$reopen_result"
+verify_reopen_footprint "$reopen_result"
+grep -Eq '^generationReapplied=false$' "$reopen_result"
+test -f "$server_dir/saves/acceptance/level.dat"
+
+printf 'status=PASS\nsameWorldFolder=saves/acceptance\nserverBoots=2\nremoteServerJoin=true\n' > "$reopen_summary"
+echo "SF-IMP-0054 modded-biome dedicated-server, remote-client join, and same-world reopen acceptance PASS."
+
+ "$result"
+  grep -Eq '^lithostitchedLoaded=true
+  grep -Eq '^lowerPersistentTreeEvidence=true$' "$result"
+  grep -Eq '^upperPersistentTreeEvidence=true$' "$result"
+  grep -Eq '^exteriorNonAirBlocks=0$' "$result"
+}
+
+verify_full_surface_coverage() {
+  local result="$1"
+  local forest_surface provider_surface forest_populated provider_populated target_chunks
+  grep -Eq '^surfaceEcologyRoute=VEGETAL_DECORATION/SURFACE_ECOLOGY$' "$result"
+  forest_surface=$(sed -n 's/^forestSurfaceChunks=//p' "$result")
+  provider_surface=$(sed -n 's/^providerSurfaceChunks=//p' "$result")
+  forest_populated=$(sed -n 's/^forestPopulatedChunks=//p' "$result")
+  provider_populated=$(sed -n 's/^providerPopulatedChunks=//p' "$result")
+  target_chunks=$(sed -n 's/^providerBiomeTargetChunks=//p' "$result")
+  test "$forest_surface" -gt 0
+  test "$provider_surface" -gt 0
+  test "$target_chunks" -gt 0
+  test "$forest_surface" -eq "$forest_populated"
+  test "$provider_surface" -eq "$provider_populated"
+}
+
+verify_reopen_footprint() {
+  local result="$1"
+  local forest_surface provider_surface scanned
+  forest_surface=$(sed -n 's/^forestSurfaceChunks=//p' "$result")
+  provider_surface=$(sed -n 's/^providerSurfaceChunks=//p' "$result")
+  scanned=$(sed -n 's/^scannedChunks=//p' "$result")
+  test "$forest_surface" -gt 0
+  test "$provider_surface" -gt 0
+  test "$scanned" -eq "$((forest_surface + provider_surface))"
+}
+
+rm -f "$server_dir/logs/latest.log"
+launch_server ":skyforge-neoforge-1211:runModdedBiomePopulationServer" "$server_task_log"
+wait_server_ready "$server_task_log"
+
+setsid bash -c 'exec timeout 12m xvfb-run -a ./gradlew :skyforge-neoforge-1211:runModdedBiomePopulationJoinClient --no-daemon --stacktrace' \
+  >"$client_task_log" 2>&1 &
+client_pid=$!
+
+client_result_ready=false
+for _ in $(seq 1 360); do
+  if [[ -f "$client_result" ]]; then
+    client_result_ready=true
+    break
+  fi
+  if ! kill -0 "$client_pid" 2>/dev/null; then
+    cat "$client_task_log"
+    exit 1
+  fi
+  sleep 2
+done
+if [[ "$client_result_ready" != true ]]; then
+  echo "Actual client did not complete the remote-join acceptance within 12 minutes." >&2
+  exit 1
+fi
+wait "$client_pid"
+client_pid=""
+grep -Eq '^status=PASS$' "$client_result"
+grep -Eq '^remoteServerJoin=true$' "$client_result"
+grep -Eq '^singleplayerServer=false$' "$client_result"
+grep -Eq '^spawnSupported=true$' "$client_result"
+
+wait "$server_pid"
+server_pid=""
+verify_server_result "$server_result"
+verify_full_surface_coverage "$server_result"
+grep -Fq 'providerBiomeSource=biomesoplenty\:rocky_shrubland' "$server_result"
+grep -Eq '^providerBiomeMatchesPopulation=true$' "$server_result"
+cp "$server_result" "$acceptance_dir/server-initial.properties"
+cp "$server_dir/logs/latest.log" "$acceptance_dir/server-initial.log"
+
+rm -f "$server_dir/logs/latest.log"
+launch_server ":skyforge-neoforge-1211:runModdedBiomePopulationServerReopen" "$reopen_task_log"
+wait_server_ready "$reopen_task_log"
+wait "$server_pid"
+server_pid=""
+verify_server_result "$reopen_result"
+verify_reopen_footprint "$reopen_result"
+grep -Eq '^generationReapplied=false$' "$reopen_result"
+test -f "$server_dir/saves/acceptance/level.dat"
+
+printf 'status=PASS\nsameWorldFolder=saves/acceptance\nserverBoots=2\nremoteServerJoin=true\n' > "$reopen_summary"
+echo "SF-IMP-0054 modded-biome dedicated-server, remote-client join, and same-world reopen acceptance PASS."
+
+ "$result"
+  grep -Eq '^tectonicConfigVerified=true
+  grep -Eq '^lowerPersistentTreeEvidence=true$' "$result"
+  grep -Eq '^upperPersistentTreeEvidence=true$' "$result"
+  grep -Eq '^exteriorNonAirBlocks=0$' "$result"
+}
+
+verify_full_surface_coverage() {
+  local result="$1"
+  local forest_surface provider_surface forest_populated provider_populated target_chunks
+  grep -Eq '^surfaceEcologyRoute=VEGETAL_DECORATION/SURFACE_ECOLOGY$' "$result"
+  forest_surface=$(sed -n 's/^forestSurfaceChunks=//p' "$result")
+  provider_surface=$(sed -n 's/^providerSurfaceChunks=//p' "$result")
+  forest_populated=$(sed -n 's/^forestPopulatedChunks=//p' "$result")
+  provider_populated=$(sed -n 's/^providerPopulatedChunks=//p' "$result")
+  target_chunks=$(sed -n 's/^providerBiomeTargetChunks=//p' "$result")
+  test "$forest_surface" -gt 0
+  test "$provider_surface" -gt 0
+  test "$target_chunks" -gt 0
+  test "$forest_surface" -eq "$forest_populated"
+  test "$provider_surface" -eq "$provider_populated"
+}
+
+verify_reopen_footprint() {
+  local result="$1"
+  local forest_surface provider_surface scanned
+  forest_surface=$(sed -n 's/^forestSurfaceChunks=//p' "$result")
+  provider_surface=$(sed -n 's/^providerSurfaceChunks=//p' "$result")
+  scanned=$(sed -n 's/^scannedChunks=//p' "$result")
+  test "$forest_surface" -gt 0
+  test "$provider_surface" -gt 0
+  test "$scanned" -eq "$((forest_surface + provider_surface))"
+}
+
+rm -f "$server_dir/logs/latest.log"
+launch_server ":skyforge-neoforge-1211:runModdedBiomePopulationServer" "$server_task_log"
+wait_server_ready "$server_task_log"
+
+setsid bash -c 'exec timeout 12m xvfb-run -a ./gradlew :skyforge-neoforge-1211:runModdedBiomePopulationJoinClient --no-daemon --stacktrace' \
+  >"$client_task_log" 2>&1 &
+client_pid=$!
+
+client_result_ready=false
+for _ in $(seq 1 360); do
+  if [[ -f "$client_result" ]]; then
+    client_result_ready=true
+    break
+  fi
+  if ! kill -0 "$client_pid" 2>/dev/null; then
+    cat "$client_task_log"
+    exit 1
+  fi
+  sleep 2
+done
+if [[ "$client_result_ready" != true ]]; then
+  echo "Actual client did not complete the remote-join acceptance within 12 minutes." >&2
+  exit 1
+fi
+wait "$client_pid"
+client_pid=""
+grep -Eq '^status=PASS$' "$client_result"
+grep -Eq '^remoteServerJoin=true$' "$client_result"
+grep -Eq '^singleplayerServer=false$' "$client_result"
+grep -Eq '^spawnSupported=true$' "$client_result"
+
+wait "$server_pid"
+server_pid=""
+verify_server_result "$server_result"
+verify_full_surface_coverage "$server_result"
+grep -Fq 'providerBiomeSource=biomesoplenty\:rocky_shrubland' "$server_result"
+grep -Eq '^providerBiomeMatchesPopulation=true$' "$server_result"
+cp "$server_result" "$acceptance_dir/server-initial.properties"
+cp "$server_dir/logs/latest.log" "$acceptance_dir/server-initial.log"
+
+rm -f "$server_dir/logs/latest.log"
+launch_server ":skyforge-neoforge-1211:runModdedBiomePopulationServerReopen" "$reopen_task_log"
+wait_server_ready "$reopen_task_log"
+wait "$server_pid"
+server_pid=""
+verify_server_result "$reopen_result"
+verify_reopen_footprint "$reopen_result"
+grep -Eq '^generationReapplied=false$' "$reopen_result"
+test -f "$server_dir/saves/acceptance/level.dat"
+
+printf 'status=PASS\nsameWorldFolder=saves/acceptance\nserverBoots=2\nremoteServerJoin=true\n' > "$reopen_summary"
+echo "SF-IMP-0054 modded-biome dedicated-server, remote-client join, and same-world reopen acceptance PASS."
+
+ "$result"
   grep -Fq 'selectedUpperBiome=biomesoplenty\:rocky_shrubland' "$result"
   grep -Eq '^lowerPersistentTreeEvidence=true$' "$result"
   grep -Eq '^upperPersistentTreeEvidence=true$' "$result"
