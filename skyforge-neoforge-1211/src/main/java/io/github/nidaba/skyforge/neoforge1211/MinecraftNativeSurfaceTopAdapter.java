@@ -309,15 +309,8 @@ public final class MinecraftNativeSurfaceTopAdapter {
             return false;
         }
         var nativeSurface = snapshot.surface(localX, localZ);
-        if (nativeSurface.isEmpty()
-                || !SkyforgeMinecraftBlockPalette.STONE.equals(nativeSurface.orElseThrow().blockKey())) {
-            return false;
-        }
-        String sourceBiome = snapshot.sourceBiomeKey(localX, localZ)
-                .map(ResourceLocation::toString)
-                .orElse("");
-        return "minecraft:forest".equals(sourceBiome)
-                || "minecraft:cherry_grove".equals(sourceBiome);
+        return nativeSurface.isPresent()
+                && SkyforgeMinecraftBlockPalette.STONE.equals(nativeSurface.orElseThrow().blockKey());
     }
 
     /**
