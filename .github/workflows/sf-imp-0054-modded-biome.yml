@@ -11,6 +11,8 @@ on:
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeProviderBiomeResolver.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNativeBiomePopulationRunner.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNativeSurfacePopulationCoordinator.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/MinecraftNativeSurfaceSnapshot.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/MinecraftNativeSurfaceTopAdapter.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211BiomePopulationJoinClientAcceptance.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAutomatedAcceptanceHarness.java"
       - "skyforge-neoforge-1211/src/main/resources/**"
@@ -27,6 +29,8 @@ on:
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeProviderBiomeResolver.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNativeBiomePopulationRunner.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNativeSurfacePopulationCoordinator.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/MinecraftNativeSurfaceSnapshot.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/MinecraftNativeSurfaceTopAdapter.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211BiomePopulationJoinClientAcceptance.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAutomatedAcceptanceHarness.java"
       - "skyforge-neoforge-1211/src/main/resources/**"
@@ -44,6 +48,8 @@ jobs:
   dedicated-server-modded-biome:
     runs-on: ubuntu-24.04
     timeout-minutes: 70
+    env:
+      SKYFORGE_REVIEW_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -69,5 +75,6 @@ jobs:
             skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-server/logs/
             skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-join-client/logs/
             skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-server/saves/acceptance/
+            skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-review/saves/acceptance/
           if-no-files-found: warn
           retention-days: 14

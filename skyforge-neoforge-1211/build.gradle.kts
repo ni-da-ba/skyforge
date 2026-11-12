@@ -51,7 +51,6 @@ tasks.withType<Test>().configureEach {
 // keeping temporary world presets and UI tags out of distributable Skyforge artifacts.
 val development = sourceSets.create("development")
 
-
 // #495 real-provider probe must load Aerodynamics4MC as a discovered NeoForge mod. The older C3
 // AdditionalRuntimeClasspath profiles are sufficient for loader/dependency preflight but are a
 // legacy-library path; public gameplay API classes must live in the run source set runtime.
@@ -62,7 +61,6 @@ val waveC3ProbeRuntime = sourceSets.create("waveC3ProbeRuntime") {
         sourceSets.main.get().runtimeClasspath +
         development.output
 }
-
 
 // #495 final reconstruction/provenance fixture: combine only the already accepted atmosphere
 // authority and the two accepted Bootstrap consumer mod stacks. This source set is evidence-only;
@@ -75,7 +73,6 @@ val waveC3EvidenceRuntime = sourceSets.create("waveC3EvidenceRuntime") {
         development.output
 }
 
-
 // External NeoForge mods must live on a run source set's runtime classpath to be discovered as mods.
 // AdditionalRuntimeClasspath is the legacy *library* classpath and is therefore insufficient for
 // Fowl Play/A4MC runtime acceptance on Minecraft 1.21.1.
@@ -86,7 +83,6 @@ val waveC5Runtime = sourceSets.create("waveC5Runtime") {
         sourceSets.main.get().runtimeClasspath +
         development.output
 }
-
 
 // Wave C7 keeps Reliable Gliders + A4MC isolated from both production Skyforge and the C5/C6 bird
 // stack. Optional APIs are consumed reflectively, but FML still requires the candidate jars on a
@@ -99,7 +95,6 @@ val waveC7Runtime = sourceSets.create("waveC7Runtime") {
         development.output
 }
 
-
 // Wave C9 isolates the computing/avionics specimen from production and from other content waves.
 // These jars must be discovered as NeoForge mods, not ordinary legacy libraries.
 val waveC9Runtime = sourceSets.create("waveC9Runtime") {
@@ -109,7 +104,6 @@ val waveC9Runtime = sourceSets.create("waveC9Runtime") {
         sourceSets.main.get().runtimeClasspath +
         development.output
 }
-
 
 // C11 resumes the reserved historical first-flight recipe proof on current main. It loads only the
 // exact retained Create/Sable/Aeronautics substrate and remains isolated from production runtime.
@@ -141,7 +135,6 @@ val waveC15PortalRuntime = sourceSets.create("waveC15PortalRuntime") {
         development.output
 }
 
-
 // C25 isolates the retained Create + Create: Diesel Generators petroleum stack from every other
 // content/implementation wave. The candidate jar is validation-only until its authority boundary
 // is accepted and handed to Implementation.
@@ -152,7 +145,6 @@ val waveC25Runtime = sourceSets.create("waveC25Runtime") {
         sourceSets.main.get().runtimeClasspath +
         development.output
 }
-
 
 // SF-IMP-0084 deliberately keeps AAL outside Skyforge's production configurations and ordinary
 // development runs. This source set exists solely to compile/link the exact released artifact in
@@ -239,7 +231,6 @@ val wbyS05ServerRuntime = sourceSets.create("wbyS05ServerRuntime") {
     compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
     runtimeClasspath += sourceSets.main.get().output + sourceSets.main.get().runtimeClasspath + development.output
 }
-
 
 // WBY Wave 1 isolates the long-range visibility substrate from shaders and broad optimizers.
 val wbyWave1PinFile = layout.projectDirectory.file("wby-wave1-mods.properties")
@@ -350,7 +341,6 @@ val wbyWave1BServerOptimizerMods = wbyWave1BOptimizerMods.filter { mod ->
     wbyWave1BPin(mod, "environment") != "client"
 }
 
-
 val waveC9PinFile = layout.projectDirectory.file("wave-c9-mods.properties")
 val waveC9Pins = Properties().apply {
     waveC9PinFile.asFile.inputStream().use(::load)
@@ -367,7 +357,6 @@ check(waveC9Pin("minecraft", "version") == "1.21.1") {
 check(waveC9Pin("neoforge", "version") == "21.1.249") {
     "Wave C9 NeoForge pin must match the adapter runtime"
 }
-
 
 val waveC25PinFile = layout.projectDirectory.file("wave-c25-mods.properties")
 val waveC25Pins = Properties().apply {
@@ -516,7 +505,6 @@ val waveC2IntegratedC1Mods = listOf(
     "jei",
 )
 
-
 //
 // Wave C3 isolates atmosphere authority from presentation content. Aerodynamics4MC publishes its
 // core runtime and Create Aeronautics compatibility addon as separate files under one Modrinth
@@ -581,7 +569,6 @@ val waveC3WindTunnelRuns = listOf(
     "waveC3WindTunnelClient",
     "waveC3WindTunnelServer",
 )
-
 
 //
 // Wave C5 tests the reuse-first soaring-fauna substrate. Fowl Play remains an optional runtime
@@ -741,6 +728,38 @@ neoForge {
             gameDirectory = layout.projectDirectory.dir("run-sf-imp-0054-modded-biome-review").asFile
             programArgument("--quickPlaySingleplayer")
             programArgument("acceptance")
+            val checkoutSha = providers.environmentVariable("SKYFORGE_REVIEW_SOURCE_SHA")
+                .orElse(providers.exec {
+                    commandLine("git", "-C", rootProject.projectDir.absolutePath, "rev-parse", "HEAD")
+                }.standardOutput.asText.map(String::trim))
+            taskBefore(tasks.register<Sync>("stageModdedBiomePopulationReviewSave") {
+                group = "verification"
+                description = "Stage the exact accepted SF-IMP-0054 server world into the isolated visual-review client."
+                val sourceWorld = layout.projectDirectory.dir(
+                    "run-sf-imp-0054-modded-biome-server/saves/acceptance",
+                ).asFile
+                val provenanceFile = layout.buildDirectory.file(
+                    "acceptance/sf-imp-0054-modded-biome/review-provenance.properties",
+                ).get().asFile
+                from(sourceWorld)
+                into(layout.projectDirectory.dir("run-sf-imp-0054-modded-biome-review/saves/acceptance"))
+                doFirst {
+                    check(sourceWorld.resolve("level.dat").isFile) {
+                        "SF-IMP-0054 accepted server save is missing; extract the matching server-client artifact at the repository root"
+                    }
+                    check(provenanceFile.isFile) {
+                        "SF-IMP-0054 review provenance is missing; download the current server-client artifact"
+                    }
+                    val expectedSha = provenanceFile.readLines()
+                        .firstOrNull { it.startsWith("sourceSha=") }
+                        ?.substringAfter("=")
+                        ?.trim()
+                    val actualSha = checkoutSha.get()
+                    check(expectedSha != null && expectedSha == actualSha) {
+                        "SF-IMP-0054 review artifact source $expectedSha does not match checkout $actualSha; use the exact source commit"
+                    }
+                }
+            })
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
@@ -754,7 +773,7 @@ neoForge {
             programArgument("--world")
             programArgument("acceptance")
             systemProperty("skyforge.dev.biomePopulation", "true")
-            systemProperty("skyforge.dev.biomePopulation.upperBiome", "biomesoplenty:rocky_shrubland")
+            systemProperty("skyforge.dev.biomePopulation.upperBiome", "minecraft:cherry_grove")
             systemProperty("skyforge.dev.biomePopulation.providerBiome", "true")
             systemProperty("skyforge.dev.biomePopulation.waitForRemoteClient", "true")
             systemProperty(
@@ -784,7 +803,7 @@ neoForge {
             programArgument("--world")
             programArgument("acceptance")
             systemProperty("skyforge.dev.biomePopulation", "true")
-            systemProperty("skyforge.dev.biomePopulation.upperBiome", "biomesoplenty:rocky_shrubland")
+            systemProperty("skyforge.dev.biomePopulation.upperBiome", "minecraft:cherry_grove")
             systemProperty("skyforge.dev.biomePopulation.providerBiome", "true")
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "server")
@@ -2209,7 +2228,6 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
-
         // WBY Wave 1 long-range visibility preflight. Keep shaders/cloud renderers out of this profile.
         create("wbyWave1VisibilityClient") {
             client()
@@ -2434,7 +2452,6 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
-
         create("wbyWave1BoundarySweepClientAcceptance") {
             client()
             gameDirectory = layout.projectDirectory.dir("run-wby-wave1-visibility-client").asFile
@@ -2452,7 +2469,6 @@ neoForge {
             )
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
-
 
         create("wbyWave1TwoCraftClientAcceptance") {
             client()
@@ -2472,7 +2488,6 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
-
         create("wbyWave1LateralFlightClientAcceptance") {
             client()
             gameDirectory = layout.projectDirectory.dir("run-wby-wave1-visibility-client").asFile
@@ -2490,7 +2505,6 @@ neoForge {
             )
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
-
 
         create("wbyWave1TrainSanityClientAcceptance") {
             client()
@@ -2511,7 +2525,6 @@ neoForge {
             )
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
-
 
         create("wbyWave1MultiplayerServerAcceptance") {
             server()
@@ -2570,7 +2583,6 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
-
         create("wbyWave1TelemetryServerAcceptance") {
             server()
             sourceSet.set(wbyWave1VisibilityServerRuntime)
@@ -2614,7 +2626,6 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
-
         create("wbyWave1PersistencePrepareServer") {
             server()
             sourceSet.set(wbyWave1VisibilityServerRuntime)
@@ -2655,7 +2666,6 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
-
         // Wave C2 personal-mobility specimen: the early glider plus server-side Elytra rocket
         // suppression, with no Create/Aeronautics stack present. This isolates personal traversal.
         create("waveC2PersonalMobilityClient") {
@@ -2674,7 +2684,6 @@ neoForge {
             systemProperty("skyforge.dev.waveC2Profile", "integrated")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
-
 
         // Wave C3 authority-isolation profile. No Create/Aeronautics or official A4MC content addon:
         // this run answers only whether the server-authoritative atmosphere runtime is viable.
@@ -2894,7 +2903,6 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
-
         // Wave C5 keeps the bird/AI stack isolated while reusing the already accepted A4MC core.
         // The first gate is intentionally headless: prove Fowl Play + SBL + YACL + A4MC can coexist
         // on the dedicated server before any thermal-soaring compatibility code is admitted.
@@ -2906,7 +2914,6 @@ neoForge {
             systemProperty("skyforge.dev.waveC5Profile", "soaring-fauna")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
-
 
         // Wave C6 exercises the actual optional hawk/A4MC compatibility controller. The same
         // retained bird stack is used; the system property activates Skyforge's otherwise inert
@@ -2920,7 +2927,6 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
-
         create("waveC6HawkThermalAcceptanceServer") {
             server()
             sourceSet.set(waveC5Runtime)
@@ -2930,7 +2936,6 @@ neoForge {
             systemProperty("skyforge.dev.waveC6Acceptance", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
-
 
         // Wave C7 completes the player-facing half of the shared-lift seam: the existing Reliable
         // Gliders state/physics run first, then Skyforge reads trusted A4MC lift in EntityTickEvent.Post.
@@ -2952,7 +2957,6 @@ neoForge {
             systemProperty("skyforge.dev.waveC7Acceptance", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
-
 
         // Wave C9 asks only whether the retained flight substrate and an existing CC:Tweaked
         // avionics integration form a viable computing foundation. No Skyforge peripheral exists.
@@ -2984,7 +2988,6 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
-
         // C25 A/B retains Create: Diesel Generators machinery while proving its independent
         // chunk-noise petroleum geography can be disabled through the upstream server config.
         create("waveC25PetroleumAuthorityBaselineServer") {
@@ -3005,7 +3008,6 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
-
         // C11 interrogates Minecraft's live RecipeManager after the exact retained flight stack has
         // registered its recipes. This proves recipe surface only; it does not prove aircraft flight.
         create("waveC11FirstFlightRecipeServer") {
@@ -3017,7 +3019,6 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
-
         // Issue #237 stationary cutoff proof reuses the accepted C11 flight-only runtime. Simulated
         // arrives through the pinned Aeronautics distribution without becoming a production dependency.
         create("portableEngineCutoffAcceptanceServer") {
@@ -3028,7 +3029,6 @@ neoForge {
             systemProperty("skyforge.dev.portableEngineCutoffAcceptance", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
-
 
         // #237 persistence proof uses three server boots against one disposable world:
         // prepare CUT -> reopen CUT and save RUN -> reopen RUN.
@@ -3059,7 +3059,6 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
-
         // #237 mobile proof: actual Simulated assembly into one Sable sublevel with two engines.
         create("portableEngineCutoffSableAcceptanceServer") {
             server()
@@ -3070,7 +3069,6 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
-
         // PLATFORM-001: minimal exact-stack Sable primary assembly/physics lifecycle fixture.
         create("compilerPlatformSableAssemblyLifecycleServer") {
             server()
@@ -3080,7 +3078,6 @@ neoForge {
             systemProperty("skyforge.dev.compilerPlatformSableAssemblyLifecycle", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
-
 
         // PLATFORM-002: minimal exact-stack fixed-world Create kinetic build/sever/rebuild fixture.
         create("compilerPlatformCreateKineticNetworkLifecycleServer") {
@@ -3138,7 +3135,6 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
-
         // PLATFORM-003: preassembled Create kinetic network transferred into one live Sable body.
         create("compilerPlatformCreateKineticOnSableLifecycleServer") {
             server()
@@ -3149,7 +3145,6 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
-
         // PLATFORM-004: causal one-domain Super Glue assembly fixture with an unglued control.
         create("compilerPlatformSuperGlueAssemblyDomainServer") {
             server()
@@ -3159,7 +3154,6 @@ neoForge {
             systemProperty("skyforge.dev.compilerPlatformSuperGlueAssemblyDomain", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
-
 
         // PLATFORM-005: ground child -> Physics Assembler flatten -> nested Propeller Bearing reassembly.
         create("compilerPlatformNestedPropellerBearingLifecycleServer") {
@@ -3260,7 +3254,6 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
-
         // AIRCRAFT-RUNTIME-002: two-boot production v0.12 aircraft persistence consumer.
         create("aircraftPowertrainPersistencePrepareServer") {
             server()
@@ -3279,7 +3272,6 @@ neoForge {
             systemProperty("skyforge.dev.aircraftPowertrainPersistence", "verify")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
-
 
         // PLATFORM-006: prepare a blank quick-play world, then exercise a real client Steering Wheel on Sable.
         create("compilerPlatformSteeringWheelClientWorldPrepareServer") {
@@ -3404,7 +3396,6 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
-
         // C12 B0-A1/A2: exact 105-block MAIN_BODY through the real Physics Assembler, then
         // authoritative Sable mass/center-of-mass measurement.
         create("waveC12BellancaB0AssemblyServer") {
@@ -3446,7 +3437,6 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
-
         // C16: exact accepted computing stack, but the specimen exercises only real CC wireless
         // modem behavior. Skyforge adds no network implementation.
         create("waveC16WirelessEnvelopeServer") {
@@ -3458,7 +3448,6 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
-
         // Wave C10 loads the standalone C2 Nether-scale datapack into a disposable first-boot
         // world and asserts the final live DimensionType rather than trusting JSON inspection.
         create("waveC10NetherScaleAcceptanceServer") {
@@ -3468,7 +3457,6 @@ neoForge {
             systemProperty("skyforge.dev.waveC10NetherScaleAcceptance", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
-
 
         // C13 baseline: vanilla 1.21.1 Elytra/firework behavior with no suppression mod loaded.
         create("waveC13VanillaElytraAcceptanceServer") {
@@ -3530,7 +3518,6 @@ mapOf(
     }
 }
 
-
 val waveC5SmokeServerProperties = """
     level-name=wave-c5-smoke
     level-seed=600500
@@ -3554,7 +3541,6 @@ tasks.named("runWaveC5SoaringFaunaServer").configure {
     }
 }
 
-
 tasks.named("runWaveC6HawkThermalServer").configure {
     doFirst {
         val directory = layout.projectDirectory.dir("run-wave-c6-hawk-thermal-server").asFile
@@ -3565,7 +3551,6 @@ tasks.named("runWaveC6HawkThermalServer").configure {
     }
 }
 
-
 tasks.named("runWaveC6HawkThermalAcceptanceServer").configure {
     doFirst {
         val directory = layout.projectDirectory.dir("run-wave-c6-hawk-thermal-acceptance-server").asFile
@@ -3575,7 +3560,6 @@ tasks.named("runWaveC6HawkThermalAcceptanceServer").configure {
         directory.resolve("server.properties").writeText(waveC5SmokeServerProperties)
     }
 }
-
 
 val waveC7SmokeServerProperties = """
     level-name=wave-c7-smoke
@@ -3604,7 +3588,6 @@ mapOf(
         }
     }
 }
-
 
 val waveC9SmokeServerProperties = """
     level-name=wave-c9-smoke
@@ -3684,7 +3667,6 @@ tasks.named("runWaveC21CreateResourceSuppressedServer").configure {
     }
 }
 
-
 val waveC25BaselineServerProperties = """
     level-name=wave-c25-baseline
     level-seed=602500
@@ -3743,7 +3725,6 @@ tasks.named("runWaveC25PetroleumAuthoritySuppressedServer").configure {
     }
 }
 
-
 val waveC11FirstFlightServerProperties = """
     level-name=wave-c11-first-flight
     level-seed=601100
@@ -3767,7 +3748,6 @@ tasks.named("runWaveC11FirstFlightRecipeServer").configure {
     }
 }
 
-
 val portableEngineCutoffServerProperties = """
     level-name=portable-engine-cutoff-acceptance
     level-seed=602370
@@ -3790,7 +3770,6 @@ tasks.named("runPortableEngineCutoffAcceptanceServer").configure {
         directory.resolve("server.properties").writeText(portableEngineCutoffServerProperties)
     }
 }
-
 
 val portableEngineCutoffPersistenceServerProperties = """
     level-name=portable-engine-cutoff-persistence
@@ -3831,7 +3810,6 @@ listOf(
     }
 }
 
-
 val portableEngineCutoffSableServerProperties = """
     level-name=portable-engine-cutoff-sable
     level-seed=602372
@@ -3854,7 +3832,6 @@ tasks.named("runPortableEngineCutoffSableAcceptanceServer").configure {
         directory.resolve("server.properties").writeText(portableEngineCutoffSableServerProperties)
     }
 }
-
 
 val compilerPlatformSableAssemblyLifecycleServerProperties = """
     level-name=compiler-platform-sable-assembly-lifecycle
@@ -3879,7 +3856,6 @@ tasks.named("runCompilerPlatformSableAssemblyLifecycleServer").configure {
     }
 }
 
-
 val compilerPlatformCreateKineticNetworkLifecycleServerProperties = """
     level-name=compiler-platform-create-kinetic-network-lifecycle
     level-seed=629001
@@ -3903,7 +3879,6 @@ tasks.named("runCompilerPlatformCreateKineticNetworkLifecycleServer").configure 
     }
 }
 
-
 val compilerPlatformWorldItemCutPressLifecycleServerProperties = """
     level-name=compiler-platform-world-item-cut-press-lifecycle
     level-seed=735015
@@ -3926,7 +3901,6 @@ tasks.named("runCompilerPlatformWorldItemCutPressLifecycleServer").configure {
         directory.resolve("server.properties").writeText(compilerPlatformWorldItemCutPressLifecycleServerProperties)
     }
 }
-
 
 val compilerPlatformWaterWheelSourceLifecycleServerProperties = """
     level-name=compiler-platform-water-wheel-source-lifecycle
@@ -3974,7 +3948,6 @@ tasks.named("runMech002NaturalPowerServer").configure {
     }
 }
 
-
 val compilerPlatformCreateKineticOnSableLifecycleServerProperties = """
     level-name=compiler-platform-create-kinetic-on-sable-lifecycle
     level-seed=635001
@@ -3998,7 +3971,6 @@ tasks.named("runCompilerPlatformCreateKineticOnSableLifecycleServer").configure 
     }
 }
 
-
 val compilerPlatformSuperGlueAssemblyDomainServerProperties = """
     level-name=compiler-platform-super-glue-assembly-domain
     level-seed=647001
@@ -4021,7 +3993,6 @@ tasks.named("runCompilerPlatformSuperGlueAssemblyDomainServer").configure {
         directory.resolve("server.properties").writeText(compilerPlatformSuperGlueAssemblyDomainServerProperties)
     }
 }
-
 
 val compilerPlatformNestedPropellerBearingLifecycleServerProperties = """
     level-name=compiler-platform-nested-propeller-bearing-lifecycle
@@ -4195,7 +4166,6 @@ tasks.named("runAircraftRudderYawAuthorityServer").configure {
     }
 }
 
-
 val aircraftPowertrainPersistenceServerProperties = """
     level-name=aircraft-powertrain-persistence
     level-seed=674001
@@ -4227,7 +4197,6 @@ tasks.named("runAircraftPowertrainPersistenceVerifyServer").configure {
         directory.resolve("server.properties").writeText(aircraftPowertrainPersistenceServerProperties)
     }
 }
-
 
 val waveC3AtmosphereProbeServerProperties = """
     level-name=wave-c3-atmosphere-probe
@@ -4278,7 +4247,6 @@ tasks.named("runWaveC3SkyforgeAtmosphereProbeServer").configure {
     }
 }
 
-
 val waveC3AtmosphereEvidenceServerProperties = """
     level-name=wave-c3-atmosphere-evidence
     level-seed=495004
@@ -4311,7 +4279,6 @@ tasks.named("runWaveC3AtmosphereEvidenceServerB").configure {
     }
 }
 
-
 val wbyWave1VisibilityClientServerProperties = """
     level-name=wby-wave1-visibility-client
     level-seed=671001
@@ -4335,7 +4302,6 @@ tasks.named("runWbyWave1VisibilityClientWorldPrepareServer").configure {
     }
 }
 
-
 val wbyWave1PersistenceServerProperties = """
     level-name=wby-wave1-persistence
     level-seed=671002
@@ -4358,7 +4324,6 @@ tasks.named("runWbyWave1PersistencePrepareServer").configure {
         directory.resolve("server.properties").writeText(wbyWave1PersistenceServerProperties)
     }
 }
-
 
 val compilerPlatformSteeringWheelClientServerProperties = """
     level-name=compiler-platform-steering-wheel-client
@@ -4406,7 +4371,6 @@ tasks.named("runCompilerPlatformSeatPassengerClientWorldPrepareServer").configur
     }
 }
 
-
 val compilerPlatformPlayerTrackingClientServerProperties = """
     level-name=compiler-platform-player-tracking-client
     level-seed=669012
@@ -4429,7 +4393,6 @@ tasks.named("runCompilerPlatformPlayerTrackingClientWorldPrepareServer").configu
         directory.resolve("server.properties").writeText(compilerPlatformPlayerTrackingClientServerProperties)
     }
 }
-
 
 val waveC12BellancaB0AssemblyServerProperties = """
     level-name=wave-c12-bellanca-b0-assembly
@@ -4514,7 +4477,6 @@ tasks.named("runWaveC15PortalLinkingAcceptanceServer").configure {
     }
 }
 
-
 val waveC16WirelessServerProperties = """
     level-name=wave-c16-wireless
     level-seed=601600
@@ -4537,7 +4499,6 @@ tasks.named("runWaveC16WirelessEnvelopeServer").configure {
         directory.resolve("server.properties").writeText(waveC16WirelessServerProperties)
     }
 }
-
 
 val waveC10NetherScaleServerProperties = """
     level-name=wave-c10-nether-scale
@@ -4570,7 +4531,6 @@ tasks.named("runWaveC10NetherScaleAcceptanceServer").configure {
         }
     }
 }
-
 
 val waveC13ElytraServerProperties = """
     level-name=wave-c13-elytra
@@ -4759,7 +4719,6 @@ tasks.register("sfImp0061Acceptance") {
     finalizedBy("sfImp0061AcceptanceVerify")
 }
 
-
 val sfImp0062AcceptanceResultDirectory = layout.buildDirectory.dir("acceptance/sf-imp-0062")
 val sfImp0062AcceptanceServerProperties = """
     level-name=acceptance
@@ -4936,7 +4895,6 @@ tasks.register("sfImp0062Acceptance") {
     )
     finalizedBy("sfImp0062AcceptanceVerify")
 }
-
 
 val sfImp0063AcceptanceResultDirectory = layout.buildDirectory.dir("acceptance/sf-imp-0063")
 val sfImp0063AcceptanceServerProperties = """
@@ -6362,7 +6320,6 @@ tasks.register("sfImp0068Acceptance") {
     finalizedBy("sfImp0068AcceptanceVerify")
 }
 
-
 val dr40AcceptanceResultDirectory = layout.buildDirectory.dir("acceptance/dr-40")
 
 fun requireDr40AcceptancePass(resultName: String) {
@@ -6720,7 +6677,6 @@ tasks.register("waveC1ResolvePinnedMods") {
     }
 }
 
-
 tasks.register("wbyAlphaResolvePinnedMods") {
     group = "verification"
     description = "Resolve the bounded WBY S0 launch shell and enforce side-aware membership."
@@ -6887,7 +6843,6 @@ tasks.register<Sync>("wbyWave1StageClientMods") {
     }
 }
 
-
 tasks.register<Sync>("wbyWave1StagePersistenceClientMods") {
     group = "verification"
     description = "Stage the exact WBY Wave 1 external mods into the save/reload client's ordinary mods directory."
@@ -6941,7 +6896,6 @@ tasks.register<Sync>("wbyWave1StagePersistenceClientMods") {
         println("WBY WAVE 1 PERSISTENCE CLIENT MOD STAGING PASS")
     }
 }
-
 
 tasks.register("wbyWave1ResolvePinnedMods") {
     group = "verification"
@@ -7057,7 +7011,6 @@ tasks.register("wbyWave1ResolvePinnedMods") {
     }
 }
 
-
 tasks.register("waveC2ResolvePinnedMods") {
     group = "verification"
     description = "Resolve the exact optional-mod artifacts used by the Wave C2 mobility runs through ModDevGradle resolvable legacy classpaths."
@@ -7083,7 +7036,6 @@ tasks.register("waveC2ResolvePinnedMods") {
         }
     }
 }
-
 
 tasks.register("waveC3ResolvePinnedMods") {
     group = "verification"
@@ -7164,7 +7116,6 @@ tasks.register("waveC3ResolvePinnedMods") {
     }
 }
 
-
 tasks.register("waveC5ResolvePinnedMods") {
     group = "verification"
     description = "Resolve the exact Wave C5 soaring-fauna runtime specimen."
@@ -7198,7 +7149,6 @@ tasks.register("waveC5ResolvePinnedMods") {
         files.forEach { println("  resolved=$it") }
     }
 }
-
 
 tasks.register("waveC6ResolvePinnedMods") {
     group = "verification"
@@ -7234,7 +7184,6 @@ tasks.register("waveC6ResolvePinnedMods") {
     }
 }
 
-
 tasks.register("waveC7ResolvePinnedMods") {
     group = "verification"
     description = "Resolve and assert the exact Wave C7 Reliable Gliders + A4MC runtime."
@@ -7266,7 +7215,6 @@ tasks.register("waveC7ResolvePinnedMods") {
         files.forEach { println("  resolved=$it") }
     }
 }
-
 
 tasks.register("waveC9ResolvePinnedMods") {
     group = "verification"
@@ -7303,8 +7251,6 @@ tasks.register("waveC9ResolvePinnedMods") {
     }
 }
 
-
-
 tasks.register("waveC11ResolvePinnedMods") {
     group = "verification"
     description = "Resolve and assert the exact Wave C11 first-flight recipe runtime."
@@ -7335,7 +7281,6 @@ tasks.register("waveC11ResolvePinnedMods") {
     }
 }
 
-
 tasks.register("waveC25ResolvePinnedMods") {
     group = "verification"
     description = "Resolve and assert the exact isolated C25 Create + Diesel Generators runtime."
@@ -7364,7 +7309,6 @@ tasks.register("waveC25ResolvePinnedMods") {
         files.forEach { println("  resolved=$it") }
     }
 }
-
 
 tasks.register("waveC14ResolvePinnedMods") {
     group = "verification"
@@ -7451,7 +7395,6 @@ tasks.register("waveC13ResolvePinnedMods") {
     }
 }
 
-
 dependencies {
     api(project(":skyforge-world"))
 
@@ -7471,7 +7414,6 @@ dependencies {
     add("jarJar", project(":skyforge-model"))
     add("jarJar", project(":skyforge-recipes"))
     add("jarJar", project(":skyforge-world"))
-
 
     // This isolated source set makes selected worldgen mods FML-discoverable in the alpha
     // biome proof without adding them to normal development, tests, or the distributable mod.
@@ -7501,7 +7443,6 @@ dependencies {
             )
         }
     }
-
 
     // WBY Wave 1 uses isolated source-set runtimes because Minecraft 1.21.1 ModDev can place
     // AdditionalRuntimeClasspath jars on a legacy library path without FML discovering them as mods.
@@ -7619,7 +7560,6 @@ dependencies {
         }
     }
 
-
     // Wave C2 optional dependencies remain run-scoped. The integrated comparison reuses only the
     // minimum C1-pinned Create/Sable/Aeronautics/JEI substrate.
     waveC2RunMods.forEach { (runName, mods) ->
@@ -7636,7 +7576,6 @@ dependencies {
             waveC1Pin(mod, "coordinate"),
         )
     }
-
 
     // Resolve A4MC core and Create Aeronautics compatibility files independently because Modrinth
     // exposes both under the same project/module identity but different version IDs.
@@ -7704,7 +7643,6 @@ dependencies {
         )
     }
 
-
     // C5/C6 external mods belong on the isolated run source set's runtime classpath so FML
     // discovers them as NeoForge mods rather than treating them as legacy Java libraries.
     waveC5BirdStackMods.forEach { mod ->
@@ -7718,7 +7656,6 @@ dependencies {
         files(waveC3AeroCoreArtifact),
     )
 
-
     // C7's player-mobility specimen contains only Reliable Gliders and the already accepted A4MC
     // atmosphere core. It deliberately excludes the Fowl Play stack and No More Elytra Boosting.
     add(
@@ -7729,7 +7666,6 @@ dependencies {
         waveC7Runtime.runtimeOnlyConfigurationName,
         files(waveC3AeroCoreArtifact),
     )
-
 
     // Computing substrate: reuse the minimum retained flight stack plus CC:Tweaked and the existing
     // Create: Avionics integration. Aeronautics' bundled distribution supplies Simulated.
@@ -7748,7 +7684,6 @@ dependencies {
         waveC9Pin("createavionics", "coordinate"),
     )
 
-
     // C14 A/B baseline: same retained flight substrate as C9, deliberately without CC/Avionics.
     listOf("create", "sable", "aeronautics").forEach { mod ->
         add(
@@ -7764,7 +7699,6 @@ dependencies {
             waveC1Pin(mod, "coordinate"),
         )
     }
-
 
     // C11 first-flight recipe specimen: exact retained Create/Sable/Aeronautics only.
     listOf("create", "sable", "aeronautics").forEach { mod ->
@@ -7820,7 +7754,6 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
-
 
 tasks.register("sfImp0084AalValidation") {
     group = "verification"
@@ -8081,7 +8014,6 @@ tasks.register("sfImp0069AcceptanceVerify") {
         )
     }
 }
-
 
 val sfImp0070PerformanceResultDirectory = layout.buildDirectory.dir("acceptance/sf-imp-0070")
 
@@ -8582,7 +8514,6 @@ tasks.register("launchShowcaseEcology") {
     dependsOn("runShowcaseEcologyPrepare", "runShowcaseEcologyClient")
 }
 
-
 val skyforgeProductionMorphologyMassifResultDirectory =
     layout.buildDirectory.dir("acceptance/production-morphology-massif")
 val skyforgeProductionMorphologyMassifServerProperties = """
@@ -8742,7 +8673,6 @@ tasks.register("launchProductionMorphologyMassif") {
     description = "Rebuild the first AUTH-0083 production Massif carrier, then launch Minecraft for #214 review."
     dependsOn("runProductionMorphologyMassifPrepare", "runProductionMorphologyMassifClient")
 }
-
 
 val skyforgeProductionMorphologyAtlasServerProperties = """
     level-seed=1405130932537311389
@@ -9068,7 +8998,6 @@ tasks.register("dr30NativeStructureAcceptance") {
         println("DR-30 NATIVE STRUCTURE ACCEPTANCE PASS: placement + reload mutation + stacked exact-volume identity")
     }
 }
-
 
 val skyforgeF4kHydrologyReviewResultDirectory =
     layout.buildDirectory.dir("acceptance/f4k-hydrology-review")
