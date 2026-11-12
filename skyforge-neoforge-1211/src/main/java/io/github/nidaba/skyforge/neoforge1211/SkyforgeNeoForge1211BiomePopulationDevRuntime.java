@@ -167,14 +167,15 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             completePersistedReopenAcceptance(event.getServer().overworld());
             return;
         }
-        if (!SkyforgeAutomatedAcceptanceHarness.warmupComplete()) {
+        if (!SkyforgeAutomatedAcceptanceHarness.warmupComplete()
+                || !remoteClientJoinPassed()) {
             return;
         }
         if (!warmupProofFootprintReconciled) {
             reconcileWarmupProofFootprint(event.getServer().overworld());
             warmupProofFootprintReconciled = true;
         }
-        if (!proofComplete || !remoteClientJoinPassed()) {
+        if (!proofComplete) {
             return;
         }
         int exteriorNonAirBlocks = countExteriorWitnessNonAirBlocks(event.getServer().overworld());
