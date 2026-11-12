@@ -84,6 +84,7 @@ verify_server_result() {
   grep -Eq '^lithostitchedLoaded=true$' "$result"
   grep -Eq '^tectonicConfigVerified=true$' "$result"
   grep -Fq 'selectedUpperBiome=biomesoplenty\:rocky_shrubland' "$result"
+  grep -Fq 'islandBiomeField=biomesoplenty\:rocky_shrubland' "$result"
   grep -Eq '^lowerPersistentTreeEvidence=true$' "$result"
   grep -Eq '^upperPersistentTreeEvidence=true$' "$result"
   grep -Eq '^exteriorNonAirBlocks=0$' "$result"
@@ -91,16 +92,16 @@ verify_server_result() {
 
 verify_full_surface_coverage() {
   local result="$1"
-  local forest_surface provider_surface forest_populated provider_populated target_chunks
+  local forest_surface provider_surface forest_populated provider_populated field_chunks
   grep -Eq '^surfaceEcologyRoute=VEGETAL_DECORATION/SURFACE_ECOLOGY$' "$result"
   forest_surface=$(sed -n 's/^forestSurfaceChunks=//p' "$result")
   provider_surface=$(sed -n 's/^providerSurfaceChunks=//p' "$result")
   forest_populated=$(sed -n 's/^forestPopulatedChunks=//p' "$result")
   provider_populated=$(sed -n 's/^providerPopulatedChunks=//p' "$result")
-  target_chunks=$(sed -n 's/^providerBiomeTargetChunks=//p' "$result")
+  field_chunks=$(sed -n 's/^islandBiomeFieldChunks=//p' "$result")
   test "$forest_surface" -gt 0
   test "$provider_surface" -gt 0
-  test "$target_chunks" -gt 0
+  test "$field_chunks" -gt 0
   test "$forest_surface" -eq "$forest_populated"
   test "$provider_surface" -eq "$provider_populated"
 }
@@ -151,8 +152,8 @@ wait "$server_pid"
 server_pid=""
 verify_server_result "$server_result"
 verify_full_surface_coverage "$server_result"
-grep -Fq 'providerBiomeSource=biomesoplenty\:rocky_shrubland' "$server_result"
-grep -Eq '^providerBiomeMatchesPopulation=true$' "$server_result"
+grep -Fq 'islandBiomeField=biomesoplenty\:rocky_shrubland' "$server_result"
+grep -Eq '^islandBiomeFieldMatchesPopulation=true$' "$server_result"
 cp "$server_result" "$acceptance_dir/server-initial.properties"
 cp "$server_dir/logs/latest.log" "$acceptance_dir/server-initial.log"
 
