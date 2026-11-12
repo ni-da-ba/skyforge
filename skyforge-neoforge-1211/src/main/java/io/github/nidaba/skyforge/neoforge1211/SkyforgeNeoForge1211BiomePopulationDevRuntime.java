@@ -57,7 +57,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
     private static final ResourceKey<Biome> UPPER_BIOME = configuredBiomeKey(
             System.getProperty(UPPER_BIOME_PROPERTY, "minecraft:taiga"));
     private static final long ROOT_SEED = 0x5346494d50303054L;
-    private static final ChunkPos EXTERIOR_WITNESS_CHUNK = new ChunkPos(0, 0);
+    private static final ChunkPos EXTERIOR_WITNESS_CHUNK = new ChunkPos(5, 0);
     private static final int PROVIDER_PREFLIGHT_QUART_STEP = 4;
     private static final int VEGETATION_SCAN_HEIGHT = 40;
     private static final int MAXIMUM_ATTACHMENT_DEPTH = 24;
@@ -530,7 +530,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
     }
 
     private static long distanceFromProviderIslandCenter(BlockPos sample) {
-        long dx = sample.getX() - 88L;
+        long dx = sample.getX() - 176L;
         long dz = sample.getZ();
         return dx * dx + dz * dz;
     }
@@ -587,8 +587,8 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         LOGGER.log(
                 System.Logger.Level.INFO,
                 "Skyforge SF-IMP-0054 side-by-side surface-ecology specimen enabled. Create a NEW disposable "
-                        + "Skyforge Development world and compare the same-height Forest island at x=-88 with "
-                        + "the provider-biome island at x=88, both centered near z=0. Each island runs its "
+                        + "Skyforge Development world and compare the same-height Forest island at x=0 with "
+                        + "the provider-biome island at x=176, both centered near z=0. Each island runs its "
                         + "complete admitted VEGETAL_DECORATION surface-ecology route within exact volume ownership.");
     }
 
@@ -883,12 +883,12 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         var upperId = new SkyIslandWorldVolumeId(ROOT_SEED, "sf-imp-0054-biomes", 0, 1, upperSeed);
         var lower = new SkyIslandWorldVolume(
                 lowerId,
-                new WorldBounds(-160.0, -16.0, 96.0, 168.0, -72.0, 72.0),
-                compileTableland(lowerSeed, -88.0, 136.0));
+                new WorldBounds(-72.0, 72.0, 96.0, 168.0, -72.0, 72.0),
+                compileTableland(lowerSeed, 0.0, 136.0));
         var upper = new SkyIslandWorldVolume(
                 upperId,
-                new WorldBounds(16.0, 160.0, 96.0, 168.0, -72.0, 72.0),
-                compileTableland(upperSeed, 88.0, 136.0));
+                new WorldBounds(104.0, 248.0, 96.0, 168.0, -72.0, 72.0),
+                compileTableland(upperSeed, 176.0, 136.0));
         return new SkyIslandWorldCatalog(ROOT_SEED, List.of(lower, upper));
     }
 
