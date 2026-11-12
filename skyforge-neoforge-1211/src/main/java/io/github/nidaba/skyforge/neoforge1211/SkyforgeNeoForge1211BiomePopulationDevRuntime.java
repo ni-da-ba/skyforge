@@ -65,10 +65,10 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             System.getLogger(SkyforgeNeoForge1211BiomePopulationDevRuntime.class.getName());
 
     private static final Set<Long> scannedProofChunks = new HashSet<>();
-    private static final Set<Long> providerBiomeCandidateProofChunks = new HashSet<>();
+    private static final Set<Long> islandBiomeFieldCandidateProofChunks = new HashSet<>();
     private static final Set<Long> forestProofChunkKeys = new LinkedHashSet<>();
     private static final Set<Long> providerProofChunkKeys = new LinkedHashSet<>();
-    private static final Set<Long> providerBiomeTargetChunkKeys = new LinkedHashSet<>();
+    private static final Set<Long> islandBiomeFieldChunkKeys = new LinkedHashSet<>();
     private static final Map<String, Integer> islandBiomeFieldColumnDistribution = new TreeMap<>();
     private static final Map<String, Integer> providerBiomeSourceColumnDistribution = new TreeMap<>();
     private static final Map<String, Integer> providerBiomePreflightDistribution = new TreeMap<>();
@@ -197,14 +197,14 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                         Map.entry("providerBiomePreflightDistribution", providerBiomePreflightDistribution.toString()),
                         Map.entry("forestSurfaceChunks", forestProofChunkKeys.size()),
                         Map.entry("providerSurfaceChunks", providerProofChunkKeys.size()),
-                        Map.entry("islandBiomeFieldChunks", providerBiomeTargetChunkKeys.size()),
+                        Map.entry("islandBiomeFieldChunks", islandBiomeFieldChunkKeys.size()),
                         Map.entry("forestPopulatedChunks", lowerAggregate.chunks),
                         Map.entry("providerPopulatedChunks", upperAggregate.chunks),
                         Map.entry("surfaceEcologyRoute", "VEGETAL_DECORATION/SURFACE_ECOLOGY"),
                         Map.entry("providerReviewSpawn", providerReviewSpawn == null
                                 ? "disabled" : providerReviewSpawn.toShortString()),
                         Map.entry("scannedChunks", scannedProofChunks.size()),
-                        Map.entry("providerBiomeCandidateChunks", providerBiomeCandidateProofChunks.size()),
+                        Map.entry("providerBiomeCandidateChunks", islandBiomeFieldCandidateProofChunks.size()),
                         Map.entry("eligibleChunks", eligibleProofChunks.size()),
                         Map.entry("lowerBiomeDistribution", lowerAggregate.biomeCounts.toString()),
                         Map.entry("lowerSuccessfulFeatures", lowerAggregate.successfulFeatures),
@@ -331,7 +331,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                         Map.entry("scannedChunks", scannedChunks),
                         Map.entry("forestSurfaceChunks", forestProofChunkKeys.size()),
                         Map.entry("providerSurfaceChunks", providerProofChunkKeys.size()),
-                        Map.entry("islandBiomeFieldChunks", providerBiomeTargetChunkKeys.size()),
+                        Map.entry("islandBiomeFieldChunks", islandBiomeFieldChunkKeys.size()),
                         Map.entry("lowerPersistentTreeEvidence", lowerTreeEvidence),
                         Map.entry("lowerLogBlocks", lowerLogBlocks),
                         Map.entry("lowerLeafBlocks", lowerLeafBlocks),
@@ -460,7 +460,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                     BlockPos sample = new BlockPos(worldX, surfaceY, worldZ);
                     if (providerIsland) {
                         providerProofChunkKeys.add(chunkKey);
-                        providerBiomeTargetChunkKeys.add(chunkKey);
+                        islandBiomeFieldChunkKeys.add(chunkKey);
                         providerBiomePreflightSurfaceSamples = Math.addExact(
                                 providerBiomePreflightSurfaceSamples, 1);
                         ResourceKey<Biome> sourceBiome = providerBiomeSource.getNoiseBiome(
@@ -653,10 +653,10 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         SkyforgeNativeBiomePopulationRunner.Result nativeResult = population.phases().get(0).nativeResult();
         ResourceKey<Biome> expectedBiome = forestIsland ? Biomes.FOREST : nativeResult.biomeKey();
         requireChunkResult(forestIsland ? "Forest island" : "provider island", nativeResult, expectedBiome);
-        if (providerMode && providerBiomeTargetChunkKeys.contains(chunkKey)
+        if (providerMode && islandBiomeFieldChunkKeys.contains(chunkKey)
                 && UPPER_BIOME.equals(nativeResult.biomeKey())) {
             upperIslandBiomeFieldSampleKey = nativeResult.biomeKey();
-            providerBiomeCandidateProofChunks.add(chunkKey);
+            islandBiomeFieldCandidateProofChunks.add(chunkKey);
         }
         if (providerMode) {
             recordProviderBiomeEvidence(
@@ -709,10 +709,10 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         requireAggregate("upper", upperAggregate,
                 Boolean.getBoolean(PROVIDER_BIOME_PROPERTY) ? UPPER_BIOME : null);
         if (Boolean.getBoolean(PROVIDER_BIOME_PROPERTY)
-                && !providerBiomeCandidateProofChunks.containsAll(providerBiomeTargetChunkKeys)) {
-            throw new IllegalStateException("SF-IMP-0054 provider target biome did not survive native population: "
-                    + "targetChunks=" + providerBiomeTargetChunkKeys.size()
-                    + ", matchingPopulationChunks=" + providerBiomeCandidateProofChunks.size());
+                && !islandBiomeFieldCandidateProofChunks.containsAll(islandBiomeFieldChunkKeys)) {
+            throw new IllegalStateException("SF-IMP-0054 island biome field did not survive native population: "
+                    + "targetChunks=" + islandBiomeFieldChunkKeys.size()
+                    + ", matchingPopulationChunks=" + islandBiomeFieldCandidateProofChunks.size());
         }
         completeProof(lowerId, upperId);
     }
