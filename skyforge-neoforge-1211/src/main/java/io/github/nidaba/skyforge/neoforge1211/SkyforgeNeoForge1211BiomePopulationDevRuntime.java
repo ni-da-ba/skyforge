@@ -181,6 +181,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 event.getServer(),
                 Map.ofEntries(
                         Map.entry("selectedUpperBiome", UPPER_BIOME.location()),
+                        Map.entry("islandBiomeField", UPPER_BIOME.location()),
                         Map.entry("tectonicLoaded", ModList.get().isLoaded("tectonic")),
                         Map.entry("lithostitchedLoaded", ModList.get().isLoaded("lithostitched")),
                         Map.entry("tectonicConfigVerified", tectonicConfigVerified()),
