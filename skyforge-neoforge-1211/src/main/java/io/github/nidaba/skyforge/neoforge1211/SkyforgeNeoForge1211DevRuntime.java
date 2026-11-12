@@ -26,6 +26,7 @@ import java.util.List;
 final class SkyforgeNeoForge1211DevRuntime {
     static final String ENABLE_PROPERTY = "skyforge.dev.specimen";
     static final String TECTONIC_REVIEW_ENABLE_PROPERTY = "skyforge.dev.tectonicTerrainReviewIsland";
+    static final String TECTONIC_BIOME_SURFACE_REVIEW_PROPERTY = "skyforge.dev.tectonicBiomeSurfaceReview";
     static final long ROOT_SEED = 0x534b59464f524745L;
     static final int INSPECTION_X = 0;
     static final int INSPECTION_Y = 300;
@@ -41,7 +42,9 @@ final class SkyforgeNeoForge1211DevRuntime {
     static synchronized void installFromSystemProperty() {
         boolean structureSpecimen = Boolean.getBoolean(ENABLE_PROPERTY);
         boolean tectonicReviewIsland = Boolean.getBoolean(TECTONIC_REVIEW_ENABLE_PROPERTY);
-        if ((!structureSpecimen && !tectonicReviewIsland) || persistentBinding != null) {
+        boolean tectonicBiomeSurfaceReview = Boolean.getBoolean(TECTONIC_BIOME_SURFACE_REVIEW_PROPERTY);
+        if ((!structureSpecimen && !tectonicReviewIsland && !tectonicBiomeSurfaceReview)
+                || persistentBinding != null) {
             return;
         }
         if (SkyforgeNeoForge1211SurfaceStage.hasActiveBinding()) {
@@ -84,6 +87,15 @@ final class SkyforgeNeoForge1211DevRuntime {
     }
 
     static SkyIslandWorldCatalog catalog() {
+        if (Boolean.getBoolean(TECTONIC_BIOME_SURFACE_REVIEW_PROPERTY)) {
+            // Keep the accepted central Massif at its exact review coordinates and pair it with the
+            // same-level Basin family at the established east review position.
+            return new SkyIslandWorldCatalog(
+                    ROOT_SEED,
+                    List.of(
+                            reviewIsland("sf-imp-0043-dev-massif", 0, MorphologyFamily.MASSIF, 0, 224, 0),
+                            reviewIsland("sf-imp-0054-review-basin", 3, MorphologyFamily.BASIN, 384, 224, 0)));
+        }
         if (!Boolean.getBoolean(TECTONIC_REVIEW_ENABLE_PROPERTY)) {
             return new SkyIslandWorldCatalog(
                     ROOT_SEED,
