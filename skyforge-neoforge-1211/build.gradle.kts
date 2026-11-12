@@ -51,6 +51,47 @@ tasks.withType<Test>().configureEach {
 // keeping temporary world presets and UI tags out of distributable Skyforge artifacts.
 val development = sourceSets.create("development")
 
+// Exact pinned terrain provider reused by the native-biome surface integration specimen.
+val sfImp0054TectonicPinsFile = layout.projectDirectory.file("sf-imp-0054-tectonic-mods.properties")
+val sfImp0054TectonicPins = Properties().apply {
+    sfImp0054TectonicPinsFile.asFile.inputStream().use(::load)
+}
+fun sfImp0054TectonicPin(mod: String, field: String): String =
+    requireNotNull(sfImp0054TectonicPins.getProperty("$mod.$field")) {
+        "missing SF-IMP-0054 Tectonic integration pin: $mod.$field"
+    }
+check(sfImp0054TectonicPin("minecraft", "version") == "1.21.1")
+check(sfImp0054TectonicPin("neoforge", "version") == "21.1.249")
+
+val sfImp0054TectonicIntegrationConfig = """
+    {
+      "minor_version": 1,
+      "general": {
+        "mod_enabled": true,
+        "snow_start_offset": 128
+      },
+      "continents": {
+        "continents_scale": 0.5,
+        "erosion_scale": 1.0,
+        "flat_terrain_skew": 0.1,
+        "ridge_scale": 1.0,
+        "ocean_offset": -0.1
+      },
+      "global_terrain": {
+        "vertical_scale": 2.0,
+        "elevation_boost": 2.0,
+        "ultrasmooth": true
+      }
+    }
+""".trimIndent() + "\n"
+
+fun configureSfImp0054TectonicIntegration(gameDirectory: java.io.File) {
+    val configFile = gameDirectory.resolve("config/tectonic.json")
+    configFile.parentFile.mkdirs()
+    configFile.writeText(sfImp0054TectonicIntegrationConfig)
+}
+
+
 
 // #495 real-provider probe must load Aerodynamics4MC as a discovered NeoForge mod. The older C3
 // AdditionalRuntimeClasspath profiles are sufficient for loader/dependency preflight but are a
@@ -7490,6 +7531,17 @@ dependencies {
     add(moddedBiomePopulationServerRuntime.runtimeOnlyConfigurationName,
         "maven.modrinth:s3dmwKy5:S2TfWrZR")
 
+    // Combine the exact pinned Tectonic terrain treatment with BOP native biome ecology only in
+    // this isolated alpha integration profile. Ordinary run source sets stay unchanged.
+    add(moddedBiomePopulationClientRuntime.runtimeOnlyConfigurationName,
+        sfImp0054TectonicPin("tectonic", "coordinate"))
+    add(moddedBiomePopulationClientRuntime.runtimeOnlyConfigurationName,
+        sfImp0054TectonicPin("lithostitched", "coordinate"))
+    add(moddedBiomePopulationServerRuntime.runtimeOnlyConfigurationName,
+        sfImp0054TectonicPin("tectonic", "coordinate"))
+    add(moddedBiomePopulationServerRuntime.runtimeOnlyConfigurationName,
+        sfImp0054TectonicPin("lithostitched", "coordinate"))
+
     // ModDevGradle creates a per-run <runName>AdditionalRuntimeClasspath configuration. On
     // Minecraft 1.21.1, mod jars placed there are discovered by FML while remaining isolated from
     // every other development/acceptance run.
@@ -9155,4 +9207,40 @@ tasks.register("launchF4KHydrologyReview") {
     group = "application"
     description = "Prepare the exact F4H/F4D hydrology specimen, then quick-play it for human review."
     dependsOn("runF4kHydrologyReviewPrepare", "runF4kHydrologyReviewClient")
+}
+
+
+// Keep this exact-head integration isolated: the server, client, and saved-world review all use
+// the same pinned Tectonic treatment together with the BOP biome runtime.
+tasks.named("runModdedBiomePopulationServer").configure {
+    notCompatibleWithConfigurationCache("SF-IMP-0054 provider/ecology integration writes an isolated Tectonic config.")
+    doFirst {
+        configureSfImp0054TectonicIntegration(
+            layout.projectDirectory.dir("run-sf-imp-0054-modded-biome-server").asFile,
+        )
+    }
+}
+tasks.named("runModdedBiomePopulationServerReopen").configure {
+    notCompatibleWithConfigurationCache("SF-IMP-0054 same-world reopen uses the pinned Tectonic profile.")
+    doFirst {
+        configureSfImp0054TectonicIntegration(
+            layout.projectDirectory.dir("run-sf-imp-0054-modded-biome-server").asFile,
+        )
+    }
+}
+tasks.named("runModdedBiomePopulationJoinClient").configure {
+    notCompatibleWithConfigurationCache("SF-IMP-0054 remote client loads the same pinned provider stack.")
+    doFirst {
+        configureSfImp0054TectonicIntegration(
+            layout.projectDirectory.dir("run-sf-imp-0054-modded-biome-join-client").asFile,
+        )
+    }
+}
+tasks.named("runModdedBiomePopulationReviewClient").configure {
+    notCompatibleWithConfigurationCache("SF-IMP-0054 visual client loads the same pinned provider stack.")
+    doFirst {
+        configureSfImp0054TectonicIntegration(
+            layout.projectDirectory.dir("run-sf-imp-0054-modded-biome-review").asFile,
+        )
+    }
 }
