@@ -40,6 +40,8 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.ModList;
+import net.neoforged.fml.loading.FMLPaths;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
@@ -106,6 +108,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         }
 
         try {
+            requireTectonicProviderStack();
             prepareProviderBiomeCandidates(level);
             if (providerProofChunkKeys.isEmpty() || providerReviewSpawn == null) {
                 SkyforgeAutomatedAcceptanceHarness.fail(
@@ -179,6 +182,9 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 event.getServer(),
                 Map.ofEntries(
                         Map.entry("selectedUpperBiome", UPPER_BIOME.location()),
+                        Map.entry("tectonicLoaded", ModList.get().isLoaded("tectonic")),
+                        Map.entry("lithostitchedLoaded", ModList.get().isLoaded("lithostitched")),
+                        Map.entry("tectonicConfigVerified", tectonicConfigVerified()),
                         Map.entry("providerBiomeSource", providerBiomeSampleKey == null
                                 ? "disabled" : providerBiomeSampleKey.location()),
                         Map.entry("providerBiomeMatchesPopulation", providerBiomeSampleKey != null
@@ -215,6 +221,33 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
      * Reopen verification reads the persisted proof footprint only. It deliberately does not invoke
      * the native population runner, so a same-world boot cannot reapply generation over saved edits.
      */
+    private static void requireTectonicProviderStack() {
+        if (!Boolean.getBoolean(PROVIDER_BIOME_PROPERTY)) {
+            return;
+        }
+        if (!ModList.get().isLoaded("tectonic") || !ModList.get().isLoaded("lithostitched")) {
+            throw new IllegalStateException("combined provider/ecology specimen requires pinned Tectonic and Lithostitched mods");
+        }
+        if (!tectonicConfigVerified()) {
+            throw new IllegalStateException("combined provider/ecology specimen lacks the pinned Tectonic treatment config");
+        }
+    }
+
+    private static boolean tectonicConfigVerified() {
+        Path config = FMLPaths.CONFIGDIR.get().resolve("tectonic.json");
+        try {
+            if (!Files.isRegularFile(config)) {
+                return false;
+            }
+            String json = Files.readString(config);
+            return json.contains("\\"vertical_scale\\": 2.0")
+                    && json.contains("\\"elevation_boost\\": 2.0")
+                    && json.contains("\\"ultrasmooth\\": true");
+        } catch (IOException failure) {
+            throw new IllegalStateException("could not inspect the Tectonic integration config", failure);
+        }
+    }
+
     private static void completePersistedReopenAcceptance(ServerLevel level) {
         List<SkyIslandWorldVolume> volumes = catalog().volumes();
         if (volumes.size() != 2) {
@@ -293,6 +326,9 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 level.getServer(),
                 Map.ofEntries(
                         Map.entry("selectedUpperBiome", UPPER_BIOME.location()),
+                        Map.entry("tectonicLoaded", ModList.get().isLoaded("tectonic")),
+                        Map.entry("lithostitchedLoaded", ModList.get().isLoaded("lithostitched")),
+                        Map.entry("tectonicConfigVerified", tectonicConfigVerified()),
                         Map.entry("scannedChunks", scannedChunks),
                         Map.entry("forestSurfaceChunks", forestProofChunkKeys.size()),
                         Map.entry("providerSurfaceChunks", providerProofChunkKeys.size()),
