@@ -728,6 +728,37 @@ neoForge {
             gameDirectory = layout.projectDirectory.dir("run-sf-imp-0054-modded-biome-review").asFile
             programArgument("--quickPlaySingleplayer")
             programArgument("acceptance")
+            val checkoutSha = providers.exec {
+                commandLine("git", "-C", rootProject.projectDir.absolutePath, "rev-parse", "HEAD")
+            }
+            taskBefore(tasks.register<Sync>("stageModdedBiomePopulationReviewSave") {
+                group = "verification"
+                description = "Stage the exact accepted SF-IMP-0054 server world into the isolated visual-review client."
+                val sourceWorld = layout.projectDirectory.dir(
+                    "run-sf-imp-0054-modded-biome-server/saves/acceptance",
+                ).asFile
+                val provenanceFile = layout.buildDirectory.file(
+                    "acceptance/sf-imp-0054-modded-biome/review-provenance.properties",
+                ).get().asFile
+                from(sourceWorld)
+                into(layout.projectDirectory.dir("run-sf-imp-0054-modded-biome-review/saves/acceptance"))
+                doFirst {
+                    check(sourceWorld.resolve("level.dat").isFile) {
+                        "SF-IMP-0054 accepted server save is missing; extract the matching server-client artifact at the repository root"
+                    }
+                    check(provenanceFile.isFile) {
+                        "SF-IMP-0054 review provenance is missing; download the current server-client artifact"
+                    }
+                    val provenance = java.util.Properties().apply {
+                        provenanceFile.inputStream().use(::load)
+                    }
+                    val expectedSha = provenance.getProperty("sourceSha")
+                    val actualSha = checkoutSha.standardOutput.asText.get().trim()
+                    check(expectedSha == actualSha) {
+                        "SF-IMP-0054 review artifact source $expectedSha does not match checkout $actualSha; use the exact source commit"
+                    }
+                }
+            })
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
