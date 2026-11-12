@@ -240,9 +240,9 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 return false;
             }
             String json = Files.readString(config);
-            return json.contains("\\"vertical_scale\\": 2.0")
-                    && json.contains("\\"elevation_boost\\": 2.0")
-                    && json.contains("\\"ultrasmooth\\": true");
+            return json.contains("\"vertical_scale\": 2.0")
+                    && json.contains("\"elevation_boost\": 2.0")
+                    && json.contains("\"ultrasmooth\": true");
         } catch (IOException failure) {
             throw new IllegalStateException("could not inspect the Tectonic integration config", failure);
         }
