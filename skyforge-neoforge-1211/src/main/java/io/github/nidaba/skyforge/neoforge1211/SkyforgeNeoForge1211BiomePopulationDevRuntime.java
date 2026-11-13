@@ -38,6 +38,7 @@ import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModList;
@@ -77,6 +78,8 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             System.getLogger(SkyforgeNeoForge1211BiomePopulationDevRuntime.class.getName());
 
     private static final Set<Long> scannedProofChunks = new HashSet<>();
+    private static final Set<Long> reviewBiomeChunksPending = new LinkedHashSet<>();
+    private static final Set<ReviewPresentationKey> presentedReviewBiomeChunks = new HashSet<>();
     private static final Set<Long> islandBiomeFieldCandidateProofChunks = new HashSet<>();
     private static final Set<Long> forestProofChunkKeys = new LinkedHashSet<>();
     private static final Set<Long> providerProofChunkKeys = new LinkedHashSet<>();
@@ -144,6 +147,9 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             }
             level.setDefaultSpawnPos(providerReviewSpawn, 0.0F);
             providerWarmupPrepared = true;
+            if (!SkyforgeAutomatedAcceptanceHarness.serverMode()) {
+                reconcileLoadedInteractiveReviewChunks(level);
+            }
             LOGGER.log(
                     System.Logger.Level.INFO,
                     "SF-IMP-0054 side-by-side preflight selected " + islandChunkKeys.size()
@@ -163,6 +169,88 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                     "SF-IMP-0054 provider-biome source preflight failed: "
                             + failure.getClass().getSimpleName() + ": " + failure.getMessage());
         }
+    }
+
+    /**
+     * Interactive worlds may generate their initial spawn chunks before provider preflight knows
+     * which exact island chunks need the custom biome population pass. Reconcile only chunks
+     * Minecraft already has loaded, then persist their owned biome cells. Future chunks continue
+     * through the ordinary post-realization callback and are committed here once stable.
+     */
+    @SubscribeEvent
+    static synchronized void serviceInteractiveReviewChunks(ServerTickEvent.Post event) {
+        if (!enabled()
+                || !alphaClusterReview()
+                || !Boolean.getBoolean(PROVIDER_BIOME_PROPERTY)
+                || !providerWarmupPrepared
+                || SkyforgeAutomatedAcceptanceHarness.serverMode()) {
+            return;
+        }
+        ServerLevel level = event.getServer().overworld();
+        if (level != null) {
+            serviceLoadedReviewBiomeChunks(level);
+        }
+    }
+
+    private static void reconcileLoadedInteractiveReviewChunks(ServerLevel level) {
+        ChunkGenerator generator = level.getChunkSource().getGenerator();
+        for (long chunkKey : allProofChunkKeys()) {
+            ChunkPos chunkPos = new ChunkPos(chunkKey);
+            LevelChunk chunk = level.getChunkSource().getChunkNow(chunkPos.x, chunkPos.z);
+            if (chunk == null) {
+                continue;
+            }
+            if (!scannedProofChunks.contains(chunkKey)) {
+                populate(level, chunk, generator);
+            }
+        }
+        serviceLoadedReviewBiomeChunks(level);
+    }
+
+    private static void serviceLoadedReviewBiomeChunks(ServerLevel level) {
+        List<SkyIslandWorldVolume> volumes = catalog().volumes();
+        if (volumes.size() != 2) {
+            throw new IllegalStateException("SF-IMP-1526 biome review requires exactly two island volumes");
+        }
+        var resolver = islandBiomeFieldResolver(volumes.get(0).id(), volumes.get(1).id());
+        for (long chunkKey : List.copyOf(reviewBiomeChunksPending)) {
+            ChunkPos chunkPos = new ChunkPos(chunkKey);
+            LevelChunk chunk = level.getChunkSource().getChunkNow(chunkPos.x, chunkPos.z);
+            if (chunk == null || !scannedProofChunks.contains(chunkKey)) {
+                continue;
+            }
+            if (forestProofChunkKeys.contains(chunkKey)) {
+                persistReviewBiome(level, chunk, volumes.get(0), resolver);
+            }
+            if (providerProofChunkKeys.contains(chunkKey)) {
+                persistReviewBiome(level, chunk, volumes.get(1), resolver);
+            }
+            reviewBiomeChunksPending.remove(chunkKey);
+        }
+    }
+
+    private static void persistReviewBiome(
+            ServerLevel level,
+            LevelChunk chunk,
+            SkyIslandWorldVolume volume,
+            SkyforgeExactVolumeBiomeResolver resolver) {
+        ReviewPresentationKey key = new ReviewPresentationKey(volume.id(), chunk.getPos().toLong());
+        if (presentedReviewBiomeChunks.contains(key)) {
+            return;
+        }
+        var result = SkyforgePersistentBiomePresentationStage.presentDevelopmentReview(
+                level, chunk, volume.id(), volume.bounds(), resolver);
+        presentedReviewBiomeChunks.add(key);
+        LOGGER.log(
+                System.Logger.Level.INFO,
+                "SF-IMP-1526 STORED BIOME FIELD: volume=" + volume.id().path()
+                        + ", chunk=" + chunk.getPos()
+                        + ", biome=" + resolver.resolve(
+                                volume.id(), chunk.getPos().getMiddleBlockX(),
+                                chunk.getMinBuildHeight(), chunk.getPos().getMiddleBlockZ()).location()
+                        + ", eligibleQuartCells=" + result.eligibleQuartCells()
+                        + ", changedQuartCells=" + result.changedQuartCells()
+                        + ", ambiguousQuartCells=" + result.ambiguousQuartCells());
     }
 
     @SubscribeEvent
@@ -733,6 +821,9 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             upperIslandBiomeFieldSampleKey = nativeResult.biomeKey();
             islandBiomeFieldCandidateProofChunks.add(chunkKey);
         }
+        if (alphaClusterReview() && providerMode) {
+            reviewBiomeChunksPending.add(chunkKey);
+        }
         if (providerMode) {
             recordProviderBiomeEvidence(
                     level, generator, sample.x(), sample.firstFreeY(), sample.z(), nativeResult.biomeKey());
@@ -994,6 +1085,12 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             if (logBlocks < 0 || leafBlocks < 0) {
                 throw new IllegalArgumentException("vegetation evidence counts must be non-negative");
             }
+        }
+    }
+
+    private record ReviewPresentationKey(SkyIslandWorldVolumeId volumeId, long chunkKey) {
+        private ReviewPresentationKey {
+            Objects.requireNonNull(volumeId, "volumeId");
         }
     }
 
