@@ -183,6 +183,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
                         edgeDistance,
                         PROVIDER_RELIEF_EDGE_BLEND_RADIUS_BLOCKS,
                         MinecraftNativeSurfaceSnapshot.SURFACE_STRATA_DEPTH);
+                boolean providerTopMaterialSubstituted = !nativeBlockKey.equals(providerSurfaceMaterial);
                 // Use the same footprint influence for shape and representation: the authored cap
                 // owns the rim, then progressively more provider strata enter toward the interior.
                 ResourceLocation selectedSurfaceMaterial = providerLayerCount == 0
@@ -224,6 +225,9 @@ public final class MinecraftNativeSurfaceTopAdapter {
                                 int localY = worldY - materialization.minimumY();
                                 blockKeys[linearIndex(localX, localY, localZ)] = stratumMaterial;
                             }
+                        } else if (providerTopMaterialSubstituted) {
+                            int localY = worldY - materialization.minimumY();
+                            blockKeys[linearIndex(localX, localY, localZ)] = selectedSurfaceMaterial;
                         }
                     }
                 } else if (targetTopY < originalTopY) {
@@ -254,6 +258,9 @@ public final class MinecraftNativeSurfaceTopAdapter {
                                 int localY = worldY - materialization.minimumY();
                                 blockKeys[linearIndex(localX, localY, localZ)] = stratumMaterial;
                             }
+                        } else if (providerTopMaterialSubstituted) {
+                            int localY = worldY - materialization.minimumY();
+                            blockKeys[linearIndex(localX, localY, localZ)] = selectedSurfaceMaterial;
                         }
                     }
                 }
@@ -315,9 +322,9 @@ public final class MinecraftNativeSurfaceTopAdapter {
                     }
                     ResourceLocation sideSurfaceMaterial = selectedSurfaceMaterial;
                     var stratum = snapshot.surfaceStratum(localX, localZ, depth);
+                    var providerSurface = snapshot.surface(localX, localZ).orElseThrow();
                     if (stratum.isPresent()) {
                         sideSurfaceMaterial = stratum.orElseThrow();
-                        var providerSurface = snapshot.surface(localX, localZ).orElseThrow();
                         if (!stableTerrainProfileMaterial(sideSurfaceMaterial)
                                 || (SkyforgeMinecraftBlockPalette.STONE.equals(providerSurface.blockKey())
                                         && dominantProviderSurfaceMaterial != null
@@ -326,6 +333,12 @@ public final class MinecraftNativeSurfaceTopAdapter {
                                         && SkyforgeMinecraftBlockPalette.STONE.equals(sideSurfaceMaterial))) {
                             sideSurfaceMaterial = selectedSurfaceMaterial;
                         }
+                    } else if (!providerSurface.blockKey().equals(selectedSurfaceMaterial)) {
+                        sideSurfaceMaterial = selectedSurfaceMaterial;
+                    } else {
+                        // A captured profile that ends at bedrock has no more native mantle.
+                        // Keep the island's structural material below that exact transition.
+                        continue;
                     }
                     if (stableTerrainProfileMaterial(sideSurfaceMaterial)) {
                         blockKeys[index] = sideSurfaceMaterial;

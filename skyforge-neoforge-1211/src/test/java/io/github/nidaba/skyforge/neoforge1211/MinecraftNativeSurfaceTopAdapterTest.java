@@ -415,8 +415,9 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                 ResourceLocation.withDefaultNamespace("dirt"),
                 profile.materialization().blockKeyAt(surfaceX, loweredTopY - 2, surfaceZ));
         assertEquals(
-                ResourceLocation.withDefaultNamespace("stone"),
-                profile.materialization().blockKeyAt(surfaceX, loweredTopY - 3, surfaceZ));
+                ResourceLocation.withDefaultNamespace("dirt"),
+                profile.materialization().blockKeyAt(surfaceX, loweredTopY - 3, surfaceZ),
+                "the expanded surface mantle should continue through its authored soil layer");
         assertEquals(
                 SkyforgeMinecraftBlockPalette.AIR,
                 profile.materialization().blockKeyAt(surfaceX, supportMaximumY, surfaceZ),
@@ -583,6 +584,42 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                 grayCappedIsland.blockKeyAt(riseX, riseTopY - 5, riseZ),
                 profile.materialization().blockKeyAt(riseX, riseTopY - 5, riseZ),
                 "deep island material below the bounded join skin must not be repainted into a repeating wall");
+    }
+
+    @Test
+    void nativeSurfaceProfileCarriesTaggedSoilMantleAndStopsBeforeBedrock() {
+        ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(new ChunkPos(0, 0));
+        chunk.setBlockState(new BlockPos(8, 223, 8), Blocks.GRASS_BLOCK.defaultBlockState(), false);
+        chunk.setBlockState(new BlockPos(8, 222, 8), Blocks.DIRT.defaultBlockState(), false);
+        chunk.setBlockState(new BlockPos(8, 221, 8), Blocks.COARSE_DIRT.defaultBlockState(), false);
+        chunk.setBlockState(new BlockPos(8, 220, 8), Blocks.STONE.defaultBlockState(), false);
+        chunk.setBlockState(new BlockPos(9, 223, 8), Blocks.GRAVEL.defaultBlockState(), false);
+        chunk.setBlockState(new BlockPos(9, 222, 8), Blocks.DIRT.defaultBlockState(), false);
+
+        MinecraftNativeSurfaceSnapshot snapshot = MinecraftNativeSurfaceSnapshot.capture(chunk, 63);
+
+        assertEquals(
+                ResourceLocation.withDefaultNamespace("grass_block"),
+                snapshot.surfaceStratum(8, 8, 0).orElseThrow());
+        assertEquals(
+                ResourceLocation.withDefaultNamespace("dirt"),
+                snapshot.surfaceStratum(8, 8, 1).orElseThrow());
+        assertEquals(
+                ResourceLocation.withDefaultNamespace("coarse_dirt"),
+                snapshot.surfaceStratum(8, 8, 2).orElseThrow());
+        assertTrue(
+                snapshot.surfaceStratum(8, 8, 3).isEmpty(),
+                "native surface dressing should stop at bedrock instead of copying the island body");
+        assertEquals(
+                ResourceLocation.withDefaultNamespace("gravel"),
+                snapshot.surfaceStratum(9, 8, 0).orElseThrow());
+        assertEquals(
+                ResourceLocation.withDefaultNamespace("dirt"),
+                snapshot.surfaceStratum(9, 8, 1).orElseThrow(),
+                "provider soil below a gravity-affected top may still dress the island when the adapter stabilizes it");
+        assertEquals(
+                8,
+                MinecraftNativeSurfaceSnapshot.SURFACE_STRATA_DEPTH);
     }
 
     @Test
