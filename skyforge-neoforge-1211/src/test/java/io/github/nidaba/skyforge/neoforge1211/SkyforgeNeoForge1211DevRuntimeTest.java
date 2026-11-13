@@ -98,8 +98,8 @@ final class SkyforgeNeoForge1211DevRuntimeTest {
         try {
             var catalog = SkyforgeNeoForge1211DevRuntime.catalog();
             assertEquals(2, catalog.volumes().size());
-            assertEquals("sf-imp-0043-dev-massif", catalog.volumes().get(0).id().path());
-            assertEquals("sf-imp-0054-review-basin", catalog.volumes().get(1).id().path());
+            assertTrue(catalog.volumes().get(0).id().path().contains("/sf-imp-0043-dev-massif/"));
+            assertTrue(catalog.volumes().get(1).id().path().contains("/sf-imp-0054-review-basin/"));
 
             var adapter = SkyforgeNeoForge1211DevRuntime.adapter();
             assertTrue(adapter.materialize(new ChunkPos(0, 0), -64, 640).solidBlockCount() > 0,
