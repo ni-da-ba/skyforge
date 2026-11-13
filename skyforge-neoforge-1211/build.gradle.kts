@@ -1024,6 +1024,20 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // SF-IMP-1526 layers the same accepted provider/ecology path onto a planner-authored,
+        // two-member Massif/Basin cluster with deterministic identity and varied suspension height.
+        create("alphaClusterBiomePopulationReviewClient") {
+            client()
+            sourceSet.set(moddedBiomePopulationClientRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-1526-alpha-cluster-review").asFile
+            systemProperty("skyforge.dev.tectonicBiomeSurfaceReview", "true")
+            systemProperty("skyforge.dev.alphaClusterReview", "true")
+            systemProperty("skyforge.dev.biomePopulation", "true")
+            systemProperty("skyforge.dev.biomePopulation.upperBiome", "biomesoplenty:rocky_shrubland")
+            systemProperty("skyforge.dev.biomePopulation.providerBiome", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // Opens the exact saved provider-biome acceptance specimen for owner visual review.
         create("moddedBiomePopulationReviewClient") {
             client()
@@ -9735,6 +9749,15 @@ tasks.named("runModdedBiomePopulationReviewClient").configure {
     doFirst {
         configureSfImp0054TectonicTreatment(
             layout.projectDirectory.dir("run-sf-imp-0054-modded-biome-review").asFile,
+        )
+    }
+}
+
+tasks.named("runAlphaClusterBiomePopulationReviewClient").configure {
+    notCompatibleWithConfigurationCache("SF-IMP-1526 visual client uses the pinned Tectonic profile.")
+    doFirst {
+        configureSfImp0054TectonicTreatment(
+            layout.projectDirectory.dir("run-sf-imp-1526-alpha-cluster-review").asFile,
         )
     }
 }

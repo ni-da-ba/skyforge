@@ -25,7 +25,7 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 final class SkyforgeSkyBiomeZonePersistenceAcceptance {
     static final String ENABLE_PROPERTY = "skyforge.dev.skyBiomeZonePersistence";
     static final String MODE_PROPERTY = ENABLE_PROPERTY + ".mode";
-    private static final WorldBounds PROVINCE_BOUNDS =
+    private static final WorldBounds FIXTURE_PROVINCE_BOUNDS =
             new WorldBounds(-256.0, 256.0, 0.0, 512.0, -256.0, 256.0);
     private static final List<WorldBounds> CLOUD_SHELVES =
             List.of(new WorldBounds(-32.0, 32.0, 280.0, 320.0, -32.0, 32.0));
@@ -110,9 +110,33 @@ final class SkyforgeSkyBiomeZonePersistenceAcceptance {
     }
 
     private static SkyBiomeSpatialField compileField(long worldSeed) {
-        SkyIslandWorldCatalog islands = SkyforgeNeoForge1211PopulationDevRuntime.catalog();
+        boolean alphaCluster = Boolean.getBoolean(SkyforgeNeoForge1211DevRuntime.ALPHA_CLUSTER_REVIEW_PROPERTY);
+        SkyIslandWorldCatalog islands = alphaCluster
+                ? SkyforgeNeoForge1211DevRuntime.catalog()
+                : SkyforgeNeoForge1211PopulationDevRuntime.catalog();
+        WorldBounds provinceBounds = alphaCluster ? provinceBoundsFor(islands) : FIXTURE_PROVINCE_BOUNDS;
         return new SkyBiomeSpatialFieldCompiler().compile(
-                worldSeed, PROVINCE_BOUNDS, islands, CLOUD_SHELVES, LEE_RADIUS);
+                worldSeed, provinceBounds, islands, CLOUD_SHELVES, LEE_RADIUS);
+    }
+
+    private static WorldBounds provinceBoundsFor(SkyIslandWorldCatalog islands) {
+        double minimumX = Double.POSITIVE_INFINITY;
+        double maximumX = Double.NEGATIVE_INFINITY;
+        double minimumZ = Double.POSITIVE_INFINITY;
+        double maximumZ = Double.NEGATIVE_INFINITY;
+        for (var volume : islands.volumes()) {
+            minimumX = Math.min(minimumX, volume.bounds().minimumX());
+            maximumX = Math.max(maximumX, volume.bounds().maximumX());
+            minimumZ = Math.min(minimumZ, volume.bounds().minimumZ());
+            maximumZ = Math.max(maximumZ, volume.bounds().maximumZ());
+        }
+        return new WorldBounds(
+                minimumX - 128.0,
+                maximumX + 128.0,
+                0.0,
+                512.0,
+                minimumZ - 128.0,
+                maximumZ + 128.0);
     }
 
     private static void verifyPersistedField(

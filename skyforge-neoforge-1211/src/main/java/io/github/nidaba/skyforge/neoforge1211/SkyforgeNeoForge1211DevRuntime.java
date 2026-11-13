@@ -27,6 +27,7 @@ final class SkyforgeNeoForge1211DevRuntime {
     static final String ENABLE_PROPERTY = "skyforge.dev.specimen";
     static final String TECTONIC_REVIEW_ENABLE_PROPERTY = "skyforge.dev.tectonicTerrainReviewIsland";
     static final String TECTONIC_BIOME_SURFACE_REVIEW_PROPERTY = "skyforge.dev.tectonicBiomeSurfaceReview";
+    static final String ALPHA_CLUSTER_REVIEW_PROPERTY = "skyforge.dev.alphaClusterReview";
     static final long ROOT_SEED = 0x534b59464f524745L;
     static final int INSPECTION_X = 0;
     static final int INSPECTION_Y = 300;
@@ -43,7 +44,8 @@ final class SkyforgeNeoForge1211DevRuntime {
         boolean structureSpecimen = Boolean.getBoolean(ENABLE_PROPERTY);
         boolean tectonicReviewIsland = Boolean.getBoolean(TECTONIC_REVIEW_ENABLE_PROPERTY);
         boolean tectonicBiomeSurfaceReview = Boolean.getBoolean(TECTONIC_BIOME_SURFACE_REVIEW_PROPERTY);
-        if ((!structureSpecimen && !tectonicReviewIsland && !tectonicBiomeSurfaceReview)
+        boolean alphaClusterReview = Boolean.getBoolean(ALPHA_CLUSTER_REVIEW_PROPERTY);
+        if ((!structureSpecimen && !tectonicReviewIsland && !tectonicBiomeSurfaceReview && !alphaClusterReview)
                 || persistentBinding != null) {
             return;
         }
@@ -53,7 +55,13 @@ final class SkyforgeNeoForge1211DevRuntime {
         }
 
         persistentBinding = installSpecimen();
-        if (structureSpecimen) {
+        if (alphaClusterReview) {
+            LOGGER.log(
+                    System.Logger.Level.INFO,
+                    "Skyforge SF-IMP-1526 two-island alpha cluster binding enabled. The catalog is planned "
+                            + "from the cluster hierarchy with Massif and Basin members at varied "
+                            + "suspension elevations; inspect around x=0, z=0.");
+        } else if (structureSpecimen) {
             LOGGER.log(
                     System.Logger.Level.INFO,
                     "Skyforge SF-IMP-0043 development specimen enabled for native structure-start visibility. "
@@ -87,6 +95,9 @@ final class SkyforgeNeoForge1211DevRuntime {
     }
 
     static SkyIslandWorldCatalog catalog() {
+        if (Boolean.getBoolean(ALPHA_CLUSTER_REVIEW_PROPERTY)) {
+            return SkyforgeAlphaClusterCatalog.compile(ROOT_SEED);
+        }
         if (Boolean.getBoolean(TECTONIC_BIOME_SURFACE_REVIEW_PROPERTY)) {
             // Keep the accepted central Massif at its exact review coordinates and pair it with the
             // same-level Basin family at the established east review position.

@@ -53,6 +53,8 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
     static final String PROVIDER_BIOME_PROPERTY = "skyforge.dev.biomePopulation.providerBiome";
     private static final String TECTONIC_COMBINED_REVIEW_PROPERTY =
             SkyforgeNeoForge1211DevRuntime.TECTONIC_BIOME_SURFACE_REVIEW_PROPERTY;
+    private static final String ALPHA_CLUSTER_REVIEW_PROPERTY =
+            SkyforgeNeoForge1211DevRuntime.ALPHA_CLUSTER_REVIEW_PROPERTY;
     static final String WAIT_FOR_CLIENT_PROPERTY = "skyforge.dev.biomePopulation.waitForRemoteClient";
     static final String CLIENT_RESULT_FILE_PROPERTY = "skyforge.dev.biomePopulation.clientResultFile";
     private static final String REOPEN_ACCEPTANCE_CASE = "sf-imp-0054-modded-biome-reopen";
@@ -62,7 +64,9 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
     private static final ChunkPos EXTERIOR_WITNESS_CHUNK = new ChunkPos(5, 0);
 
     private static ChunkPos exteriorWitnessChunk() {
-        return Boolean.getBoolean(TECTONIC_COMBINED_REVIEW_PROPERTY)
+        return alphaClusterReview()
+                ? new ChunkPos(24, 24)
+                : Boolean.getBoolean(TECTONIC_COMBINED_REVIEW_PROPERTY)
                 ? new ChunkPos(11, 0)
                 : EXTERIOR_WITNESS_CHUNK;
     }
@@ -199,7 +203,10 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 Map.ofEntries(
                         Map.entry("selectedUpperBiome", UPPER_BIOME.location()),
                         Map.entry("tectonicMorphologyPair",
-                                Boolean.getBoolean(TECTONIC_COMBINED_REVIEW_PROPERTY) ? "MASSIF/BASIN" : "legacy-tableland"),
+                                alphaClusterReview()
+                                        ? "planned-MASSIF/BASIN-varied-elevation"
+                                        : Boolean.getBoolean(TECTONIC_COMBINED_REVIEW_PROPERTY)
+                                                ? "MASSIF/BASIN" : "legacy-tableland"),
                         Map.entry("lowerIslandVolume", catalog().volumes().get(0).id().path()),
                         Map.entry("upperIslandVolume", catalog().volumes().get(1).id().path()),
                         Map.entry("islandBiomeField", UPPER_BIOME.location()),
@@ -346,7 +353,10 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 Map.ofEntries(
                         Map.entry("selectedUpperBiome", UPPER_BIOME.location()),
                         Map.entry("tectonicMorphologyPair",
-                                Boolean.getBoolean(TECTONIC_COMBINED_REVIEW_PROPERTY) ? "MASSIF/BASIN" : "legacy-tableland"),
+                                alphaClusterReview()
+                                        ? "planned-MASSIF/BASIN-varied-elevation"
+                                        : Boolean.getBoolean(TECTONIC_COMBINED_REVIEW_PROPERTY)
+                                                ? "MASSIF/BASIN" : "legacy-tableland"),
                         Map.entry("lowerIslandVolume", catalog().volumes().get(0).id().path()),
                         Map.entry("upperIslandVolume", catalog().volumes().get(1).id().path()),
                         Map.entry("islandBiomeField", UPPER_BIOME.location()),
@@ -544,9 +554,15 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
     }
 
     private static long distanceFromProviderIslandCenter(BlockPos sample) {
-        long providerCenterX = Boolean.getBoolean(TECTONIC_COMBINED_REVIEW_PROPERTY) ? 384L : 176L;
+        var providerBounds = catalog().volumes().get(1).bounds();
+        long providerCenterX = alphaClusterReview()
+                ? Math.round((providerBounds.minimumX() + providerBounds.maximumX()) * 0.5)
+                : Boolean.getBoolean(TECTONIC_COMBINED_REVIEW_PROPERTY) ? 384L : 176L;
         long dx = sample.getX() - providerCenterX;
-        long dz = sample.getZ();
+        long providerCenterZ = alphaClusterReview()
+                ? Math.round((providerBounds.minimumZ() + providerBounds.maximumZ()) * 0.5)
+                : 0L;
+        long dz = sample.getZ() - providerCenterZ;
         return dx * dx + dz * dz;
     }
 
@@ -603,7 +619,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         if (!enabled() || persistentBinding != null) {
             return;
         }
-        if (Boolean.getBoolean(TECTONIC_COMBINED_REVIEW_PROPERTY)) {
+        if (Boolean.getBoolean(TECTONIC_COMBINED_REVIEW_PROPERTY) || alphaClusterReview()) {
             if (!SkyforgeNeoForge1211SurfaceStage.hasActiveBinding()
                     || !SkyforgeNeoForge1211SurfaceStage.hasNativeSurfaceAdaptation()) {
                 throw new IllegalStateException(
@@ -626,7 +642,9 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 && !Boolean.getBoolean(PROVIDER_BIOME_PROPERTY)) {
             installServerAcceptanceWarmupChunks();
         }
-        String specimenLayout = Boolean.getBoolean(TECTONIC_COMBINED_REVIEW_PROPERTY)
+        String specimenLayout = alphaClusterReview()
+                ? "review the planner-authored Massif/Basin cluster at varied heights; "
+                : Boolean.getBoolean(TECTONIC_COMBINED_REVIEW_PROPERTY)
                 ? "review the Tectonic Massif at x=0 and the same-level Basin at x=384; "
                         + "the exterior witness is chunk (11, 0). "
                 : "review the legacy tableland pair at x=0 and x=176; ";
@@ -910,6 +928,9 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
     }
 
     static SkyIslandWorldCatalog catalog() {
+        if (alphaClusterReview()) {
+            return SkyforgeNeoForge1211DevRuntime.catalog();
+        }
         if (Boolean.getBoolean(TECTONIC_COMBINED_REVIEW_PROPERTY)) {
             SkyIslandWorldCatalog terrainCatalog = SkyforgeNeoForge1211DevRuntime.catalog();
             if (terrainCatalog.volumes().size() != 2) {
@@ -931,6 +952,10 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 new WorldBounds(104.0, 248.0, 96.0, 168.0, -72.0, 72.0),
                 compileTableland(upperSeed, 176.0, 136.0));
         return new SkyIslandWorldCatalog(ROOT_SEED, List.of(lower, upper));
+    }
+
+    private static boolean alphaClusterReview() {
+        return Boolean.getBoolean(ALPHA_CLUSTER_REVIEW_PROPERTY);
     }
 
     private static SkyforgeNeoForge1211ChunkAdapter adapter() {
