@@ -1,5 +1,6 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -84,6 +85,35 @@ final class SkyforgeNeoForge1211DevRuntimeTest {
             }
         }
         assertTrue(surfaceWithinBand, label + " island missed its expected vertical review band");
+    }
+
+    @Test
+    void tectonicBiomeReviewUsesAdjacentSameLevelMassifAndBasin() {
+        String combinedProperty = SkyforgeNeoForge1211DevRuntime.TECTONIC_BIOME_SURFACE_REVIEW_PROPERTY;
+        String multiIslandProperty = SkyforgeNeoForge1211DevRuntime.TECTONIC_REVIEW_ENABLE_PROPERTY;
+        String previousCombined = System.getProperty(combinedProperty);
+        String previousMultiIsland = System.getProperty(multiIslandProperty);
+        System.setProperty(combinedProperty, "true");
+        System.clearProperty(multiIslandProperty);
+        try {
+            var catalog = SkyforgeNeoForge1211DevRuntime.catalog();
+            assertEquals(2, catalog.volumes().size());
+            assertTrue(catalog.volumes().get(0).id().path().contains("/sf-imp-0043-dev-massif/"));
+            assertTrue(catalog.volumes().get(1).id().path().contains("/sf-imp-0054-review-basin/"));
+
+            var adapter = SkyforgeNeoForge1211DevRuntime.adapter();
+            assertTrue(adapter.materialize(new ChunkPos(0, 0), -64, 640).solidBlockCount() > 0,
+                    "the accepted Massif review location must remain populated");
+            assertTrue(adapter.materialize(new ChunkPos(24, 0), -64, 640).solidBlockCount() > 0,
+                    "the neighboring Basin review location must be populated");
+            assertEquals(0, adapter.materialize(new ChunkPos(11, 0), -64, 640).solidBlockCount(),
+                    "the witness chunk between the two islands must remain empty");
+        } finally {
+            if (previousCombined == null) System.clearProperty(combinedProperty);
+            else System.setProperty(combinedProperty, previousCombined);
+            if (previousMultiIsland == null) System.clearProperty(multiIslandProperty);
+            else System.setProperty(multiIslandProperty, previousMultiIsland);
+        }
     }
 
     @Test

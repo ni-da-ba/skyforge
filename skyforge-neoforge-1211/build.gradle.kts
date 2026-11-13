@@ -313,6 +313,31 @@ val wbyAlphaServerRuntime = sourceSets.create("wbyAlphaServerRuntime") {
         development.output
 }
 
+// Isolated runtime for the Tectonic plus native-biome surface integration proof.
+val moddedBiomePopulationClientRuntime = sourceSets.create("moddedBiomePopulationClientRuntime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath += sourceSets.main.get().output + sourceSets.main.get().runtimeClasspath + development.output
+}
+val moddedBiomePopulationServerRuntime = sourceSets.create("moddedBiomePopulationServerRuntime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath += sourceSets.main.get().output + sourceSets.main.get().runtimeClasspath + development.output
+}
+
+val moddedBiomePopulationServerSave =
+    layout.projectDirectory.dir("run-sf-imp-0054-modded-biome-server/saves/acceptance").asFile
+val moddedBiomePopulationReviewGameDirectory =
+    layout.projectDirectory.dir("run-sf-imp-0054-modded-biome-review").asFile
+val prepareModdedBiomePopulationReviewSave =
+    tasks.register<org.gradle.api.tasks.Sync>("prepareModdedBiomePopulationReviewSave") {
+        from(moddedBiomePopulationServerSave)
+        into(moddedBiomePopulationReviewGameDirectory.resolve("saves/acceptance"))
+        doFirst {
+            check(moddedBiomePopulationServerSave.isDirectory) {
+                "SF-IMP-0054 review save is missing; extract the exact-head server acceptance artifact first."
+            }
+        }
+    }
+
 // S0.5A layers pack-integration authority onto the accepted S0 parent.
 val wbyS05ClientRuntime = sourceSets.create("wbyS05ClientRuntime") {
     compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
@@ -944,6 +969,100 @@ neoForge {
             systemProperty("skyforge.dev.tectonicTerrainReviewIsland", "true")
             systemProperty("skyforge.dev.performanceMetrics", "true")
             systemProperty("skyforge.dev.tectonicTerrain.reviewCamera", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // SF-IMP-0054 modded-biome experiment. Stage the selected server-side biome mod stack in
+        // this isolated game directory, then run the same exact-volume proof against its final
+        // registered biome and vegetation features. The proof defaults to vanilla taiga elsewhere.
+        create("moddedBiomePopulationClient") {
+            client()
+            sourceSet.set(moddedBiomePopulationClientRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0054-modded-biome").asFile
+            systemProperty("skyforge.dev.tectonicBiomeSurfaceReview", "true")
+            systemProperty("skyforge.dev.biomePopulation", "true")
+            systemProperty("skyforge.dev.biomePopulation.upperBiome", "biomesoplenty:rocky_shrubland")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // Opens the exact saved provider-biome acceptance specimen for owner visual review.
+        create("moddedBiomePopulationReviewClient") {
+            client()
+            sourceSet.set(moddedBiomePopulationClientRuntime)
+            systemProperty("skyforge.dev.biomePopulation", "true")
+            systemProperty("skyforge.dev.biomePopulation.upperBiome", "biomesoplenty:rocky_shrubland")
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0054-modded-biome-review").asFile
+            systemProperty("skyforge.dev.tectonicBiomeSurfaceReview", "true")
+            programArgument("--quickPlaySingleplayer")
+            programArgument("acceptance")
+            taskBefore(prepareModdedBiomePopulationReviewSave)
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("moddedBiomePopulationServer") {
+            server()
+            sourceSet.set(moddedBiomePopulationServerRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0054-modded-biome-server").asFile
+            systemProperty("skyforge.dev.tectonicBiomeSurfaceReview", "true")
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.biomePopulation", "true")
+            systemProperty("skyforge.dev.biomePopulation.upperBiome", "biomesoplenty:rocky_shrubland")
+            systemProperty("skyforge.dev.biomePopulation.providerBiome", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0054-modded-biome")
+            systemProperty("skyforge.dev.acceptanceRadius", "4")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "600")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0054-modded-biome/server.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // Reopen the same dedicated-server save after full surface ecology was persisted.
+        create("moddedBiomePopulationServerReopen") {
+            server()
+            sourceSet.set(moddedBiomePopulationServerRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0054-modded-biome-server").asFile
+            systemProperty("skyforge.dev.tectonicBiomeSurfaceReview", "true")
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.biomePopulation", "true")
+            systemProperty("skyforge.dev.biomePopulation.upperBiome", "biomesoplenty:rocky_shrubland")
+            systemProperty("skyforge.dev.biomePopulation.providerBiome", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0054-modded-biome-reopen")
+            systemProperty("skyforge.dev.acceptanceRadius", "4")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "600")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0054-modded-biome/reopen.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("moddedBiomePopulationJoinClient") {
+            client()
+            sourceSet.set(moddedBiomePopulationClientRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0054-modded-biome-join-client").asFile
+            systemProperty("skyforge.dev.tectonicBiomeSurfaceReview", "true")
+            systemProperty("skyforge.dev.biomePopulationJoinClient", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0054-modded-biome-join")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0054-modded-biome/client.properties").get().asFile.absolutePath,
+            )
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
@@ -7606,6 +7725,28 @@ dependencies {
         tectonicTerrainPin("lithostitched", "coordinate"),
     )
 
+    // Selected biome and Tectonic mods stay isolated to the combined alpha review profile.
+    add(moddedBiomePopulationClientRuntime.runtimeOnlyConfigurationName,
+        "curse.maven:biomes-o-plenty-220318:8288121")
+    add(moddedBiomePopulationClientRuntime.runtimeOnlyConfigurationName,
+        "maven.modrinth:kkmrDlKT:6e8GCrLb")
+    add(moddedBiomePopulationClientRuntime.runtimeOnlyConfigurationName,
+        "maven.modrinth:s3dmwKy5:S2TfWrZR")
+    add(moddedBiomePopulationServerRuntime.runtimeOnlyConfigurationName,
+        "curse.maven:biomes-o-plenty-220318:8288121")
+    add(moddedBiomePopulationServerRuntime.runtimeOnlyConfigurationName,
+        "maven.modrinth:kkmrDlKT:6e8GCrLb")
+    add(moddedBiomePopulationServerRuntime.runtimeOnlyConfigurationName,
+        "maven.modrinth:s3dmwKy5:S2TfWrZR")
+    add(moddedBiomePopulationClientRuntime.runtimeOnlyConfigurationName,
+        tectonicTerrainPin("tectonic", "coordinate"))
+    add(moddedBiomePopulationClientRuntime.runtimeOnlyConfigurationName,
+        tectonicTerrainPin("lithostitched", "coordinate"))
+    add(moddedBiomePopulationServerRuntime.runtimeOnlyConfigurationName,
+        tectonicTerrainPin("tectonic", "coordinate"))
+    add(moddedBiomePopulationServerRuntime.runtimeOnlyConfigurationName,
+        tectonicTerrainPin("lithostitched", "coordinate"))
+
     api(project(":skyforge-world"))
 
     // HS-03's reference:crescent specimen is implemented by a fixture-only provider in this
@@ -9524,4 +9665,37 @@ tasks.register("launchF4KHydrologyReview") {
     group = "application"
     description = "Prepare the exact F4H/F4D hydrology specimen, then quick-play it for human review."
     dependsOn("runF4kHydrologyReviewPrepare", "runF4kHydrologyReviewClient")
+}
+
+tasks.named("runModdedBiomePopulationServer").configure {
+    notCompatibleWithConfigurationCache("SF-IMP-0054 Tectonic/ecology run writes its isolated provider config.")
+    doFirst {
+        configureSfImp0054TectonicTreatment(
+            layout.projectDirectory.dir("run-sf-imp-0054-modded-biome-server").asFile,
+        )
+    }
+}
+tasks.named("runModdedBiomePopulationServerReopen").configure {
+    notCompatibleWithConfigurationCache("SF-IMP-0054 same-world reopen uses the pinned Tectonic profile.")
+    doFirst {
+        configureSfImp0054TectonicTreatment(
+            layout.projectDirectory.dir("run-sf-imp-0054-modded-biome-server").asFile,
+        )
+    }
+}
+tasks.named("runModdedBiomePopulationJoinClient").configure {
+    notCompatibleWithConfigurationCache("SF-IMP-0054 remote client loads the pinned Tectonic stack.")
+    doFirst {
+        configureSfImp0054TectonicTreatment(
+            layout.projectDirectory.dir("run-sf-imp-0054-modded-biome-join-client").asFile,
+        )
+    }
+}
+tasks.named("runModdedBiomePopulationReviewClient").configure {
+    notCompatibleWithConfigurationCache("SF-IMP-0054 visual client loads the same Tectonic profile.")
+    doFirst {
+        configureSfImp0054TectonicTreatment(
+            layout.projectDirectory.dir("run-sf-imp-0054-modded-biome-review").asFile,
+        )
+    }
 }
