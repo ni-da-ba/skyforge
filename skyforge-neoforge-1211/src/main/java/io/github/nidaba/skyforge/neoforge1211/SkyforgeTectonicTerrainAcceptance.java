@@ -57,14 +57,15 @@ final class SkyforgeTectonicTerrainAcceptance {
     private static final int PROFILE_RADIUS = 8;
     private static final int MINIMUM_TECTONIC_ISLAND_RELIEF_BLOCKS = 48;
     private static final int MAXIMUM_TECTONIC_ISLAND_COLUMNS_NEAR_PEAK = 128;
-    // Provider-profile references remain pinned to the accepted 7502d9b specimen. Realized-surface
-    // references pin the intentional Euclidean edge-blend output from candidate 2d2da15.
+    // Provider-profile and height references remain pinned to the accepted specimen. The vanilla
+    // realized-surface digest includes the admitted bounded soil mantle from #1550; height output
+    // remains byte-for-byte stable across this material-only change.
     private static final String VANILLA_PROVIDER_PROFILE_DIGEST =
             "5943921b4706da8099ebf0ad86b097754bb225cd034f4139069272d139a0e621";
     private static final String VANILLA_PROVIDER_HEIGHT_DIGEST =
             "b526ee0ccb956d883b3299452b68c145e5f6af8e7ea898e2b9093e95376b6bbf";
     private static final String VANILLA_REALIZED_SURFACE_DIGEST =
-            "6bea3455b281178b4f6eaa79a94f5cf392a70005134bc0c0329f615387368dc7";
+            "57a220610dae8cc27146ea5fba327f1821dbae656459037a9415ac92a2d4c8cf";
     private static final String VANILLA_REALIZED_HEIGHT_DIGEST =
             "8c3608c9dafd7f2f20a6f66ac8f42ebee6b3f44ab73c90628b95dc69e8d49da5";
     private static final String TECTONIC_PROVIDER_PROFILE_DIGEST =
