@@ -5,11 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyBiomeCatalog;
+import io.github.nidaba.skyforge.world.SkyIslandTerrainProfile;
 import org.junit.jupiter.api.Test;
 
 final class SkyforgeAlphaClusterCatalogTest {
     @Test
-    void compilesARepeatableHierarchicalMassifBasinClusterAtDistinctElevations() {
+    void compilesARepeatableHierarchicalMassifBasinClusterWithAnAdmittedOriginSpawn() {
         var first = SkyforgeAlphaClusterCatalog.compile(0x534b59464f524745L);
         var repeated = SkyforgeAlphaClusterCatalog.compile(0x534b59464f524745L);
 
@@ -17,18 +18,29 @@ final class SkyforgeAlphaClusterCatalogTest {
         assertEquals(
                 first.volumes().stream().map(volume -> volume.id().path()).toList(),
                 repeated.volumes().stream().map(volume -> volume.id().path()).toList());
-        assertEquals("sf-imp-1526-alpha-cluster", first.volumes().get(0).id().groupIdentifier());
+        assertEquals("sf-imp-1526-massif-anchor", first.volumes().get(0).id().groupIdentifier());
         assertEquals(0, first.volumes().get(0).id().groupOrdinal());
         assertEquals(0, first.volumes().get(0).id().memberOrdinal());
-        assertEquals(1, first.volumes().get(1).id().memberOrdinal());
+        assertEquals("sf-imp-1526-basin-satellite", first.volumes().get(1).id().groupIdentifier());
+        assertEquals(1, first.volumes().get(1).id().groupOrdinal());
+        assertEquals(0, first.volumes().get(1).id().memberOrdinal());
         var firstMember = first.volumes().get(0).compiledVolume().descriptor();
         var secondMember = first.volumes().get(1).compiledVolume().descriptor();
-        assertNotEquals(firstMember.centerX(), secondMember.centerX());
-        assertNotEquals(firstMember.centerZ(), secondMember.centerZ());
+        assertEquals(0.0, firstMember.centerX(), 1.0e-9);
+        assertEquals(0.0, firstMember.centerZ(), 1.0e-9);
+        assertEquals(392.0, secondMember.centerX(), 1.0e-9);
+        assertEquals(0.0, secondMember.centerZ(), 1.0e-9);
         assertNotEquals(firstMember.suspensionElevation(), secondMember.suspensionElevation());
         double dx = firstMember.centerX() - secondMember.centerX();
         double dz = firstMember.centerZ() - secondMember.centerZ();
         assertTrue(Math.hypot(dx, dz) >= 392.0);
+
+        var adapter = new SkyforgeNeoForge1211ChunkAdapter(
+                first,
+                SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette());
+        assertTrue(adapter.firstFreeHeight(first.volumes().get(0).id(), 0, 0, -64, 640).isPresent(),
+                "Minecraft's origin spawn column must be on the anchor island");
     }
 
     @Test
@@ -37,7 +49,7 @@ final class SkyforgeAlphaClusterCatalogTest {
         var changed = SkyforgeAlphaClusterCatalog.compile(0x534b59464f524746L);
 
         assertEquals(2, changed.volumeCount());
-        assertEquals("sf-imp-1526-alpha-cluster", changed.volumes().get(0).id().groupIdentifier());
+        assertEquals("sf-imp-1526-massif-anchor", changed.volumes().get(0).id().groupIdentifier());
         assertNotEquals(
                 first.volumes().stream().map(volume -> volume.id().path()).toList(),
                 changed.volumes().stream().map(volume -> volume.id().path()).toList());
