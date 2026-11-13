@@ -14,6 +14,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.NoiseColumn;
@@ -38,7 +39,9 @@ import net.minecraft.world.level.levelgen.blending.Blender;
 final class MinecraftNativeSurfaceSnapshot {
     private static final int CHUNK_WIDTH = 16;
     private static final int SAMPLE_COUNT = CHUNK_WIDTH * CHUNK_WIDTH;
-    static final int SURFACE_STRATA_DEPTH = 4;
+    static final int SURFACE_STRATA_DEPTH = 8;
+    private static final Set<String> VANILLA_MANTLE_FALLBACKS = Set.of(
+            "dirt", "coarse_dirt", "rooted_dirt", "mud", "sand", "red_sand");
     private static final int PROFILE_FILTER_RADIUS = 7;
     private static final int PROFILE_SAMPLE_HALO_RADIUS = PROFILE_FILTER_RADIUS;
     private static final int PROFILE_FILTER_WIDTH = CHUNK_WIDTH + PROFILE_SAMPLE_HALO_RADIUS * 2;
@@ -153,6 +156,9 @@ final class MinecraftNativeSurfaceSnapshot {
                             break;
                         }
                         continue;
+                    }
+                    if (layer > 0 && !isNativeSurfaceMantle(state, key)) {
+                        break;
                     }
                     if (layer == 0) {
                         worldYs[index] = worldY;
@@ -669,6 +675,9 @@ final class MinecraftNativeSurfaceSnapshot {
                         }
                         continue;
                     }
+                    if (layer > 0 && !isNativeSurfaceMantle(state, key)) {
+                        break;
+                    }
                     if (layer == 0) {
                         worldYs[index] = worldY;
                         blockKeys[index] = key;
@@ -678,6 +687,14 @@ final class MinecraftNativeSurfaceSnapshot {
             }
         }
         return new MinecraftNativeSurfaceSnapshot(chunk.getPos(), baselineY, worldYs, blockKeys, surfaceStrata);
+    }
+
+    private static boolean isNativeSurfaceMantle(BlockState state, ResourceLocation key) {
+        // Some focused tests run without datapack tags; retain the vanilla soils there while
+        // allowing the live registry tags to admit modded dirt and sand materials.
+        return state.is(BlockTags.DIRT)
+                || state.is(BlockTags.SAND)
+                || ("minecraft".equals(key.getNamespace()) && VANILLA_MANTLE_FALLBACKS.contains(key.getPath()));
     }
 
     private static ResourceLocation[][] emptySurfaceStrata() {
