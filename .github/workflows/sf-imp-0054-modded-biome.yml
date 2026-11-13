@@ -63,22 +63,20 @@ jobs:
       - name: Set up Java and Gradle
         uses: ./.github/actions/setup-java-gradle
 
-      - name: Run dedicated-server and remote-client acceptance
+      - name: Run dedicated-server, surface, and reopen acceptance
         shell: bash
         run: bash scripts/sf-imp-0054-modded-biome-acceptance.sh
 
-      - name: Preserve server, client, and acceptance evidence
+      - name: Preserve paired-island server and acceptance evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: sf-imp-0054-modded-biome-server-client
+          name: sf-imp-0054-modded-biome-review
           path: |
             sf-imp-0054-modded-biome-server-task.log
-            sf-imp-0054-modded-biome-client-task.log
             skyforge-neoforge-1211/build/acceptance/sf-imp-0054-modded-biome/
             skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-server/saves/acceptance/
             skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-server/logs/
-            skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-join-client/logs/
           if-no-files-found: warn
           retention-days: 14
 

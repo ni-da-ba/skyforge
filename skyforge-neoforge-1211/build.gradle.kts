@@ -1012,11 +1012,6 @@ neoForge {
             systemProperty("skyforge.dev.biomePopulation", "true")
             systemProperty("skyforge.dev.biomePopulation.upperBiome", "biomesoplenty:rocky_shrubland")
             systemProperty("skyforge.dev.biomePopulation.providerBiome", "true")
-            systemProperty("skyforge.dev.biomePopulation.waitForRemoteClient", "true")
-            systemProperty(
-                "skyforge.dev.biomePopulation.clientResultFile",
-                layout.buildDirectory.file("acceptance/sf-imp-0054-modded-biome/client.properties").get().asFile.absolutePath,
-            )
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0054-modded-biome")
@@ -1029,7 +1024,7 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
-        // Reopen the same dedicated-server save after the remote client accepted the first boot.
+        // Reopen the same dedicated-server save after full surface ecology was persisted.
         create("moddedBiomePopulationServerReopen") {
             server()
             sourceSet.set(moddedBiomePopulationServerRuntime)
