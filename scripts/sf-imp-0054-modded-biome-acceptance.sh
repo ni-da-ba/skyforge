@@ -69,8 +69,8 @@ verify_server_result() {
   grep -Fq 'tectonicConfigVerified=true' "$result"
   grep -Fq 'selectedUpperBiome=biomesoplenty\:rocky_shrubland' "$result"
   grep -Fq 'tectonicMorphologyPair=MASSIF/BASIN' "$result"
-  grep -Fq 'lowerIslandVolume=sf-imp-0043-dev-massif' "$result"
-  grep -Fq 'upperIslandVolume=sf-imp-0054-review-basin' "$result"
+  grep -Eq '^lowerIslandVolume=.*/sf-imp-0043-dev-massif/.*$' "$result"
+  grep -Eq '^upperIslandVolume=.*/sf-imp-0054-review-basin/.*$' "$result"
   grep -Fq 'islandBiomeField=biomesoplenty\:rocky_shrubland' "$result"
   grep -Eq '^lowerPersistentTreeEvidence=true$' "$result"
   grep -Eq '^upperPersistentTreeEvidence=true$' "$result"
@@ -108,6 +108,7 @@ verify_reopen_footprint() {
 # Tectonic generation can occupy the server long enough to expire the login handshake.
 rm -f "$server_dir/logs/latest.log"
 launch_server ":skyforge-neoforge-1211:runModdedBiomePopulationServer" "$server_task_log"
+cat "$server_result"
 verify_server_result "$server_result"
 verify_full_surface_coverage "$server_result"
 grep -Fq 'islandBiomeField=biomesoplenty\:rocky_shrubland' "$server_result"
