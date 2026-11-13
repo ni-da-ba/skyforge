@@ -415,8 +415,9 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                 ResourceLocation.withDefaultNamespace("dirt"),
                 profile.materialization().blockKeyAt(surfaceX, loweredTopY - 2, surfaceZ));
         assertEquals(
-                ResourceLocation.withDefaultNamespace("stone"),
-                profile.materialization().blockKeyAt(surfaceX, loweredTopY - 3, surfaceZ));
+                ResourceLocation.withDefaultNamespace("dirt"),
+                profile.materialization().blockKeyAt(surfaceX, loweredTopY - 3, surfaceZ),
+                "the expanded surface mantle should continue through its authored soil layer");
         assertEquals(
                 SkyforgeMinecraftBlockPalette.AIR,
                 profile.materialization().blockKeyAt(surfaceX, supportMaximumY, surfaceZ),
