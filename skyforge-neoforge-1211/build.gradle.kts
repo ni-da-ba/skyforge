@@ -323,6 +323,21 @@ val moddedBiomePopulationServerRuntime = sourceSets.create("moddedBiomePopulatio
     runtimeClasspath += sourceSets.main.get().output + sourceSets.main.get().runtimeClasspath + development.output
 }
 
+val moddedBiomePopulationServerSave =
+    layout.projectDirectory.dir("run-sf-imp-0054-modded-biome-server/saves/acceptance").asFile
+val moddedBiomePopulationReviewGameDirectory =
+    layout.projectDirectory.dir("run-sf-imp-0054-modded-biome-review").asFile
+val prepareModdedBiomePopulationReviewSave =
+    tasks.register<org.gradle.api.tasks.Sync>("prepareModdedBiomePopulationReviewSave") {
+        from(moddedBiomePopulationServerSave)
+        into(moddedBiomePopulationReviewGameDirectory.resolve("saves/acceptance"))
+        doFirst {
+            check(moddedBiomePopulationServerSave.isDirectory) {
+                "SF-IMP-0054 review save is missing; extract the exact-head server acceptance artifact first."
+            }
+        }
+    }
+
 // S0.5A layers pack-integration authority onto the accepted S0 parent.
 val wbyS05ClientRuntime = sourceSets.create("wbyS05ClientRuntime") {
     compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
@@ -980,6 +995,7 @@ neoForge {
             systemProperty("skyforge.dev.tectonicBiomeSurfaceReview", "true")
             programArgument("--quickPlaySingleplayer")
             programArgument("acceptance")
+            taskBefore(prepareModdedBiomePopulationReviewSave)
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
