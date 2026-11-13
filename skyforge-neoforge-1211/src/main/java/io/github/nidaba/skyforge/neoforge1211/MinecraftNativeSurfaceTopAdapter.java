@@ -335,6 +335,10 @@ public final class MinecraftNativeSurfaceTopAdapter {
                         }
                     } else if (!providerSurface.blockKey().equals(selectedSurfaceMaterial)) {
                         sideSurfaceMaterial = selectedSurfaceMaterial;
+                    } else {
+                        // A captured profile that ends at bedrock has no more native mantle.
+                        // Keep the island's structural material below that exact transition.
+                        continue;
                     }
                     if (stableTerrainProfileMaterial(sideSurfaceMaterial)) {
                         blockKeys[index] = sideSurfaceMaterial;
