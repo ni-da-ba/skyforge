@@ -617,7 +617,7 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                 snapshot.surfaceStratum(9, 8, 1).orElseThrow(),
                 "provider soil below a gravity-affected top may still dress the island when the adapter stabilizes it");
         assertEquals(
-                MinecraftNativeSurfaceSnapshot.MAX_SURFACE_PROFILE_LAYERS,
+                8,
                 MinecraftNativeSurfaceSnapshot.SURFACE_STRATA_DEPTH);
     }
 
