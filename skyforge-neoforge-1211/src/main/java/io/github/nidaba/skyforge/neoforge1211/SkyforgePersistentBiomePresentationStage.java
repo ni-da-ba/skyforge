@@ -69,7 +69,45 @@ final class SkyforgePersistentBiomePresentationStage {
             return new Result(volumeId, chunk.getPos().toLong(), 0, 0, 0, false);
         }
         SkyforgeNativeSurfacePopulationPlan plan = optionalPlan.orElseThrow();
-        WorldBounds volumeBounds = SkyforgePhysicalVolumeAdmissionStage.volumeBounds(volumeId);
+        return present(level, chunk, volumeId, plan.biomeResolver(),
+                SkyforgePhysicalVolumeAdmissionStage.volumeBounds(volumeId));
+    }
+
+    /**
+     * Persists the same narrow exact-volume biome field for an isolated void-base development
+     * review. The review fixture owns its catalog directly and does not use deferred physical
+     * admission; production callers must use {@link #present(ServerLevel, LevelChunk,
+     * SkyIslandWorldVolumeId)} so the accepted admission gate remains mandatory.
+     */
+    static Result presentDevelopmentReview(
+            ServerLevel level,
+            LevelChunk chunk,
+            SkyIslandWorldVolumeId volumeId,
+            WorldBounds volumeBounds,
+            SkyforgeExactVolumeBiomeResolver biomeResolver) {
+        Objects.requireNonNull(level, "level");
+        Objects.requireNonNull(chunk, "chunk");
+        Objects.requireNonNull(volumeId, "volumeId");
+        Objects.requireNonNull(volumeBounds, "volumeBounds");
+        Objects.requireNonNull(biomeResolver, "biomeResolver");
+        if (SkyforgePhysicalVolumeAdmissionStage.active()) {
+            throw new IllegalStateException("isolated biome review cannot bypass active physical admission");
+        }
+        if (!SkyforgeNeoForge1211SurfaceStage.hasActiveBinding()) {
+            throw new IllegalStateException("isolated biome review requires its exact Skyforge surface binding");
+        }
+        return present(level, chunk, volumeId, biomeResolver, volumeBounds);
+    }
+
+    private static Result present(
+            ServerLevel level,
+            LevelChunk chunk,
+            SkyIslandWorldVolumeId volumeId,
+            SkyforgeExactVolumeBiomeResolver biomeResolver,
+            WorldBounds volumeBounds) {
+        if (chunk.getLevel() != level) {
+            throw new IllegalArgumentException("biome-presentation chunk belongs to another level");
+        }
 
         var biomeRegistry = level.registryAccess().registryOrThrow(Registries.BIOME);
         var sampler = level.getChunkSource().randomState().sampler();
@@ -117,7 +155,7 @@ final class SkyforgePersistentBiomePresentationStage {
                         }
 
                         BlockPos position = sample.orElseThrow();
-                        if (!plan.biomeResolver().supportsSurface(
+                        if (!biomeResolver.supportsSurface(
                                 volumeId,
                                 position.getX(),
                                 position.getY(),
@@ -125,7 +163,7 @@ final class SkyforgePersistentBiomePresentationStage {
                             continue;
                         }
                         ResourceKey<Biome> biomeKey = Objects.requireNonNull(
-                                plan.biomeResolver().resolve(
+                                biomeResolver.resolve(
                                         volumeId,
                                         position.getX(),
                                         position.getY(),
