@@ -66,6 +66,29 @@ val tectonicVanillaReviewGameDirectory =
 val tectonicTreatmentReviewGameDirectory =
     layout.buildDirectory.dir("sf-imp-0054-tectonic/review-treatment").get().asFile
 
+fun configureReviewClientDistance(
+    targetGameDirectory: java.io.File,
+    renderDistance: Int,
+    simulationDistance: Int,
+) {
+    val optionsFile = targetGameDirectory.resolve("options.txt")
+    val existingOptions = if (optionsFile.isFile) optionsFile.readLines() else emptyList()
+    val desiredOptions = mapOf("renderDistance" to renderDistance, "simulationDistance" to simulationDistance)
+    val foundOptions = mutableSetOf<String>()
+    val stagedOptions = existingOptions.map { line ->
+        val key = line.substringBefore(':')
+        val desiredValue = desiredOptions[key]
+        if (desiredValue == null) {
+            line
+        } else {
+            foundOptions.add(key)
+            "$key:$desiredValue"
+        }
+    } + desiredOptions.filterKeys { it !in foundOptions }.map { (key, value) -> "$key:$value" }
+    optionsFile.parentFile.mkdirs()
+    optionsFile.writeText(stagedOptions.joinToString(System.lineSeparator(), postfix = System.lineSeparator()))
+}
+
 fun prepareTectonicReviewSave(
     taskName: String,
     sourceDirectory: String,
@@ -103,22 +126,7 @@ fun prepareTectonicReviewSave(
     doLast {
         // The CI artifact intentionally stores only the acceptance chunks. Generate a small
         // neighboring window on the local client so the owner sees a connected island surface.
-        val optionsFile = targetGameDirectory.resolve("options.txt")
-        val existingOptions = if (optionsFile.isFile) optionsFile.readLines() else emptyList()
-        val desiredOptions = mapOf("renderDistance" to 2, "simulationDistance" to 5)
-        val foundOptions = mutableSetOf<String>()
-        val stagedOptions = existingOptions.map { line ->
-            val key = line.substringBefore(':')
-            val desiredValue = desiredOptions[key]
-            if (desiredValue == null) {
-                line
-            } else {
-                foundOptions.add(key)
-                "$key:$desiredValue"
-            }
-        } + desiredOptions.filterKeys { it !in foundOptions }.map { (key, value) -> "$key:$value" }
-        optionsFile.parentFile.mkdirs()
-        optionsFile.writeText(stagedOptions.joinToString(System.lineSeparator(), postfix = System.lineSeparator()))
+        configureReviewClientDistance(targetGameDirectory, renderDistance = 2, simulationDistance = 5)
     }
 }
 
@@ -9756,9 +9764,12 @@ tasks.named("runModdedBiomePopulationReviewClient").configure {
 tasks.named("runAlphaClusterBiomePopulationReviewClient").configure {
     notCompatibleWithConfigurationCache("SF-IMP-1526 visual client uses the pinned Tectonic profile.")
     doFirst {
-        configureSfImp0054TectonicTreatment(
-            layout.projectDirectory.dir("run-sf-imp-1526-alpha-cluster-review").asFile,
-        )
+        val reviewGameDirectory = layout.projectDirectory.dir("run-sf-imp-1526-alpha-cluster-review").asFile
+        configureSfImp0054TectonicTreatment(reviewGameDirectory)
+        // Do not inherit a previously raised local view distance. At 32 chunks the integrated
+        // server generated thousands of surrounding chunks before this focused island review
+        // could be useful; 12 still shows the complete member surface at ordinary review scale.
+        configureReviewClientDistance(reviewGameDirectory, renderDistance = 12, simulationDistance = 8)
     }
 }
 
