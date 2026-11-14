@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -72,6 +73,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 : EXTERIOR_WITNESS_CHUNK;
     }
     private static final int PROVIDER_PREFLIGHT_QUART_STEP = 4;
+    private static final int PROVIDER_PREFLIGHT_SAMPLES_PER_TICK = 128;
     private static final int VEGETATION_SCAN_HEIGHT = 40;
     private static final int MAXIMUM_ATTACHMENT_DEPTH = 24;
     private static final System.Logger LOGGER =
@@ -93,6 +95,14 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
     private static String providerBiomeSourceClass = "not-sampled";
     private static List<String> providerBiomeSourcePossibleBiomes = List.of();
     private static final Set<Long> eligibleProofChunks = new HashSet<>();
+    private static final Map<Long, BlockPos> providerSpawnCandidates = new TreeMap<>(chunkKeyOrder());
+    private static List<ProviderBiomePreflightPoint> providerBiomePreflightPoints = List.of();
+    private static List<Long> providerSpawnCandidateChunkKeys = List.of();
+    private static int providerBiomePreflightCursor;
+    private static int providerSpawnCandidateCursor;
+    private static int providerBiomePreflightLastReportedPercent = -1;
+    private static boolean providerBiomePreflightInitialized;
+    private static boolean providerSpawnCandidateScanStarted;
     private static final Aggregate lowerAggregate = new Aggregate();
     private static final Aggregate upperAggregate = new Aggregate();
     private static final SkyforgeNativeSurfacePopulationCoordinator surfaceEcologyCoordinator =
@@ -125,7 +135,9 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
 
         try {
             requireTectonicProviderStack();
-            prepareProviderBiomeCandidates(level);
+            if (!advanceProviderBiomeCandidates(level)) {
+                return;
+            }
             if (providerProofChunkKeys.isEmpty() || providerReviewSpawn == null) {
                 SkyforgeAutomatedAcceptanceHarness.fail(
                     event.getServer(),
@@ -536,7 +548,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         }
     }
 
-    private static void prepareProviderBiomeCandidates(ServerLevel level) {
+    private static boolean advanceProviderBiomeCandidates(ServerLevel level) {
         List<SkyIslandWorldVolume> volumes = catalog().volumes();
         if (volumes.size() != 2) {
             throw new IllegalStateException("SF-IMP-0054 provider preflight requires exactly two island volumes");
@@ -544,96 +556,137 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         ChunkGenerator generator = level.getChunkSource().getGenerator();
         var providerBiomeSource = generator.getBiomeSource();
         var providerBiomeSampler = level.getChunkSource().randomState().sampler();
-        providerBiomeSourceClass = providerBiomeSource.getClass().getName();
-        providerBiomeSourcePossibleBiomes = providerBiomeSource.possibleBiomes().stream()
-                .map(holder -> holder.unwrapKey()
-                        .map(key -> key.location().toString())
-                        .orElse("unregistered"))
-                .sorted()
-                .toList();
-
-        for (SkyIslandWorldVolume volume : volumes) {
-            WorldBounds bounds = volume.bounds();
-            int minimumX = (int) Math.ceil(bounds.minimumX());
-            int maximumX = (int) Math.floor(bounds.maximumX());
-            int minimumZ = (int) Math.ceil(bounds.minimumZ());
-            int maximumZ = (int) Math.floor(bounds.maximumZ());
-            int firstX = Math.floorDiv(minimumX, PROVIDER_PREFLIGHT_QUART_STEP) * PROVIDER_PREFLIGHT_QUART_STEP;
-            int firstZ = Math.floorDiv(minimumZ, PROVIDER_PREFLIGHT_QUART_STEP) * PROVIDER_PREFLIGHT_QUART_STEP;
-            boolean providerIsland = volume.id().equals(volumes.get(1).id());
-            Map<Long, BlockPos> fieldCandidates = new TreeMap<>(chunkKeyOrder());
-
-            for (int worldX = firstX; worldX <= maximumX; worldX += PROVIDER_PREFLIGHT_QUART_STEP) {
-                for (int worldZ = firstZ; worldZ <= maximumZ; worldZ += PROVIDER_PREFLIGHT_QUART_STEP) {
-                    if (!bounds.contains(worldX, bounds.maximumY(), worldZ)) {
-                        continue;
-                    }
-                    var surface = SkyforgeNeoForge1211SurfaceStage.queryBaseHeightClaim(
-                            volume.id(),
-                            worldX,
-                            worldZ,
-                            Heightmap.Types.WORLD_SURFACE_WG,
-                            level.getMinBuildHeight(),
-                            level.getHeight());
-                    if (surface.isEmpty()) {
-                        continue;
-                    }
-                    int surfaceY = surface.orElseThrow().height();
-                    long chunkKey = new ChunkPos(worldX >> 4, worldZ >> 4).toLong();
-                    BlockPos sample = new BlockPos(worldX, surfaceY, worldZ);
-                    if (providerIsland) {
-                        providerProofChunkKeys.add(chunkKey);
-                        islandBiomeFieldChunkKeys.add(chunkKey);
-                        providerBiomePreflightSurfaceSamples = Math.addExact(
-                                providerBiomePreflightSurfaceSamples, 1);
-                        ResourceKey<Biome> sourceBiome = providerBiomeSource.getNoiseBiome(
-                                        QuartPos.fromBlock(worldX),
-                                        QuartPos.fromBlock(surfaceY),
-                                        QuartPos.fromBlock(worldZ),
-                                        providerBiomeSampler)
-                                .unwrapKey()
-                                .orElseThrow(() -> new IllegalStateException(
-                                        "active provider biome source returned an unregistered biome at preflight surface sample"));
-                        providerBiomePreflightDistribution.merge(
-                                sourceBiome.location().toString(), 1, Math::addExact);
-                        if (UPPER_BIOME.equals(sourceBiome)) {
-                            providerBiomePreflightTargetSamples = Math.addExact(
-                                    providerBiomePreflightTargetSamples, 1);
+        if (!providerBiomePreflightInitialized) {
+            providerBiomeSourceClass = providerBiomeSource.getClass().getName();
+            providerBiomeSourcePossibleBiomes = providerBiomeSource.possibleBiomes().stream()
+                    .map(holder -> holder.unwrapKey()
+                            .map(key -> key.location().toString())
+                            .orElse("unregistered"))
+                    .sorted()
+                    .toList();
+            List<ProviderBiomePreflightPoint> points = new ArrayList<>();
+            for (SkyIslandWorldVolume volume : volumes) {
+                WorldBounds bounds = volume.bounds();
+                int minimumX = (int) Math.ceil(bounds.minimumX());
+                int maximumX = (int) Math.floor(bounds.maximumX());
+                int minimumZ = (int) Math.ceil(bounds.minimumZ());
+                int maximumZ = (int) Math.floor(bounds.maximumZ());
+                int firstX = Math.floorDiv(minimumX, PROVIDER_PREFLIGHT_QUART_STEP)
+                        * PROVIDER_PREFLIGHT_QUART_STEP;
+                int firstZ = Math.floorDiv(minimumZ, PROVIDER_PREFLIGHT_QUART_STEP)
+                        * PROVIDER_PREFLIGHT_QUART_STEP;
+                boolean providerIsland = volume.id().equals(volumes.get(1).id());
+                for (int worldX = firstX; worldX <= maximumX; worldX += PROVIDER_PREFLIGHT_QUART_STEP) {
+                    for (int worldZ = firstZ; worldZ <= maximumZ; worldZ += PROVIDER_PREFLIGHT_QUART_STEP) {
+                        if (bounds.contains(worldX, bounds.maximumY(), worldZ)) {
+                            points.add(new ProviderBiomePreflightPoint(volume, worldX, worldZ, providerIsland));
                         }
-                    } else {
-                        forestProofChunkKeys.add(chunkKey);
                     }
                 }
             }
+            providerBiomePreflightPoints = List.copyOf(points);
+            providerBiomePreflightInitialized = true;
+            LOGGER.log(System.Logger.Level.INFO,
+                    "SF-IMP-1526 biome preflight started: surfaceProbes=" + providerBiomePreflightPoints.size()
+                            + ", batchLimit=" + PROVIDER_PREFLIGHT_SAMPLES_PER_TICK);
+        }
 
-            if (providerIsland) {
-                for (long chunkKey : providerProofChunkKeys) {
-                    ChunkPos chunkPos = new ChunkPos(chunkKey);
-                    int worldX = chunkPos.getMiddleBlockX();
-                    int worldZ = chunkPos.getMiddleBlockZ();
-                    var centerSurface = SkyforgeNeoForge1211SurfaceStage.queryBaseHeightClaim(
-                            volume.id(),
-                            worldX,
-                            worldZ,
-                            Heightmap.Types.WORLD_SURFACE_WG,
-                            level.getMinBuildHeight(),
-                            level.getHeight());
-                    if (centerSurface.isPresent()) {
-                        fieldCandidates.put(
-                                chunkKey,
-                                new BlockPos(worldX, centerSurface.orElseThrow().height(), worldZ));
-                    }
+        int processed = 0;
+        while (providerBiomePreflightCursor < providerBiomePreflightPoints.size()
+                && processed < PROVIDER_PREFLIGHT_SAMPLES_PER_TICK) {
+            ProviderBiomePreflightPoint point = providerBiomePreflightPoints.get(providerBiomePreflightCursor++);
+            processed++;
+            var surface = SkyforgeNeoForge1211SurfaceStage.queryBaseHeightClaim(
+                    point.volume().id(),
+                    point.worldX(),
+                    point.worldZ(),
+                    Heightmap.Types.WORLD_SURFACE_WG,
+                    level.getMinBuildHeight(),
+                    level.getHeight());
+            if (surface.isEmpty()) {
+                continue;
+            }
+            int surfaceY = surface.orElseThrow().height();
+            long chunkKey = new ChunkPos(point.worldX() >> 4, point.worldZ() >> 4).toLong();
+            if (point.providerIsland()) {
+                providerProofChunkKeys.add(chunkKey);
+                islandBiomeFieldChunkKeys.add(chunkKey);
+                providerBiomePreflightSurfaceSamples = Math.addExact(
+                        providerBiomePreflightSurfaceSamples, 1);
+                ResourceKey<Biome> sourceBiome = providerBiomeSource.getNoiseBiome(
+                                QuartPos.fromBlock(point.worldX()),
+                                QuartPos.fromBlock(surfaceY),
+                                QuartPos.fromBlock(point.worldZ()),
+                                providerBiomeSampler)
+                        .unwrapKey()
+                        .orElseThrow(() -> new IllegalStateException(
+                                "active provider biome source returned an unregistered biome at preflight surface sample"));
+                providerBiomePreflightDistribution.merge(sourceBiome.location().toString(), 1, Math::addExact);
+                if (UPPER_BIOME.equals(sourceBiome)) {
+                    providerBiomePreflightTargetSamples = Math.addExact(providerBiomePreflightTargetSamples, 1);
                 }
-                providerReviewSpawn = fieldCandidates.values().stream()
-                        .min(Comparator.comparingLong(SkyforgeNeoForge1211BiomePopulationDevRuntime::distanceFromProviderIslandCenter))
-                        .orElse(null);
+            } else {
+                forestProofChunkKeys.add(chunkKey);
             }
         }
 
+        int scanPercent = providerBiomePreflightPoints.isEmpty()
+                ? 100
+                : providerBiomePreflightCursor * 100 / providerBiomePreflightPoints.size();
+        if (scanPercent != providerBiomePreflightLastReportedPercent
+                && (scanPercent == 100 || scanPercent / 10 > providerBiomePreflightLastReportedPercent / 10)) {
+            providerBiomePreflightLastReportedPercent = scanPercent;
+            LOGGER.log(System.Logger.Level.INFO,
+                    "SF-IMP-1526 biome preflight surface scan: " + scanPercent + "% ("
+                            + providerBiomePreflightCursor + "/" + providerBiomePreflightPoints.size()
+                            + " probes; forestChunks=" + forestProofChunkKeys.size()
+                            + ", providerChunks=" + providerProofChunkKeys.size() + ")");
+        }
+        if (providerBiomePreflightCursor < providerBiomePreflightPoints.size()) {
+            return false;
+        }
+
+        if (!providerSpawnCandidateScanStarted) {
+            providerSpawnCandidateChunkKeys = List.copyOf(providerProofChunkKeys);
+            providerSpawnCandidateScanStarted = true;
+        }
+        int spawnCandidatesProcessed = 0;
+        SkyIslandWorldVolume providerVolume = volumes.get(1);
+        while (providerSpawnCandidateCursor < providerSpawnCandidateChunkKeys.size()
+                && spawnCandidatesProcessed < PROVIDER_PREFLIGHT_SAMPLES_PER_TICK) {
+            long chunkKey = providerSpawnCandidateChunkKeys.get(providerSpawnCandidateCursor++);
+            spawnCandidatesProcessed++;
+            ChunkPos chunkPos = new ChunkPos(chunkKey);
+            int worldX = chunkPos.getMiddleBlockX();
+            int worldZ = chunkPos.getMiddleBlockZ();
+            var centerSurface = SkyforgeNeoForge1211SurfaceStage.queryBaseHeightClaim(
+                    providerVolume.id(),
+                    worldX,
+                    worldZ,
+                    Heightmap.Types.WORLD_SURFACE_WG,
+                    level.getMinBuildHeight(),
+                    level.getHeight());
+            centerSurface.ifPresent(claim -> providerSpawnCandidates.put(
+                    chunkKey, new BlockPos(worldX, claim.height(), worldZ)));
+        }
+        if (providerSpawnCandidateCursor < providerSpawnCandidateChunkKeys.size()) {
+            int percent = providerSpawnCandidateChunkKeys.isEmpty()
+                    ? 100 : providerSpawnCandidateCursor * 100 / providerSpawnCandidateChunkKeys.size();
+            LOGGER.log(System.Logger.Level.INFO,
+                    "SF-IMP-1526 biome preflight spawn scan: " + percent + "% ("
+                            + providerSpawnCandidateCursor + "/" + providerSpawnCandidateChunkKeys.size()
+                            + " provider surface chunks)");
+            return false;
+        }
+        providerReviewSpawn = providerSpawnCandidates.values().stream()
+                .min(Comparator.comparingLong(
+                        SkyforgeNeoForge1211BiomePopulationDevRuntime::distanceFromProviderIslandCenter))
+                .orElse(null);
         if (forestProofChunkKeys.isEmpty() || providerProofChunkKeys.isEmpty()) {
             throw new IllegalStateException("SF-IMP-0054 full-surface preflight found an island without surface chunks: forest="
                     + forestProofChunkKeys.size() + ", provider=" + providerProofChunkKeys.size());
         }
+        return true;
     }
 
     private static Comparator<Long> chunkKeyOrder() {
@@ -1085,6 +1138,16 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             if (logBlocks < 0 || leafBlocks < 0) {
                 throw new IllegalArgumentException("vegetation evidence counts must be non-negative");
             }
+        }
+    }
+
+    private record ProviderBiomePreflightPoint(
+            SkyIslandWorldVolume volume,
+            int worldX,
+            int worldZ,
+            boolean providerIsland) {
+        private ProviderBiomePreflightPoint {
+            Objects.requireNonNull(volume, "volume");
         }
     }
 
